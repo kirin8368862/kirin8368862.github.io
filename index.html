@@ -46,7 +46,7 @@
 
         // --- 資料庫 (Data) ---
         
-        // 1. 委員/宮生繳費紀錄
+        // 1. 委員/宮生繳費紀錄 (Updated 115-1-3)
         const RecordData = [
             { group: "1", role: "宮生", name: "傅沛柔", date: "114年6月" },
             { group: "1", role: "宮生", name: "周義棠", date: "114年12月" },
@@ -68,8 +68,8 @@
             { group: "3", role: "宮生", name: "曾佳茵", date: "113年12月" },
             { group: "3", role: "委員", name: "戴日茂", date: "114年9月" },
             { group: "3", role: "宮生", name: "謝淨鞠", date: "114年9月" },
-            { group: "3", role: "宮生", name: "李銘楓", date: "未繳交" },
-            { group: "3", role: "宮生", name: "郭心榆", date: "未繳交" },
+            { group: "3", role: "宮生", name: "李銘楓", date: "未繳費" },
+            { group: "3", role: "宮生", name: "郭心榆", date: "未繳費" },
             { group: "4", role: "宮生", name: "徐文清", date: "114年12月" },
             { group: "4", role: "宮生", name: "羅安廷", date: "114年12月" },
             { group: "4", role: "宮生", name: "徐文潔", date: "114年12月" },
@@ -89,7 +89,7 @@
             { group: "7", role: "委員", name: "胡有昌", date: "114年12月" },
             { group: "7", role: "宮生", name: "薛紫羚", date: "114年12月" },
             { group: "7", role: "委員", name: "張錫卿", date: "115年3月" },
-            { group: "7", role: "委員", name: "王琳麒", date: "114年9月" },
+            { group: "7", role: "委員", name: "王琳麒", date: "115年3月" },
             { group: "7", role: "委員", name: "張志豪", date: "114年3月" },
             { group: "7", role: "宮生", name: "蕭淑云", date: "114年3月" },
             { group: "7", role: "宮生", name: "薛心媃", date: "114年9月" },
@@ -97,8 +97,8 @@
             { group: "7", role: "宮生", name: "王雅萍", date: "114年12月" },
             { group: "8", role: "宮生", name: "陳材欣", date: "114年11月" },
             { group: "8", role: "宮生", name: "蔡欣容", date: "114年6月" },
-            { group: "8", role: "宮生", name: "李心瑜", date: "114年12月" },
-            { group: "8", role: "宮生", name: "李金營", date: "114年12月" },
+            { group: "8", role: "宮生", name: "李心瑜", date: "115年2月" },
+            { group: "8", role: "宮生", name: "李金營", date: "115年2月" },
             { group: "8", role: "宮生", name: "張麗嬌", date: "114年12月" },
             { group: "8", role: "宮生", name: "劉玉珍", date: "114年12月" },
             { group: "8", role: "宮生", name: "蔡美娟", date: "114年9月" },
@@ -106,7 +106,7 @@
             { group: "9", role: "宮生", name: "葉歆筠", date: "115年4月" }
         ];
 
-        // 2. 安太歲資料 (Updated)
+        // 2. 安太歲資料
         const TaiSuiDataRaw = [
             {id:"1A1",n:"黃淑霞",r:1,p:0},{id:"1A10",n:"陳盈秀",r:1,p:0},{id:"1A11",n:"張桂華",r:1,p:1},{id:"1A12",n:"張友滕",r:1,p:0},
             {id:"1A13",n:"顏熏葶",r:1,p:0},{id:"1A14",n:"林妍懁",r:1,p:0},{id:"1A2",n:"林明毅",r:1,p:0},{id:"1A3",n:"張淑婷",r:1,p:0},
@@ -146,7 +146,7 @@
             {id:"1X11",n:"張芷緁",r:1,p:0},{id:"1X2",n:"粘淑英",r:1,p:0},{id:"1X21",n:"洪月卿",r:1,p:0},{id:"1X26",n:"潘況菀",r:1,p:0},
             {id:"1X27",n:"潘小琦",r:1,p:0},{id:"1X3",n:"張丞希",r:1,p:0},{id:"1X34",n:"黃明政",r:1,p:0},{id:"1X35",n:"陳氏梁",r:1,p:0},
             {id:"1X4",n:"張玉龍",r:1,p:0},{id:"1X42",n:"張仟嬟",r:1,p:0},{id:"1X43",n:"阮佳樺",r:1,p:0},{id:"1X6",n:"張羽潔",r:1,p:0},
-            {id:"1X7",n:"張兆葳",r:1,p:0},{id:"1X9",n:"張汝萱",r:1,p:0},{id:"1Y1",n:"范僑宴",r:1,p:0},{id:"1Y15",n:"章偉民",r:1,p:0},
+            {id:"1X7",n:"張兆葳",r:1,p:0},{id:"1X8",n:"張兆辰",t:2,r:1,p:0},{id:"1X9",n:"張汝萱",r:1,p:0},{id:"1Y1",n:"范僑宴",r:1,p:0},{id:"1Y15",n:"章偉民",r:1,p:0},
             {id:"1Y16",n:"吳岱諮",r:1,p:0},{id:"1Y17",n:"章葳",r:1,p:0},{id:"1Y18",n:"章宸",r:1,p:0},{id:"1Y19",n:"盧游鳳",r:1,p:1},
             {id:"1Y2",n:"林宸矓",r:1,p:0},{id:"1Y20",n:"陳怡秀",r:1,p:1},{id:"1Y21",n:"陳盈茹",r:1,p:1},{id:"1Y22",n:"陳盈萱",r:1,p:1},
             {id:"1Y51",n:"吳宗明",r:1,p:0},{id:"1Z1",n:"劉淑婷",r:1,p:0},{id:"1Z18",n:"張習",r:1,p:0},{id:"1Z19",n:"張彥苡",r:1,p:0},
@@ -171,7 +171,7 @@
         // 排序安太歲資料
         const TaiSuiData = TaiSuiDataRaw.sort(sortById);
 
-        // 3. 光明燈資料 (Updated)
+        // 3. 光明燈資料
         const LightDataRaw = [
             // 上層
             {id:"1B10",n:"游宇閎",t:1,r:1,p:1},{id:"1B7",n:"游建薪",t:1,r:1,p:1},{id:"1B8",n:"張佳芸",t:1,r:1,p:1},
@@ -279,7 +279,8 @@
             const [searchTerm, setSearchTerm] = useState("");
             const [showSuggestions, setShowSuggestions] = useState(false);
             const [filterRole, setFilterRole] = useState("ALL"); 
-            const [lightFilterType, setLightFilterType] = useState("ALL"); // ALL, UPPER, LOWER
+            const [lightFilterType, setLightFilterType] = useState("ALL"); // ALL, UPPER, LOWER, UNPAID, PAID
+            const [taiSuiFilterType, setTaiSuiFilterType] = useState("ALL"); // ALL, UNPAID, PAID
             
             // 登入狀態 (委員/宮生)
             const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -288,7 +289,7 @@
 
             const handleLogin = (e) => {
                 e.preventDefault();
-                if (inputPassword === "296") { // Password: 296
+                if (inputPassword === "296296") { // Password: 296296
                     setIsLoggedIn(true);
                     setLoginError(false);
                 } else {
@@ -322,8 +323,15 @@
 
             const taiSuiStats = useMemo(() => ({
                 reg: taiSuiFiltered.filter(i => i.r === 1).length,
-                paid: taiSuiFiltered.filter(i => i.p === 1).length
+                paid: taiSuiFiltered.filter(i => i.p === 1).length,
+                unpaid: taiSuiFiltered.filter(i => i.p === 0).length
             }), [taiSuiFiltered]);
+
+            const taiSuiDisplay = useMemo(() => {
+                if (taiSuiFilterType === 'UNPAID') return taiSuiFiltered.filter(i => i.p === 0);
+                if (taiSuiFilterType === 'PAID') return taiSuiFiltered.filter(i => i.p === 1);
+                return taiSuiFiltered;
+            }, [taiSuiFiltered, taiSuiFilterType]);
 
             // -- 資料邏輯: 光明燈 --
             const lightFiltered = useMemo(() => {
@@ -335,7 +343,8 @@
                 totalReg: lightFiltered.filter(i => i.r === 1).length,
                 upperReg: lightFiltered.filter(i => i.t === 1 && i.r === 1).length,
                 lowerReg: lightFiltered.filter(i => i.t === 2 && i.r === 1).length,
-                paid: lightFiltered.filter(i => i.p === 1).length
+                paid: lightFiltered.filter(i => i.p === 1).length,
+                unpaid: lightFiltered.filter(i => i.p === 0).length
             }), [lightFiltered]);
 
             const lightDisplay = useMemo(() => {
@@ -344,6 +353,10 @@
                     data = data.filter(item => item.t === 1);
                 } else if (lightFilterType === 'LOWER') {
                     data = data.filter(item => item.t === 2);
+                } else if (lightFilterType === 'UNPAID') {
+                    data = data.filter(item => item.p === 0);
+                } else if (lightFilterType === 'PAID') {
+                    data = data.filter(item => item.p === 1);
                 }
                 // 'ALL' returns all data
                 return data;
@@ -382,7 +395,7 @@
             // 渲染列表: 安太歲
             const renderTaiSuiList = () => (
                 <div className="space-y-2 fade-in">
-                    {taiSuiFiltered.length > 0 ? taiSuiFiltered.map((item, idx) => (
+                    {taiSuiDisplay.length > 0 ? taiSuiDisplay.map((item, idx) => (
                         <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 {item.id ? (
@@ -462,7 +475,7 @@
                         
                         {/* 頁籤選單 (Order: 安太歲 -> 光明燈 -> 委員/宮生) */}
                         <div className="flex bg-blue-700">
-                            <button onClick={() => { setActiveTab('taisui'); setSearchTerm(""); }} className={`flex-1 py-4 text-xl font-bold transition-colors ${activeTab === 'taisui' ? 'bg-white text-blue-800' : 'text-blue-100 hover:bg-blue-600'}`}>
+                            <button onClick={() => { setActiveTab('taisui'); setSearchTerm(""); setTaiSuiFilterType("ALL"); }} className={`flex-1 py-4 text-xl font-bold transition-colors ${activeTab === 'taisui' ? 'bg-white text-blue-800' : 'text-blue-100 hover:bg-blue-600'}`}>
                                 安太歲
                             </button>
                             <button onClick={() => { setActiveTab('light'); setSearchTerm(""); setLightFilterType("ALL"); }} className={`flex-1 py-4 text-xl font-bold transition-colors ${activeTab === 'light' ? 'bg-white text-blue-800' : 'text-blue-100 hover:bg-blue-600'}`}>
@@ -489,6 +502,7 @@
                                         setShowSuggestions(true);
                                         setFilterRole("ALL");
                                         setLightFilterType("ALL");
+                                        setTaiSuiFilterType("ALL");
                                     }}
                                     onFocus={() => { if(searchTerm) setShowSuggestions(true); }}
                                 />
@@ -520,19 +534,22 @@
                         {/* 2. 安太歲頁面 (預設顯示) */}
                         {activeTab === 'taisui' && (
                             <div className="fade-in">
-                                {/* 安太歲統計 */}
-                                <div className="bg-rose-50 rounded-xl p-4 shadow-inner border border-rose-100 mb-4 flex justify-around">
-                                    <div className="text-center">
-                                        <div className="text-lg text-rose-500 font-bold mb-1">登記人數</div>
-                                        <div className="text-4xl font-black text-rose-600">{taiSuiStats.reg}</div>
-                                    </div>
-                                    <div className="w-px bg-rose-200"></div>
-                                    <div className="text-center">
-                                        <div className="text-lg text-rose-500 font-bold mb-1">已繳費人數</div>
-                                        <div className="text-4xl font-black text-rose-600">{taiSuiStats.paid}</div>
-                                    </div>
+                                {/* 安太歲統計與篩選 (可點擊) */}
+                                <div className="bg-rose-50 rounded-xl p-3 shadow-inner border border-rose-100 mb-4 flex justify-between gap-2 overflow-x-auto">
+                                    <button onClick={() => setTaiSuiFilterType('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'ALL' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-white text-rose-500 border-rose-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">登記總數</span>
+                                        <span className="text-3xl font-black">{taiSuiStats.reg}</span>
+                                    </button>
+                                    <button onClick={() => setTaiSuiFilterType('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span>
+                                        <span className="text-3xl font-black">{taiSuiStats.paid}</span>
+                                    </button>
+                                    <button onClick={() => setTaiSuiFilterType('UNPAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span>
+                                        <span className="text-3xl font-black">{taiSuiStats.unpaid}</span>
+                                    </button>
                                 </div>
-                                <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 114-12-31</div>
+                                <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 115-1-3</div>
                                 {renderTaiSuiList()}
                             </div>
                         )}
@@ -540,26 +557,30 @@
                         {/* 3. 光明燈頁面 */}
                         {activeTab === 'light' && (
                             <div className="fade-in">
-                                {/* 光明燈互動式統計 */}
-                                <div className="bg-amber-50 rounded-xl p-3 shadow-inner border border-amber-100 mb-4 flex justify-between gap-2 overflow-x-auto">
-                                    <button onClick={() => setLightFilterType('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${lightFilterType === 'ALL' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-white text-slate-500 border-amber-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">登記總數</span>
-                                        <span className="text-3xl font-black">{lightStats.totalReg}</span>
+                                {/* 光明燈互動式統計與篩選 (含未繳費) */}
+                                <div className="bg-amber-50 rounded-xl p-3 shadow-inner border border-amber-100 mb-4 flex justify-between gap-2 overflow-x-auto min-w-full">
+                                    <button onClick={() => setLightFilterType('ALL')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'ALL' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-white text-slate-500 border-amber-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">登記總數</span>
+                                        <span className="text-2xl font-black">{lightStats.totalReg}</span>
                                     </button>
-                                    <button onClick={() => setLightFilterType('UPPER')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${lightFilterType === 'UPPER' ? 'bg-amber-500 text-white border-amber-500 shadow-md' : 'bg-white text-amber-700 border-amber-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">上層登記</span>
-                                        <span className="text-3xl font-black">{lightStats.upperReg}</span>
+                                    <button onClick={() => setLightFilterType('UPPER')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'UPPER' ? 'bg-amber-500 text-white border-amber-500 shadow-md' : 'bg-white text-amber-700 border-amber-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">上層登記</span>
+                                        <span className="text-2xl font-black">{lightStats.upperReg}</span>
                                     </button>
-                                    <button onClick={() => setLightFilterType('LOWER')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${lightFilterType === 'LOWER' ? 'bg-indigo-500 text-white border-indigo-500 shadow-md' : 'bg-white text-indigo-700 border-indigo-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">下層登記</span>
-                                        <span className="text-3xl font-black">{lightStats.lowerReg}</span>
+                                    <button onClick={() => setLightFilterType('LOWER')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'LOWER' ? 'bg-indigo-500 text-white border-indigo-500 shadow-md' : 'bg-white text-indigo-700 border-indigo-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">下層登記</span>
+                                        <span className="text-2xl font-black">{lightStats.lowerReg}</span>
                                     </button>
-                                    <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border bg-emerald-50 border-emerald-100">
-                                        <span className="text-base text-emerald-600 font-bold mb-1 whitespace-nowrap">已繳費</span>
-                                        <span className="text-3xl font-black text-emerald-600">{lightStats.paid}</span>
-                                    </div>
+                                    <button onClick={() => setLightFilterType('PAID')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span>
+                                        <span className="text-2xl font-black">{lightStats.paid}</span>
+                                    </button>
+                                    <button onClick={() => setLightFilterType('UNPAID')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span>
+                                        <span className="text-2xl font-black">{lightStats.unpaid}</span>
+                                    </button>
                                 </div>
-                                <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 114-12-31</div>
+                                <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 115-1-3</div>
                                 {renderLightList()}
                             </div>
                         )}
@@ -611,12 +632,12 @@
                                                 <span className="text-3xl font-bold">{recordStats.student}</span>
                                             </button>
                                         </div>
-                                        <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 114-12-28</div>
+                                        <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 115-1-3</div>
                                         {/* 列表 */}
                                         <div className="space-y-2">
                                             {recordDisplay.length > 0 ? recordDisplay.map((item, index) => (
                                                 <div key={index} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-1 relative overflow-hidden group">
-                                                    <div className={`absolute left-0 top-0 bottom-0 w-2 ${item.date === "未繳交" ? 'bg-red-500' : item.role === '委員' ? 'bg-amber-400' : 'bg-blue-500'}`}></div>
+                                                    <div className={`absolute left-0 top-0 bottom-0 w-2 ${item.date === "未繳交" || item.date === "未繳費" ? 'bg-red-500' : item.role === '委員' ? 'bg-amber-400' : 'bg-blue-500'}`}></div>
                                                     <div className="flex justify-between items-center pl-2">
                                                         <div className="flex items-center gap-3">
                                                             <div>
@@ -629,9 +650,9 @@
                                                         </div>
                                                         <div className="text-right">
                                                             <div className="text-sm text-slate-400 font-medium mb-0.5">繳費至</div>
-                                                            <div className={`text-xl font-bold flex items-center justify-end gap-1 ${item.date === '未繳交' ? 'text-red-600' : item.date.includes('113') ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                                            <div className={`text-xl font-bold flex items-center justify-end gap-1 ${item.date === '未繳交' || item.date === '未繳費' ? 'text-red-600' : item.date.includes('113') ? 'text-orange-600' : 'text-emerald-600'}`}>
                                                                 {item.date}
-                                                                {item.date === '未繳交' && <span className="flex h-3 w-3 relative ml-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>}
+                                                                {(item.date === '未繳交' || item.date === '未繳費') && <span className="flex h-3 w-3 relative ml-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>}
                                                             </div>
                                                         </div>
                                                     </div>
