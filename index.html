@@ -14,6 +14,8 @@
         * { -webkit-tap-highlight-color: transparent; }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
     </style>
 </head>
 <body class="bg-slate-50">
@@ -26,14 +28,17 @@
         const sortById = (a, b) => {
             if (!a.id || !b.id) return 0;
             
+            // 比較第一碼數字
             const firstA = a.id[0];
             const firstB = b.id[0];
             if (firstA !== firstB) return firstA.localeCompare(firstB);
 
+            // 比較第二碼字母
             const secondA = a.id[1];
             const secondB = b.id[1];
             if (secondA !== secondB) return secondA.localeCompare(secondB);
 
+            // 比較剩餘的數字部分
             const restA = parseInt(a.id.slice(2), 10);
             const restB = parseInt(b.id.slice(2), 10);
             return restA - restB;
@@ -101,96 +106,80 @@
             { group: "9", role: "宮生", name: "葉歆筠", date: "115年4月" }
         ];
 
-        // 2. 安太歲資料 (updated)
+        // 2. 安太歲資料 (Updated)
         const TaiSuiDataRaw = [
-            {id:"1A1",n:"黃淑霞",r:1,p:0},{id:"1A11",n:"張桂華",r:1,p:1},{id:"1A13",n:"顏熏葶",r:1,p:0},
-            {id:"1A14",n:"林妍懁",r:1,p:0},{id:"1A2",n:"林明毅",r:1,p:0},{id:"1A3",n:"張淑婷",r:1,p:0},
-            {id:"1A32",n:"林青伭",r:1,p:0},{id:"1A4",n:"林松賢",r:1,p:0},{id:"1A5",n:"林慧宓",r:1,p:0},
-            {id:"1A6",n:"林良宇",r:1,p:0},{id:"1A7",n:"張永炘",r:1,p:0},{id:"1A8",n:"張高瓊珠",r:1,p:0},
-            {id:"1B1",n:"石林秀梅",r:1,p:0},{id:"1B10",n:"游宇閎",r:1,p:1},{id:"1B2",n:"石上助",r:1,p:0},
-            {id:"1B3",n:"張淑媛",r:1,p:0},{id:"1B4",n:"石加靖",r:1,p:0},{id:"1B5",n:"石嘉宸",r:1,p:0},
-            {id:"1B7",n:"游建薪",r:1,p:1},{id:"1B8",n:"張佳芸",r:1,p:1},{id:"1B9",n:"游少均",r:1,p:1},
-            {id:"1C1",n:"蔡林花",r:1,p:0},{id:"1C13",n:"張民發",r:1,p:1},{id:"1C14",n:"蕭美柳",r:1,p:1},
-            {id:"1C15",n:"張郁婕",r:1,p:1},{id:"1C16",n:"張玉莉",r:1,p:1},{id:"1C17",n:"蔡昇鴻",r:1,p:1},
-            {id:"1C18",n:"蔡宛錡",r:1,p:1},{id:"1C19",n:"陳鋅錕",r:1,p:0},{id:"1C2",n:"蔡照能",r:1,p:0},
-            {id:"1C20",n:"張瑜銣",r:1,p:0},{id:"1C21",n:"陳涵鈺",r:1,p:0},{id:"1C22",n:"陳得吉",r:1,p:0},
-            {id:"1C24",n:"簡棠威",r:1,p:0},{id:"1C25",n:"簡茈柃",r:1,p:0},{id:"1C26",n:"蔡承佑",r:1,p:1},
-            {id:"1C27",n:"李美華",r:1,p:0},{id:"1C28",n:"吳湘喆",r:1,p:0},{id:"1C29",n:"黃怡萍",r:1,p:0},
-            {id:"1C3",n:"林秀娟",r:1,p:0},{id:"1C4",n:"蔡湘妤",r:1,p:0},{id:"1C5",n:"蔡承翰",r:1,p:0},
-            {id:"1D3",n:"張朝勇",r:1,p:0},{id:"1D4",n:"吳怡君",r:1,p:0},{id:"1D5",n:"張云宣",r:1,p:0},
-            {id:"1D6",n:"張緯誼",r:1,p:0},{id:"1E1",n:"李金紗",r:1,p:0},{id:"1E2",n:"劉建榮",r:1,p:0},
-            {id:"1E3",n:"劉坤瑋",r:1,p:0},{id:"1E4",n:"劉佳宜",r:1,p:0},{id:"1E5",n:"楊紹鑫",r:1,p:1},
-            {id:"1E6",n:"劉雅庭",r:1,p:1},{id:"1E7",n:"楊博顯",r:1,p:1},{id:"1E8",n:"楊蕍嬬",r:1,p:1},
-            {id:"1F11",n:"陳如萍",r:1,p:0},{id:"1F2",n:"黃純堂",r:1,p:0},{id:"1F3",n:"黎虹順",r:1,p:0},
-            {id:"1F8",n:"黃伊苓",r:1,p:0},{id:"1G1",n:"傅森林",r:1,p:0},{id:"1G2",n:"傅祥祐",r:1,p:0},
-            {id:"1G23",n:"陳凱威",r:1,p:0},{id:"1G3",n:"傅士峯",r:1,p:0},{id:"1G4",n:"林麗娟",r:1,p:0},
-            {id:"1G5",n:"傅霈柔",r:1,p:0},{id:"1G6",n:"周寀瑩",r:1,p:0},{id:"1G7",n:"周家宏",r:1,p:0},
-            {id:"1G8",n:"周義棠",r:1,p:0},{id:"1H1",n:"戴日茂",r:1,p:0},{id:"1H2",n:"謝淨鞠",r:1,p:0},
-            {id:"1H3",n:"戴緯綾",r:1,p:0},{id:"1H4",n:"戴珮羽",r:1,p:0},{id:"1J1",n:"張永坤",r:1,p:0},
-            {id:"1J2",n:"劉玉珍",r:1,p:0},{id:"1J5",n:"陳紹鴻",r:1,p:0},{id:"1L1",n:"李心瑜",r:1,p:0},
-            {id:"1L4",n:"李金營",r:1,p:0},{id:"1L5",n:"李汶蒨",r:1,p:0},{id:"1R1",n:"張麗珠",r:1,p:0},
-            {id:"1R3",n:"林清華",r:1,p:0},{id:"1R4",n:"林清祥",r:1,p:0},{id:"1S1",n:"張麗香",r:1,p:0},
-            {id:"1S2",n:"王士榕",r:1,p:0},{id:"1S3",n:"王俊傑",r:1,p:0},{id:"1S4",n:"王耘蓉",r:1,p:0},
-            {id:"1S5",n:"張家豪",r:1,p:0},{id:"1S6",n:"張煜彤",r:1,p:0},{id:"1S7",n:"張碩鈞",r:1,p:0},
-            {id:"1T1",n:"張麗嬌",r:1,p:0},{id:"1T10",n:"蔡欣怡",r:1,p:0},{id:"1T11",n:"洪國文",r:1,p:0},
-            {id:"1T12",n:"洪佑琪",r:1,p:0},{id:"1T13",n:"洪柏瑞",r:1,p:0},{id:"1T14",n:"洪文勲",r:1,p:0},
-            {id:"1T15",n:"林香",r:1,p:0},{id:"1T18",n:"洪國展",r:1,p:0},{id:"1T19",n:"鍾佳芳",r:1,p:0},
-            {id:"1T2",n:"陳材欣",r:1,p:0},{id:"1T3",n:"蔡欣容",r:1,p:0},{id:"1T4",n:"陳丞頡",r:1,p:0},
-            {id:"1T5",n:"陳兆賢",r:1,p:0},{id:"1T6",n:"陳佳芊",r:1,p:0},{id:"1T7",n:"陳韋勝",r:1,p:0},
-            {id:"1T8",n:"許惟婷",r:1,p:0},{id:"1T9",n:"陳昕廷",r:1,p:0},{id:"1U1",n:"陳春宇",r:1,p:0},
-            {id:"1U10",n:"陳巧雯",r:1,p:0},{id:"1U11",n:"陳欣妮",r:1,p:0},{id:"1U12",n:"陳婕恩",r:1,p:0},
-            {id:"1U13",n:"林于勝",r:1,p:0},{id:"1U14",n:"陳兆甫",r:1,p:0},{id:"1U2",n:"張英粧",r:1,p:0},
-            {id:"1U3",n:"陳明智",r:1,p:0},{id:"1U4",n:"陳巧伶",r:1,p:0},{id:"1U5",n:"陳巧萍",r:1,p:0},
-            {id:"1U6",n:"陳俞雯",r:1,p:0},{id:"1U7",n:"陳庭婕",r:1,p:0},{id:"1U8",n:"陳宥恩",r:1,p:0},
-            {id:"1U9",n:"陳冠翔",r:1,p:0},{id:"1V1",n:"楊瑛豪",r:1,p:1},{id:"1V10",n:"楊宗修",r:1,p:0},
-            {id:"1V11",n:"徐文潔",r:1,p:0},{id:"1V12",n:"楊承彧",r:1,p:0},{id:"1V13",n:"楊侑澤",r:1,p:0},
-            {id:"1V14",n:"徐續源",r:1,p:0},{id:"1V15",n:"楊宗凱",r:1,p:0},{id:"1V16",n:"楊盈嫺",r:1,p:0},
-            {id:"1V17",n:"楊雨蓁",r:1,p:0},{id:"1V18",n:"徐文娟",r:1,p:0},{id:"1V2",n:"張素真",r:1,p:1},
-            {id:"1V3",n:"楊博翔",r:1,p:1},{id:"1V4",n:"楊弘聖",r:1,p:1},{id:"1V5",n:"楊再添",r:1,p:1},
-            {id:"1V6",n:"羅安廷",r:1,p:0},{id:"1V7",n:"徐文清",r:1,p:0},{id:"1V8",n:"羅立泓",r:1,p:0},
-            {id:"1V9",n:"羅宇佑",r:1,p:0},{id:"1X1",n:"張如羊",r:1,p:0},{id:"1X2",n:"粘淑英",r:1,p:0},
-            {id:"1X21",n:"洪月卿",r:1,p:0},{id:"1X26",n:"潘況菀",r:1,p:0},{id:"1X27",n:"潘小琦",r:1,p:0},
-            {id:"1X34",n:"黃明政",r:1,p:0},{id:"1X4",n:"張玉龍",r:1,p:0},{id:"1X43",n:"阮佳樺",r:1,p:0},
-            {id:"1Y1",n:"范僑宴",r:1,p:0},{id:"1Y15",n:"章偉民",r:1,p:0},{id:"1Y16",n:"吳岱諮",r:1,p:0},
-            {id:"1Y17",n:"章葳",r:1,p:0},{id:"1Y18",n:"章宸",r:1,p:0},{id:"1Y19",n:"盧游鳳",r:1,p:1},
-            {id:"1Y2",n:"林宸矓",r:1,p:0},{id:"1Y20",n:"陳怡秀",r:1,p:1},{id:"1Y21",n:"陳盈茹",r:1,p:1},
-            {id:"1Y22",n:"陳盈萱",r:1,p:1},{id:"1Y51",n:"吳宗明",r:1,p:0},{id:"1Z1",n:"劉淑婷",r:1,p:0},
-            {id:"1Z18",n:"張習",r:1,p:0},{id:"1Z19",n:"張彥苡",r:1,p:0},{id:"1Z2",n:"蔡子芸",r:1,p:0},
-            {id:"1Z3",n:"劉昌利",r:1,p:0},{id:"1Z4",n:"劉陳蔥",r:1,p:0},{id:"1Z5",n:"張明凱",r:1,p:0},
-            {id:"1Z6",n:"林佳螢",r:1,p:0},{id:"1Z7",n:"張煒謙",r:1,p:0},{id:"1Z9",n:"楊宏義",r:1,p:0},
-            {id:"2A10",n:"廖希令",r:1,p:1},{id:"2A7",n:"鍾曉芳",r:1,p:1},{id:"2A8",n:"廖文吉",r:1,p:1},
-            {id:"2A9",n:"廖希桓",r:1,p:1},{id:"2E1",n:"陳美臻",r:1,p:0},{id:"2E2",n:"巫品嘉",r:1,p:0},
-            {id:"2E3",n:"巫沛萱",r:1,p:0},{id:"2E4",n:"林甄蒂",r:1,p:0},{id:"2E5",n:"邱宣呈",r:1,p:0},
-            {id:"2P1",n:"吳金墩",r:1,p:1},{id:"2P2",n:"薛滿祝",r:1,p:1},{id:"2P3",n:"陳耀宏",r:1,p:1},
-            {id:"2P4",n:"薛心媃",r:1,p:1},{id:"2P5",n:"陳金辰",r:1,p:1},{id:"2P6",n:"胡有昌",r:1,p:1},
-            {id:"2P7",n:"薛紫羚",r:1,p:1},{id:"2P8",n:"胡辰憬",r:1,p:1},{id:"2P9",n:"蔡孟君",r:1,p:1},
-            {id:"2R1",n:"邱世明",r:1,p:0},{id:"2R2",n:"黃小芬",r:1,p:0},{id:"2R3",n:"邱竑華",r:1,p:0},
-            {id:"2R4",n:"黃琬筑",r:1,p:0},{id:"2S1",n:"徐會然",r:1,p:0},{id:"2S2",n:"王雅萍",r:1,p:0},
-            {id:"2S3",n:"徐翊緁",r:1,p:0},{id:"2S4",n:"徐昀彤",r:1,p:0},{id:"2S5",n:"張秀專",r:1,p:0},
-            {id:"2S6",n:"王慶文",r:1,p:0},{id:"2S7",n:"薛秀蜜",r:1,p:0},{id:"2T1",n:"張錫卿",r:1,p:1},
-            {id:"2T10",n:"張志豪",r:1,p:0},{id:"2T2",n:"初盈潔",r:1,p:1},{id:"2T3",n:"張景棠",r:1,p:1},
-            {id:"2T4",n:"張景崴",r:1,p:1},{id:"2T5",n:"黃淑蓉",r:1,p:1},{id:"2T6",n:"張志郎",r:1,p:1},
-            {id:"2T7",n:"王琳麒",r:1,p:1},{id:"2T8",n:"劉琬茜",r:1,p:1},{id:"2T9",n:"蕭淑云",r:1,p:0},
-            {id:"2U1",n:"林建榮",r:1,p:0},{id:"2U2",n:"葉歆筠",r:1,p:0},{id:"2U3",n:"林秉義",r:1,p:0},
-            {id:"2U4",n:"林姿羽",r:1,p:0},{id:"2U5",n:"施淑梨",r:1,p:0},{id:"2U6",n:"林羿彣",r:1,p:0},
-            {id:"2W1",n:"黃大仁",r:1,p:0},{id:"2W12",n:"王祥麟",r:1,p:0},{id:"2W2",n:"賴莉莉",r:1,p:0},
-            {id:"2W3",n:"賴瑞隆",r:1,p:0},{id:"2W4",n:"陳素華",r:1,p:0},{id:"2W5",n:"程皖兒",r:1,p:0},
-            {id:"2W6",n:"程琳",r:1,p:0},{id:"2X1",n:"康慶中",r:1,p:1},{id:"2X2",n:"張小燕",r:1,p:1},
-            {id:"2X23",n:"康丞勲",r:1,p:1},{id:"2X3",n:"康家瑋",r:1,p:1},{id:"2X4",n:"康雅婷",r:1,p:1},
+            {id:"1A1",n:"黃淑霞",r:1,p:0},{id:"1A10",n:"陳盈秀",r:1,p:0},{id:"1A11",n:"張桂華",r:1,p:1},{id:"1A12",n:"張友滕",r:1,p:0},
+            {id:"1A13",n:"顏熏葶",r:1,p:0},{id:"1A14",n:"林妍懁",r:1,p:0},{id:"1A2",n:"林明毅",r:1,p:0},{id:"1A3",n:"張淑婷",r:1,p:0},
+            {id:"1A32",n:"林青伭",r:1,p:0},{id:"1A4",n:"林松賢",r:1,p:0},{id:"1A5",n:"林慧宓",r:1,p:0},{id:"1A6",n:"林良宇",r:1,p:0},
+            {id:"1A7",n:"張永炘",r:1,p:0},{id:"1A8",n:"張高瓊珠",r:1,p:0},{id:"1A9",n:"張為舜",r:1,p:0},{id:"1B1",n:"石林秀梅",r:1,p:0},
+            {id:"1B10",n:"游宇閎",r:1,p:1},{id:"1B2",n:"石上助",r:1,p:0},{id:"1B3",n:"張淑媛",r:1,p:0},{id:"1B4",n:"石加靖",r:1,p:0},
+            {id:"1B5",n:"石嘉宸",r:1,p:0},{id:"1B7",n:"游建薪",r:1,p:1},{id:"1B8",n:"張佳芸",r:1,p:1},{id:"1B9",n:"游少均",r:1,p:1},
+            {id:"1C1",n:"蔡林花",r:1,p:0},{id:"1C13",n:"張民發",r:1,p:1},{id:"1C14",n:"蕭美柳",r:1,p:1},{id:"1C15",n:"張郁婕",r:1,p:1},
+            {id:"1C16",n:"張玉莉",r:1,p:1},{id:"1C17",n:"蔡昇鴻",r:1,p:1},{id:"1C18",n:"蔡宛錡",r:1,p:1},{id:"1C19",n:"陳鋅錕",r:1,p:0},
+            {id:"1C2",n:"蔡照能",r:1,p:0},{id:"1C20",n:"張瑜銣",r:1,p:0},{id:"1C21",n:"陳涵鈺",r:1,p:0},{id:"1C22",n:"陳得吉",r:1,p:0},
+            {id:"1C24",n:"簡棠威",r:1,p:0},{id:"1C25",n:"簡茈柃",r:1,p:0},{id:"1C26",n:"蔡承佑",r:1,p:1},{id:"1C27",n:"李美華",r:1,p:0},
+            {id:"1C28",n:"吳湘喆",r:1,p:0},{id:"1C29",n:"黃怡萍",r:1,p:0},{id:"1C3",n:"林秀娟",r:1,p:0},{id:"1C4",n:"蔡湘妤",r:1,p:0},
+            {id:"1C5",n:"蔡承翰",r:1,p:0},{id:"1D3",n:"張朝勇",r:1,p:0},{id:"1D4",n:"吳怡君",r:1,p:0},{id:"1D5",n:"張云宣",r:1,p:0},
+            {id:"1D6",n:"張緯誼",r:1,p:0},{id:"1E1",n:"李金紗",r:1,p:0},{id:"1E2",n:"劉建榮",r:1,p:0},{id:"1E3",n:"劉坤瑋",r:1,p:0},
+            {id:"1E4",n:"劉佳宜",r:1,p:0},{id:"1E5",n:"楊紹鑫",r:1,p:1},{id:"1E6",n:"劉雅庭",r:1,p:1},{id:"1E7",n:"楊博顯",r:1,p:1},
+            {id:"1E8",n:"楊蕍嬬",r:1,p:1},{id:"1F11",n:"陳如萍",r:1,p:0},{id:"1F2",n:"黃純堂",r:1,p:0},{id:"1F3",n:"黎虹順",r:1,p:0},
+            {id:"1F8",n:"黃伊苓",r:1,p:0},{id:"1G1",n:"傅森林",r:1,p:0},{id:"1G2",n:"傅祥祐",r:1,p:0},{id:"1G23",n:"陳凱威",r:1,p:0},
+            {id:"1G3",n:"傅士峯",r:1,p:0},{id:"1G4",n:"林麗娟",r:1,p:0},{id:"1G5",n:"傅霈柔",r:1,p:0},{id:"1G6",n:"周寀瑩",r:1,p:0},
+            {id:"1G7",n:"周家宏",r:1,p:0},{id:"1G8",n:"周義棠",r:1,p:0},{id:"1H1",n:"戴日茂",r:1,p:0},{id:"1H2",n:"謝淨鞠",r:1,p:0},
+            {id:"1H3",n:"戴緯綾",r:1,p:0},{id:"1H4",n:"戴珮羽",r:1,p:0},{id:"1J1",n:"張永坤",r:1,p:0},{id:"1J2",n:"劉玉珍",r:1,p:0},
+            {id:"1J5",n:"陳紹鴻",r:1,p:0},{id:"1L1",n:"李心瑜",r:1,p:1},{id:"1L4",n:"李金營",r:1,p:1},{id:"1L5",n:"李汶蒨",r:1,p:1},
+            {id:"1R1",n:"張麗珠",r:1,p:0},{id:"1R3",n:"林清華",r:1,p:0},{id:"1R4",n:"林清祥",r:1,p:0},{id:"1S1",n:"張麗香",r:1,p:0},
+            {id:"1S2",n:"王士榕",r:1,p:0},{id:"1S3",n:"王俊傑",r:1,p:0},{id:"1S4",n:"王耘蓉",r:1,p:0},{id:"1S5",n:"張家豪",r:1,p:0},
+            {id:"1S6",n:"張煜彤",r:1,p:0},{id:"1S7",n:"張碩鈞",r:1,p:0},{id:"1T1",n:"張麗嬌",r:1,p:0},{id:"1T10",n:"蔡欣怡",r:1,p:0},
+            {id:"1T11",n:"洪國文",r:1,p:0},{id:"1T12",n:"洪佑琪",r:1,p:0},{id:"1T13",n:"洪柏瑞",r:1,p:0},{id:"1T14",n:"洪文勲",r:1,p:0},
+            {id:"1T15",n:"林香",r:1,p:0},{id:"1T18",n:"洪國展",r:1,p:0},{id:"1T19",n:"鍾佳芳",r:1,p:0},{id:"1T2",n:"陳材欣",r:1,p:0},
+            {id:"1T3",n:"蔡欣容",r:1,p:0},{id:"1T4",n:"陳丞頡",r:1,p:0},{id:"1T5",n:"陳兆賢",r:1,p:0},{id:"1T6",n:"陳佳芊",r:1,p:0},
+            {id:"1T7",n:"陳韋勝",r:1,p:0},{id:"1T8",n:"許惟婷",r:1,p:0},{id:"1T9",n:"陳昕廷",r:1,p:0},{id:"1U1",n:"陳春宇",r:1,p:0},
+            {id:"1U10",n:"陳巧雯",r:1,p:0},{id:"1U11",n:"陳欣妮",r:1,p:0},{id:"1U12",n:"陳婕恩",r:1,p:0},{id:"1U13",n:"林于勝",r:1,p:0},
+            {id:"1U14",n:"陳兆甫",r:1,p:0},{id:"1U2",n:"張英粧",r:1,p:0},{id:"1U3",n:"陳明智",r:1,p:0},{id:"1U4",n:"陳巧伶",r:1,p:0},
+            {id:"1U5",n:"陳巧萍",r:1,p:0},{id:"1U6",n:"陳俞雯",r:1,p:0},{id:"1U7",n:"陳庭婕",r:1,p:0},{id:"1U8",n:"陳宥恩",r:1,p:0},
+            {id:"1U9",n:"陳冠翔",r:1,p:0},{id:"1V1",n:"楊瑛豪",r:1,p:1},{id:"1V10",n:"楊宗修",r:1,p:0},{id:"1V11",n:"徐文潔",r:1,p:0},
+            {id:"1V12",n:"楊承彧",r:1,p:0},{id:"1V13",n:"楊侑澤",r:1,p:0},{id:"1V14",n:"徐續源",r:1,p:0},{id:"1V15",n:"楊宗凱",r:1,p:0},
+            {id:"1V16",n:"楊盈嫺",r:1,p:0},{id:"1V17",n:"楊雨蓁",r:1,p:0},{id:"1V18",n:"徐文娟",r:1,p:0},{id:"1V2",n:"張素真",r:1,p:1},
+            {id:"1V3",n:"楊博翔",r:1,p:1},{id:"1V4",n:"楊弘聖",r:1,p:1},{id:"1V5",n:"楊再添",r:1,p:1},{id:"1V6",n:"羅安廷",r:1,p:0},
+            {id:"1V7",n:"徐文清",r:1,p:0},{id:"1V8",n:"羅立泓",r:1,p:0},{id:"1V9",n:"羅宇佑",r:1,p:0},{id:"1X1",n:"張如羊",r:1,p:0},
+            {id:"1X11",n:"張芷緁",r:1,p:0},{id:"1X2",n:"粘淑英",r:1,p:0},{id:"1X21",n:"洪月卿",r:1,p:0},{id:"1X26",n:"潘況菀",r:1,p:0},
+            {id:"1X27",n:"潘小琦",r:1,p:0},{id:"1X3",n:"張丞希",r:1,p:0},{id:"1X34",n:"黃明政",r:1,p:0},{id:"1X35",n:"陳氏梁",r:1,p:0},
+            {id:"1X4",n:"張玉龍",r:1,p:0},{id:"1X42",n:"張仟嬟",r:1,p:0},{id:"1X43",n:"阮佳樺",r:1,p:0},{id:"1X6",n:"張羽潔",r:1,p:0},
+            {id:"1X7",n:"張兆葳",r:1,p:0},{id:"1X9",n:"張汝萱",r:1,p:0},{id:"1Y1",n:"范僑宴",r:1,p:0},{id:"1Y15",n:"章偉民",r:1,p:0},
+            {id:"1Y16",n:"吳岱諮",r:1,p:0},{id:"1Y17",n:"章葳",r:1,p:0},{id:"1Y18",n:"章宸",r:1,p:0},{id:"1Y19",n:"盧游鳳",r:1,p:1},
+            {id:"1Y2",n:"林宸矓",r:1,p:0},{id:"1Y20",n:"陳怡秀",r:1,p:1},{id:"1Y21",n:"陳盈茹",r:1,p:1},{id:"1Y22",n:"陳盈萱",r:1,p:1},
+            {id:"1Y51",n:"吳宗明",r:1,p:0},{id:"1Z1",n:"劉淑婷",r:1,p:0},{id:"1Z18",n:"張習",r:1,p:0},{id:"1Z19",n:"張彥苡",r:1,p:0},
+            {id:"1Z2",n:"蔡子芸",r:1,p:0},{id:"1Z3",n:"劉昌利",r:1,p:0},{id:"1Z4",n:"劉陳蔥",r:1,p:0},{id:"1Z5",n:"張明凱",r:1,p:0},
+            {id:"1Z6",n:"林佳螢",r:1,p:0},{id:"1Z7",n:"張煒謙",r:1,p:0},{id:"1Z9",n:"楊宏義",r:1,p:0},{id:"2A10",n:"廖希令",r:1,p:1},
+            {id:"2A7",n:"鍾曉芳",r:1,p:1},{id:"2A8",n:"廖文吉",r:1,p:1},{id:"2A9",n:"廖希桓",r:1,p:1},{id:"2E1",n:"陳美臻",r:1,p:0},
+            {id:"2E2",n:"巫品嘉",r:1,p:0},{id:"2E3",n:"巫沛萱",r:1,p:0},{id:"2E4",n:"林甄蒂",r:1,p:0},{id:"2E5",n:"邱宣呈",r:1,p:0},
+            {id:"2P1",n:"吳金墩",r:1,p:1},{id:"2P2",n:"薛滿祝",r:1,p:1},{id:"2P3",n:"陳耀宏",r:1,p:1},{id:"2P4",n:"薛心媃",r:1,p:1},
+            {id:"2P5",n:"陳金辰",r:1,p:1},{id:"2P6",n:"胡有昌",r:1,p:1},{id:"2P7",n:"薛紫羚",r:1,p:1},{id:"2P8",n:"胡辰憬",r:1,p:1},
+            {id:"2P9",n:"蔡孟君",r:1,p:1},{id:"2R1",n:"邱世明",r:1,p:0},{id:"2R2",n:"黃小芬",r:1,p:0},{id:"2R3",n:"邱竑華",r:1,p:0},
+            {id:"2R4",n:"黃琬筑",r:1,p:0},{id:"2S1",n:"徐會然",r:1,p:0},{id:"2S2",n:"王雅萍",r:1,p:0},{id:"2S3",n:"徐翊緁",r:1,p:0},
+            {id:"2S4",n:"徐昀彤",r:1,p:0},{id:"2S5",n:"張秀專",r:1,p:0},{id:"2S6",n:"王慶文",r:1,p:0},{id:"2S7",n:"薛秀蜜",r:1,p:0},
+            {id:"2T1",n:"張錫卿",r:1,p:1},{id:"2T10",n:"張志豪",r:1,p:0},{id:"2T2",n:"初盈潔",r:1,p:1},{id:"2T3",n:"張景棠",r:1,p:1},
+            {id:"2T4",n:"張景崴",r:1,p:1},{id:"2T5",n:"黃淑蓉",r:1,p:1},{id:"2T6",n:"張志郎",r:1,p:1},{id:"2T7",n:"王琳麒",r:1,p:1},
+            {id:"2T8",n:"劉琬茜",r:1,p:1},{id:"2T9",n:"蕭淑云",r:1,p:0},{id:"2U1",n:"林建榮",r:1,p:0},{id:"2U2",n:"葉歆筠",r:1,p:0},
+            {id:"2U3",n:"林秉義",r:1,p:0},{id:"2U4",n:"林姿羽",r:1,p:0},{id:"2U5",n:"施淑梨",r:1,p:0},{id:"2U6",n:"林羿彣",r:1,p:0},
+            {id:"2W1",n:"黃大仁",r:1,p:0},{id:"2W12",n:"王祥麟",r:1,p:0},{id:"2W2",n:"賴莉莉",r:1,p:0},{id:"2W3",n:"賴瑞隆",r:1,p:0},
+            {id:"2W4",n:"陳素華",r:1,p:0},{id:"2W5",n:"程皖兒",r:1,p:0},{id:"2W6",n:"程琳",r:1,p:0},{id:"2X1",n:"康慶中",r:1,p:1},
+            {id:"2X2",n:"張小燕",r:1,p:1},{id:"2X23",n:"康丞勲",r:1,p:1},{id:"2X3",n:"康家瑋",r:1,p:1},{id:"2X4",n:"康雅婷",r:1,p:1},
             {id:"2X5",n:"康吳市",r:1,p:1},{id:"2X6",n:"黃金美",r:1,p:1},{id:"2X7",n:"林婉真",r:1,p:1}
         ];
         // 排序安太歲資料
         const TaiSuiData = TaiSuiDataRaw.sort(sortById);
 
-        // 3. 光明燈資料
+        // 3. 光明燈資料 (Updated)
         const LightDataRaw = [
             // 上層
             {id:"1B10",n:"游宇閎",t:1,r:1,p:1},{id:"1B7",n:"游建薪",t:1,r:1,p:1},{id:"1B8",n:"張佳芸",t:1,r:1,p:1},
             {id:"1B9",n:"游少均",t:1,r:1,p:1},{id:"1E1",n:"李金紗",t:1,r:1,p:0},{id:"1E19",n:"蕭幸琦",t:1,r:1,p:1},
             {id:"1E2",n:"劉建榮",t:1,r:1,p:0},{id:"1E20",n:"蕭幸茹",t:1,r:1,p:1},{id:"1E5",n:"楊紹鑫",t:1,r:1,p:1},
             {id:"1E6",n:"劉雅庭",t:1,r:1,p:1},{id:"1E7",n:"楊博顯",t:1,r:1,p:1},{id:"1E8",n:"楊蕍嬬",t:1,r:1,p:1},
-            {id:"1G3",n:"傅士峯",t:1,r:1,p:0},{id:"1G4",n:"林麗娟",t:1,r:1,p:0},{id:"1L1",n:"李心瑜",t:1,r:1,p:0},
-            {id:"1L4",n:"李金營",t:1,r:1,p:0},{id:"1L5",n:"李汶蒨",t:1,r:1,p:0},{id:"1R1",n:"張麗珠",t:1,r:1,p:0},
+            {id:"1G3",n:"傅士峯",t:1,r:1,p:0},{id:"1G4",n:"林麗娟",t:1,r:1,p:0},{id:"1L1",n:"李心瑜",t:1,r:1,p:1},
+            {id:"1L4",n:"李金營",t:1,r:1,p:1},{id:"1L5",n:"李汶蒨",t:1,r:1,p:1},{id:"1R1",n:"張麗珠",t:1,r:1,p:0},
             {id:"1R3",n:"林清華",t:1,r:1,p:0},{id:"1R4",n:"林清祥",t:1,r:1,p:0},{id:"1S1",n:"張麗香",t:1,r:1,p:0},
             {id:"1S2",n:"王士榕",t:1,r:1,p:0},{id:"1S3",n:"王俊傑",t:1,r:1,p:0},{id:"1S4",n:"王耘蓉",t:1,r:1,p:0},
             {id:"1S5",n:"張家豪",t:1,r:1,p:0},{id:"1S6",n:"張煜彤",t:1,r:1,p:0},{id:"1S7",n:"張碩鈞",t:1,r:1,p:0},
@@ -214,10 +203,11 @@
             {id:"2X6",n:"黃金美",t:1,r:1,p:1},{id:"2X7",n:"林婉真",t:1,r:1,p:1},
 
             // 下層
-            {id:"1A1",n:"黃淑霞",t:2,r:1,p:0},{id:"1A11",n:"張桂華",t:2,r:1,p:1},{id:"1A13",n:"顏熏葶",t:2,r:1,p:0},
-            {id:"1A14",n:"林妍懁",t:2,r:1,p:0},{id:"1A2",n:"林明毅",t:2,r:1,p:0},{id:"1A3",n:"張淑婷",t:2,r:1,p:0},
-            {id:"1A32",n:"林青伭",t:2,r:1,p:0},{id:"1A4",n:"林松賢",t:2,r:1,p:0},{id:"1A5",n:"林慧宓",t:2,r:1,p:0},
-            {id:"1A6",n:"林良宇",t:2,r:1,p:0},{id:"1A7",n:"張永炘",t:2,r:1,p:0},{id:"1A8",n:"張高瓊珠",t:2,r:1,p:0},
+            {id:"1A1",n:"黃淑霞",t:2,r:1,p:0},{id:"1A10",n:"陳盈秀",t:2,r:1,p:0},{id:"1A11",n:"張桂華",t:2,r:1,p:1},
+            {id:"1A12",n:"張友滕",t:2,r:1,p:0},{id:"1A13",n:"顏熏葶",t:2,r:1,p:0},{id:"1A14",n:"林妍懁",t:2,r:1,p:0},
+            {id:"1A2",n:"林明毅",t:2,r:1,p:0},{id:"1A3",n:"張淑婷",t:2,r:1,p:0},{id:"1A32",n:"林青伭",t:2,r:1,p:0},
+            {id:"1A4",n:"林松賢",t:2,r:1,p:0},{id:"1A5",n:"林慧宓",t:2,r:1,p:0},{id:"1A6",n:"林良宇",t:2,r:1,p:0},
+            {id:"1A7",n:"張永炘",t:2,r:1,p:0},{id:"1A8",n:"張高瓊珠",t:2,r:1,p:0},{id:"1A9",n:"張為舜",t:2,r:1,p:0},
             {id:"1B1",n:"石林秀梅",t:2,r:1,p:0},{id:"1B2",n:"石上助",t:2,r:1,p:0},{id:"1B3",n:"張淑媛",t:2,r:1,p:0},
             {id:"1B4",n:"石加靖",t:2,r:1,p:0},{id:"1B5",n:"石嘉宸",t:2,r:1,p:0},{id:"1C1",n:"蔡林花",t:2,r:1,p:0},
             {id:"1C13",n:"張民發",t:2,r:1,p:1},{id:"1C14",n:"蕭美柳",t:2,r:1,p:1},{id:"1C15",n:"張郁婕",t:2,r:1,p:1},
@@ -248,23 +238,25 @@
             {id:"1V17",n:"楊雨蓁",t:2,r:1,p:0},{id:"1V18",n:"徐文娟",t:2,r:1,p:0},{id:"1V2",n:"張素真",t:2,r:1,p:1},
             {id:"1V3",n:"楊博翔",t:2,r:1,p:1},{id:"1V4",n:"楊弘聖",t:2,r:1,p:1},{id:"1V5",n:"楊再添",t:2,r:1,p:1},
             {id:"1V6",n:"羅安廷",t:2,r:1,p:0},{id:"1V7",n:"徐文清",t:2,r:1,p:0},{id:"1V8",n:"羅立泓",t:2,r:1,p:0},
-            {id:"1V9",n:"羅宇佑",t:2,r:1,p:0},{id:"1X1",n:"張如羊",t:2,r:1,p:0},{id:"1X2",n:"粘淑英",t:2,r:1,p:0},
-            {id:"1X21",n:"洪月卿",t:2,r:1,p:0},{id:"1X26",n:"潘況菀",t:2,r:1,p:0},{id:"1X27",n:"潘小琦",t:2,r:1,p:0},
-            {id:"1X30",n:"謝林宏",t:2,r:1,p:1},{id:"1X31",n:"黃思嘉",t:2,r:1,p:1},{id:"1X32",n:"謝旻哲",t:2,r:1,p:1},
-            {id:"1X33",n:"謝諺承",t:2,r:1,p:1},{id:"1X34",n:"黃明政",t:2,r:1,p:0},{id:"1X4",n:"張玉龍",t:2,r:1,p:0},
-            {id:"1X43",n:"阮佳樺",t:2,r:1,p:0},{id:"1Y15",n:"章偉民",t:2,r:1,p:0},{id:"1Y16",n:"吳岱諮",t:2,r:1,p:0},
-            {id:"1Y51",n:"吳宗明",t:2,r:1,p:0},{id:"1Z1",n:"劉淑婷",t:2,r:1,p:0},{id:"1Z18",n:"張習",t:2,r:1,p:0},
-            {id:"1Z19",n:"張彥苡",t:2,r:1,p:0},{id:"1Z2",n:"蔡子芸",t:2,r:1,p:0},{id:"1Z3",n:"劉昌利",t:2,r:1,p:0},
-            {id:"1Z4",n:"劉陳蔥",t:2,r:1,p:0},{id:"1Z5",n:"張明凱",t:2,r:1,p:0},{id:"1Z6",n:"林佳螢",t:2,r:1,p:0},
-            {id:"1Z7",n:"張煒謙",t:2,r:1,p:0},{id:"1Z9",n:"楊宏義",t:2,r:1,p:0},{id:"2E1",n:"陳美臻",t:2,r:1,p:0},
-            {id:"2P1",n:"吳金墩",t:2,r:1,p:1},{id:"2P2",n:"薛滿祝",t:2,r:1,p:1},{id:"2P3",n:"陳耀宏",t:2,r:1,p:1},
-            {id:"2P4",n:"薛心媃",t:2,r:1,p:1},{id:"2P5",n:"陳金辰",t:2,r:1,p:1},{id:"2P6",n:"胡有昌",t:2,r:1,p:1},
-            {id:"2P7",n:"薛紫羚",t:2,r:1,p:1},{id:"2P8",n:"胡辰憬",t:2,r:1,p:1},{id:"2P9",n:"蔡孟君",t:2,r:1,p:1},
-            {id:"2R1",n:"邱世明",t:2,r:1,p:0},{id:"2R2",n:"黃小芬",t:2,r:1,p:0},{id:"2R3",n:"邱竑華",t:2,r:1,p:0},
-            {id:"2R4",n:"黃琬筑",t:2,r:1,p:0},{id:"2S1",n:"徐會然",t:2,r:1,p:0},{id:"2S2",n:"王雅萍",t:2,r:1,p:0},
-            {id:"2S3",n:"徐翊緁",t:2,r:1,p:0},{id:"2S4",n:"徐昀彤",t:2,r:1,p:0},{id:"2S5",n:"張秀專",t:2,r:1,p:0},
-            {id:"2S6",n:"王慶文",t:2,r:1,p:0},{id:"2S7",n:"薛秀蜜",t:2,r:1,p:0},{id:"2T10",n:"張志豪",t:2,r:1,p:0},
-            {id:"2T9",n:"蕭淑云",t:2,r:1,p:0}
+            {id:"1V9",n:"羅宇佑",t:2,r:1,p:0},{id:"1X1",n:"張如羊",t:2,r:1,p:0},{id:"1X11",n:"張芷緁",t:2,r:1,p:0},
+            {id:"1X2",n:"粘淑英",t:2,r:1,p:0},{id:"1X21",n:"洪月卿",t:2,r:1,p:0},{id:"1X26",n:"潘況菀",t:2,r:1,p:0},
+            {id:"1X27",n:"潘小琦",t:2,r:1,p:0},{id:"1X3",n:"張丞希",t:2,r:1,p:0},{id:"1X30",n:"謝林宏",t:2,r:1,p:1},
+            {id:"1X31",n:"黃思嘉",t:2,r:1,p:1},{id:"1X32",n:"謝旻哲",t:2,r:1,p:1},{id:"1X33",n:"謝諺承",t:2,r:1,p:1},
+            {id:"1X34",n:"黃明政",t:2,r:1,p:0},{id:"1X35",n:"陳氏梁",t:2,r:1,p:0},{id:"1X4",n:"張玉龍",t:2,r:1,p:0},
+            {id:"1X42",n:"張仟嬟",t:2,r:1,p:0},{id:"1X43",n:"阮佳樺",t:2,r:1,p:0},{id:"1X6",n:"張羽潔",t:2,r:1,p:0},
+            {id:"1X7",n:"張兆葳",t:2,r:1,p:0},{id:"1X8",n:"張兆辰",t:2,r:1,p:0},{id:"1X9",n:"張汝萱",t:2,r:1,p:0},
+            {id:"1Y15",n:"章偉民",t:2,r:1,p:0},{id:"1Y16",n:"吳岱諮",t:2,r:1,p:0},{id:"1Y51",n:"吳宗明",t:2,r:1,p:0},
+            {id:"1Z1",n:"劉淑婷",t:2,r:1,p:0},{id:"1Z18",n:"張習",t:2,r:1,p:0},{id:"1Z19",n:"張彥苡",t:2,r:1,p:0},
+            {id:"1Z2",n:"蔡子芸",t:2,r:1,p:0},{id:"1Z3",n:"劉昌利",t:2,r:1,p:0},{id:"1Z4",n:"劉陳蔥",t:2,r:1,p:0},
+            {id:"1Z5",n:"張明凱",t:2,r:1,p:0},{id:"1Z6",n:"林佳螢",t:2,r:1,p:0},{id:"1Z7",n:"張煒謙",t:2,r:1,p:0},
+            {id:"1Z9",n:"楊宏義",t:2,r:1,p:0},{id:"2E1",n:"陳美臻",t:2,r:1,p:0},{id:"2P1",n:"吳金墩",t:2,r:1,p:1},
+            {id:"2P2",n:"薛滿祝",t:2,r:1,p:1},{id:"2P3",n:"陳耀宏",t:2,r:1,p:1},{id:"2P4",n:"薛心媃",t:2,r:1,p:1},
+            {id:"2P5",n:"陳金辰",t:2,r:1,p:1},{id:"2P6",n:"胡有昌",t:2,r:1,p:1},{id:"2P7",n:"薛紫羚",t:2,r:1,p:1},
+            {id:"2P8",n:"胡辰憬",t:2,r:1,p:1},{id:"2P9",n:"蔡孟君",t:2,r:1,p:1},{id:"2R1",n:"邱世明",t:2,r:1,p:0},
+            {id:"2R2",n:"黃小芬",t:2,r:1,p:0},{id:"2R3",n:"邱竑華",t:2,r:1,p:0},{id:"2R4",n:"黃琬筑",t:2,r:1,p:0},
+            {id:"2S1",n:"徐會然",t:2,r:1,p:0},{id:"2S2",n:"王雅萍",t:2,r:1,p:0},{id:"2S3",n:"徐翊緁",t:2,r:1,p:0},
+            {id:"2S4",n:"徐昀彤",t:2,r:1,p:0},{id:"2S5",n:"張秀專",t:2,r:1,p:0},{id:"2S6",n:"王慶文",t:2,r:1,p:0},
+            {id:"2S7",n:"薛秀蜜",t:2,r:1,p:0},{id:"2T10",n:"張志豪",t:2,r:1,p:0},{id:"2T9",n:"蕭淑云",t:2,r:1,p:0}
         ];
         // 排序光明燈資料
         const LightData = LightDataRaw.sort(sortById);
@@ -277,16 +269,33 @@
             Check: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-emerald-600"><polyline points="20 6 9 17 4 12"></polyline></svg>,
             User: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
             Flame: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>,
-            Scroll: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+            Scroll: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>,
+            Lock: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
         };
 
         // --- 主程式 ---
         function App() {
-            const [activeTab, setActiveTab] = useState("records"); // records, taisui, light
+            const [activeTab, setActiveTab] = useState("taisui"); // Default: taisui (安太歲)
             const [searchTerm, setSearchTerm] = useState("");
             const [showSuggestions, setShowSuggestions] = useState(false);
             const [filterRole, setFilterRole] = useState("ALL"); 
             const [lightFilterType, setLightFilterType] = useState("ALL"); // ALL, UPPER, LOWER
+            
+            // 登入狀態 (委員/宮生)
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            const [inputPassword, setInputPassword] = useState("");
+            const [loginError, setLoginError] = useState(false);
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if (inputPassword === "296") { // Password: 296
+                    setIsLoggedIn(true);
+                    setLoginError(false);
+                } else {
+                    setLoginError(true);
+                    setTimeout(() => setLoginError(false), 500);
+                }
+            };
 
             // -- 資料邏輯: 繳費紀錄 --
             const recordFiltered = useMemo(() => {
@@ -376,9 +385,15 @@
                     {taiSuiFiltered.length > 0 ? taiSuiFiltered.map((item, idx) => (
                         <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="bg-rose-100 px-2 py-1 rounded text-rose-600 font-bold text-sm min-w-[3rem] text-center">
-                                    {item.id}
-                                </div>
+                                {item.id ? (
+                                    <div className="bg-rose-100 px-2 py-1 rounded text-rose-600 font-bold text-sm min-w-[3rem] text-center">
+                                        {item.id}
+                                    </div>
+                                ) : (
+                                    <div className="bg-rose-100 p-2 rounded-full text-rose-600">
+                                        <Icons.Scroll />
+                                    </div>
+                                )}
                                 <span className="text-xl font-bold text-slate-800">{item.n}</span>
                             </div>
                             <div className="flex gap-2 text-sm">
@@ -445,16 +460,16 @@
                             </h1>
                         </div>
                         
-                        {/* 頁籤選單 (字體加大) */}
+                        {/* 頁籤選單 (Order: 安太歲 -> 光明燈 -> 委員/宮生) */}
                         <div className="flex bg-blue-700">
-                            <button onClick={() => { setActiveTab('records'); setSearchTerm(""); setFilterRole("ALL"); }} className={`flex-1 py-4 text-xl font-bold transition-colors ${activeTab === 'records' ? 'bg-white text-blue-800' : 'text-blue-100 hover:bg-blue-600'}`}>
-                                委員/宮生
-                            </button>
                             <button onClick={() => { setActiveTab('taisui'); setSearchTerm(""); }} className={`flex-1 py-4 text-xl font-bold transition-colors ${activeTab === 'taisui' ? 'bg-white text-blue-800' : 'text-blue-100 hover:bg-blue-600'}`}>
                                 安太歲
                             </button>
                             <button onClick={() => { setActiveTab('light'); setSearchTerm(""); setLightFilterType("ALL"); }} className={`flex-1 py-4 text-xl font-bold transition-colors ${activeTab === 'light' ? 'bg-white text-blue-800' : 'text-blue-100 hover:bg-blue-600'}`}>
                                 光明燈
+                            </button>
+                            <button onClick={() => { setActiveTab('records'); setSearchTerm(""); setFilterRole("ALL"); }} className={`flex-1 py-4 text-xl font-bold transition-colors ${activeTab === 'records' ? 'bg-white text-blue-800' : 'text-blue-100 hover:bg-blue-600'}`}>
+                                委員/宮生
                             </button>
                         </div>
                     </div>
@@ -502,58 +517,10 @@
 
                         {/* 內容區塊: 依頁籤顯示 */}
                         
-                        {/* 1. 委員/宮生頁面 */}
-                        {activeTab === 'records' && (
-                            <div className="fade-in">
-                                {/* 統計列 (字體加大) */}
-                                <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 mb-4 flex justify-between gap-2 overflow-x-auto">
-                                    <button onClick={() => setFilterRole('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${filterRole === 'ALL' ? 'bg-slate-600 text-white border-slate-600 shadow-md' : 'bg-slate-50 text-slate-500 border-transparent'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1">全部</span>
-                                        <span className="text-3xl font-bold">{recordStats.all}</span>
-                                    </button>
-                                    <button onClick={() => setFilterRole('委員')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${filterRole === '委員' ? 'bg-amber-500 text-white border-amber-500 shadow-md' : 'bg-amber-50 text-amber-700 border-transparent'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1">委員</span>
-                                        <span className="text-3xl font-bold">{recordStats.committee}</span>
-                                    </button>
-                                    <button onClick={() => setFilterRole('宮生')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${filterRole === '宮生' ? 'bg-indigo-500 text-white border-indigo-500 shadow-md' : 'bg-indigo-50 text-indigo-700 border-transparent'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1">宮生</span>
-                                        <span className="text-3xl font-bold">{recordStats.student}</span>
-                                    </button>
-                                </div>
-                                <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 114-12-28</div>
-                                {/* 列表 */}
-                                <div className="space-y-2">
-                                    {recordDisplay.length > 0 ? recordDisplay.map((item, index) => (
-                                        <div key={index} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-1 relative overflow-hidden group">
-                                            <div className={`absolute left-0 top-0 bottom-0 w-2 ${item.date === "未繳交" ? 'bg-red-500' : item.role === '委員' ? 'bg-amber-400' : 'bg-blue-500'}`}></div>
-                                            <div className="flex justify-between items-center pl-2">
-                                                <div className="flex items-center gap-3">
-                                                    <div>
-                                                        <h3 className="text-2xl font-bold text-slate-800 tracking-wide">{item.name}</h3>
-                                                        <div className="flex gap-2 mt-1">
-                                                            <span className="inline-flex items-center text-sm font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">第 {item.group} 組</span>
-                                                            <span className={`inline-flex items-center text-sm font-bold px-2 py-0.5 rounded ${item.role === '委員' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-50 text-indigo-700'}`}>{item.role}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="text-sm text-slate-400 font-medium mb-0.5">繳費至</div>
-                                                    <div className={`text-xl font-bold flex items-center justify-end gap-1 ${item.date === '未繳交' ? 'text-red-600' : item.date.includes('113') ? 'text-orange-600' : 'text-emerald-600'}`}>
-                                                        {item.date}
-                                                        {item.date === '未繳交' && <span className="flex h-3 w-3 relative ml-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )) : <div className="text-center py-12 text-slate-500 text-xl font-bold">查無資料</div>}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 2. 安太歲頁面 */}
+                        {/* 2. 安太歲頁面 (預設顯示) */}
                         {activeTab === 'taisui' && (
                             <div className="fade-in">
-                                {/* 安太歲統計 (字體加大) */}
+                                {/* 安太歲統計 */}
                                 <div className="bg-rose-50 rounded-xl p-4 shadow-inner border border-rose-100 mb-4 flex justify-around">
                                     <div className="text-center">
                                         <div className="text-lg text-rose-500 font-bold mb-1">登記人數</div>
@@ -565,6 +532,7 @@
                                         <div className="text-4xl font-black text-rose-600">{taiSuiStats.paid}</div>
                                     </div>
                                 </div>
+                                <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 114-12-31</div>
                                 {renderTaiSuiList()}
                             </div>
                         )}
@@ -572,7 +540,7 @@
                         {/* 3. 光明燈頁面 */}
                         {activeTab === 'light' && (
                             <div className="fade-in">
-                                {/* 光明燈互動式統計 (字體加大) */}
+                                {/* 光明燈互動式統計 */}
                                 <div className="bg-amber-50 rounded-xl p-3 shadow-inner border border-amber-100 mb-4 flex justify-between gap-2 overflow-x-auto">
                                     <button onClick={() => setLightFilterType('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${lightFilterType === 'ALL' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-white text-slate-500 border-amber-100'}`}>
                                         <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">登記總數</span>
@@ -591,7 +559,87 @@
                                         <span className="text-3xl font-black text-emerald-600">{lightStats.paid}</span>
                                     </div>
                                 </div>
+                                <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 114-12-31</div>
                                 {renderLightList()}
+                            </div>
+                        )}
+
+                        {/* 1. 委員/宮生頁面 (需密碼, 排在最後) */}
+                        {activeTab === 'records' && (
+                            <div className="fade-in">
+                                {!isLoggedIn ? (
+                                    <div className="flex flex-col items-center justify-center py-12 px-4">
+                                        <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-sm border border-slate-200 text-center">
+                                            <div className="bg-blue-50 p-4 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 text-blue-600">
+                                                <Icons.Lock />
+                                            </div>
+                                            <h3 className="text-xl font-bold text-slate-800 mb-2">請輸入密碼</h3>
+                                            <p className="text-slate-500 text-sm mb-6">此頁面內容僅供授權人員查看</p>
+                                            <form onSubmit={handleLogin} className="space-y-4">
+                                                <input 
+                                                    type="password" 
+                                                    value={inputPassword}
+                                                    onChange={(e) => setInputPassword(e.target.value)}
+                                                    className={`w-full p-3 rounded-lg border-2 text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all ${loginError ? 'border-red-500 shake' : 'border-slate-200 focus:border-blue-500'}`}
+                                                    placeholder="密碼"
+                                                    autoFocus
+                                                />
+                                                {loginError && <p className="text-red-500 text-sm font-bold">密碼錯誤，請重試</p>}
+                                                <button 
+                                                    type="submit"
+                                                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-md"
+                                                >
+                                                    解鎖查看
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* 統計列 */}
+                                        <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 mb-4 flex justify-between gap-2 overflow-x-auto">
+                                            <button onClick={() => setFilterRole('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${filterRole === 'ALL' ? 'bg-slate-600 text-white border-slate-600 shadow-md' : 'bg-slate-50 text-slate-500 border-transparent'}`}>
+                                                <span className="text-base font-bold opacity-90 mb-1">全部</span>
+                                                <span className="text-3xl font-bold">{recordStats.all}</span>
+                                            </button>
+                                            <button onClick={() => setFilterRole('委員')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${filterRole === '委員' ? 'bg-amber-500 text-white border-amber-500 shadow-md' : 'bg-amber-50 text-amber-700 border-transparent'}`}>
+                                                <span className="text-base font-bold opacity-90 mb-1">委員</span>
+                                                <span className="text-3xl font-bold">{recordStats.committee}</span>
+                                            </button>
+                                            <button onClick={() => setFilterRole('宮生')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${filterRole === '宮生' ? 'bg-indigo-500 text-white border-indigo-500 shadow-md' : 'bg-indigo-50 text-indigo-700 border-transparent'}`}>
+                                                <span className="text-base font-bold opacity-90 mb-1">宮生</span>
+                                                <span className="text-3xl font-bold">{recordStats.student}</span>
+                                            </button>
+                                        </div>
+                                        <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 114-12-28</div>
+                                        {/* 列表 */}
+                                        <div className="space-y-2">
+                                            {recordDisplay.length > 0 ? recordDisplay.map((item, index) => (
+                                                <div key={index} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-1 relative overflow-hidden group">
+                                                    <div className={`absolute left-0 top-0 bottom-0 w-2 ${item.date === "未繳交" ? 'bg-red-500' : item.role === '委員' ? 'bg-amber-400' : 'bg-blue-500'}`}></div>
+                                                    <div className="flex justify-between items-center pl-2">
+                                                        <div className="flex items-center gap-3">
+                                                            <div>
+                                                                <h3 className="text-2xl font-bold text-slate-800 tracking-wide">{item.name}</h3>
+                                                                <div className="flex gap-2 mt-1">
+                                                                    <span className="inline-flex items-center text-sm font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">第 {item.group} 組</span>
+                                                                    <span className={`inline-flex items-center text-sm font-bold px-2 py-0.5 rounded ${item.role === '委員' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-50 text-indigo-700'}`}>{item.role}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="text-sm text-slate-400 font-medium mb-0.5">繳費至</div>
+                                                            <div className={`text-xl font-bold flex items-center justify-end gap-1 ${item.date === '未繳交' ? 'text-red-600' : item.date.includes('113') ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                                                {item.date}
+                                                                {item.date === '未繳交' && <span className="flex h-3 w-3 relative ml-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )) : <div className="text-center py-12 text-slate-500 text-xl font-bold">查無資料</div>}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
