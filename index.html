@@ -6,9 +6,9 @@
     <title>帳務查詢系統</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.3/babel.min.js"></script>
 
     <style>
         * { -webkit-tap-highlight-color: transparent; }
@@ -108,6 +108,7 @@
 
         // 2. 安太歲資料 (Updated 115-02-21)
         const TaiSuiDataRaw = [
+            {id:"1A1",n:"黃淑霞",r:1,p:1},{id:"1A10",n:"陳盈秀",r:1,p:0},
             {id:"1A11",n:"張桂華",r:1,p:1},{id:"1A12",n:"張友滕",r:1,p:1},{id:"1A13",n:"顏熏葶",r:1,p:1},{id:"1A14",n:"林妍懁",r:1,p:1},
             {id:"1A2",n:"林明毅",r:1,p:1},{id:"1A3",n:"張淑婷",r:1,p:1},{id:"1A31",n:"許婉姿",r:1,p:1},{id:"1A32",n:"林青伭",r:1,p:1},
             {id:"1A33",n:"楊淑茹",r:1,p:0},{id:"1A4",n:"林松賢",r:1,p:1},{id:"1A5",n:"林慧宓",r:1,p:1},{id:"1A6",n:"林良宇",r:1,p:1},
@@ -186,6 +187,7 @@
         // 3. 光明燈資料 (Updated 115-02-21)
         const LightDataRaw = [
             // 上層 (Type: 1)
+            {id:"1B10",n:"游宇閎",t:1,r:1,p:1},{id:"1B7",n:"游建薪",t:1,r:1,p:1},
             {id:"1B8",n:"張佳芸",t:1,r:1,p:1},{id:"1B9",n:"游少均",t:1,r:1,p:1},{id:"1E1",n:"李金紗",t:1,r:1,p:1},{id:"1E19",n:"蕭幸琦",t:1,r:1,p:1},
             {id:"1E2",n:"劉建榮",t:1,r:1,p:1},{id:"1E20",n:"蕭幸茹",t:1,r:1,p:1},{id:"1E5",n:"楊紹鑫",t:1,r:1,p:1},{id:"1E6",n:"劉雅庭",t:1,r:1,p:1},
             {id:"1E7",n:"楊博顯",t:1,r:1,p:1},{id:"1E8",n:"楊蕍嬬",t:1,r:1,p:1},{id:"1G3",n:"傅士峯",t:1,r:1,p:1},{id:"1G4",n:"林麗娟",t:1,r:1,p:1},
@@ -215,6 +217,7 @@
             {id:"2W17",n:"邱子杰",t:1,r:1,p:1},{id:"2X24",n:"康學勝",t:1,r:1,p:1},
 
             // 下層 (Type: 2)
+            {id:"1A1",n:"黃淑霞",t:2,r:1,p:1},{id:"1A10",n:"陳盈秀",t:2,r:1,p:0},
             {id:"1A11",n:"張桂華",t:2,r:1,p:1},{id:"1A12",n:"張友滕",t:2,r:1,p:1},{id:"1A13",n:"顏熏葶",t:2,r:1,p:1},{id:"1A14",n:"林妍懁",t:2,r:1,p:1},
             {id:"1A2",n:"林明毅",t:2,r:1,p:1},{id:"1A3",n:"張淑婷",t:2,r:1,p:1},{id:"1A31",n:"許婉姿",t:2,r:1,p:1},{id:"1A32",n:"林青伭",t:2,r:1,p:1},
             {id:"1A4",n:"林松賢",t:2,r:1,p:1},{id:"1A5",n:"林慧宓",t:2,r:1,p:1},{id:"1A6",n:"林良宇",t:2,r:1,p:1},{id:"1A7",n:"張永炘",t:2,r:1,p:1},
@@ -672,8 +675,12 @@
             );
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        if (typeof ReactDOM === 'undefined') {
+            document.getElementById('root').innerHTML = '<div style="text-align:center; padding:2rem; color:red; font-weight:bold;">無法載入 React 函式庫 (ReactDOM is not defined)，請檢查網路或 CDN 連線狀態。</div>';
+        } else {
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(<App />);
+        }
     </script>
 </body>
 </html>
