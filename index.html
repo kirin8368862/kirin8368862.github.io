@@ -288,16 +288,20 @@
             const [loginError, setLoginError] = useState(false);
 
             // ==========================================
-            // 非同步獲取 Google Sheets 資料
+            // 非同步獲取 Google Sheets 資料 (已加上強制刷新機制)
             // ==========================================
             useEffect(() => {
                 const fetchGoogleSheetsData = async () => {
                     let fetchedRecord = [], fetchedTaiSui = [], fetchedLight = [];
+                    
+                    // 為了防止瀏覽器快取舊資料，我們給網址加上時間戳記
+                    const getFreshUrl = (url) => `${url}&t=${new Date().getTime()}`;
+                    const fetchOptions = { cache: 'no-store' };
 
                     // 1. 抓取委員/宮生資料
                     if (GOOGLE_SHEETS_URLS.records) {
                         try {
-                            const res = await fetch(GOOGLE_SHEETS_URLS.records);
+                            const res = await fetch(getFreshUrl(GOOGLE_SHEETS_URLS.records), fetchOptions);
                             if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
                             const text = await res.text();
                             const parsed = parseCSV(text);
@@ -312,7 +316,7 @@
                     // 2. 抓取太歲資料
                     if (GOOGLE_SHEETS_URLS.taiSui) {
                         try {
-                            const res = await fetch(GOOGLE_SHEETS_URLS.taiSui);
+                            const res = await fetch(getFreshUrl(GOOGLE_SHEETS_URLS.taiSui), fetchOptions);
                             if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
                             const text = await res.text();
                             const parsed = parseCSV(text);
@@ -329,7 +333,7 @@
                     // 3. 抓取光明燈資料 (上層 + 下層合併)
                     if (GOOGLE_SHEETS_URLS.lightUpper) {
                         try {
-                            const res = await fetch(GOOGLE_SHEETS_URLS.lightUpper);
+                            const res = await fetch(getFreshUrl(GOOGLE_SHEETS_URLS.lightUpper), fetchOptions);
                             if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
                             const text = await res.text();
                             const parsed = parseCSV(text);
@@ -346,7 +350,7 @@
 
                     if (GOOGLE_SHEETS_URLS.lightLower) {
                         try {
-                            const res = await fetch(GOOGLE_SHEETS_URLS.lightLower);
+                            const res = await fetch(getFreshUrl(GOOGLE_SHEETS_URLS.lightLower), fetchOptions);
                             if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
                             const text = await res.text();
                             const parsed = parseCSV(text);
