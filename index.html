@@ -16,6 +16,10 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
         @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+        
+        /* 載入動畫 */
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: #3b82f6; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-slate-50">
@@ -24,90 +28,78 @@
     <script type="text/babel">
         const { useState, useMemo, useEffect } = React;
 
+        // =========================================================================
+        // [正式啟動] Google Sheets CSV 自動抓取網址區
+        // =========================================================================
+        const GOOGLE_SHEETS_URLS = {
+            taiSui: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1409111845&single=true&output=csv",        
+            lightUpper: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1353370878&single=true&output=csv",    
+            lightLower: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1743080288&single=true&output=csv",    
+            records: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=0&single=true&output=csv"        
+        };
+
+        // --- 輔助函式: CSV 解析器 ---
+        const parseCSV = (text) => {
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+            const headers = lines[0].split(',');
+            return lines.slice(1).map(line => {
+                const values = line.split(',');
+                return headers.reduce((obj, header, i) => {
+                    obj[header.trim()] = (values[i] || '').trim();
+                    return obj;
+                }, {});
+            });
+        };
+
         // --- 輔助函式: 編號排序邏輯 ---
         const sortById = (a, b) => {
             if (!a.id || !b.id) return 0;
-            
-            // 比較第一碼數字
             const firstA = a.id[0];
             const firstB = b.id[0];
             if (firstA !== firstB) return firstA.localeCompare(firstB);
-
-            // 比較第二碼字母
             const secondA = a.id[1];
             const secondB = b.id[1];
             if (secondA !== secondB) return secondA.localeCompare(secondB);
-
-            // 比較剩餘的數字部分
             const restA = parseInt(a.id.slice(2), 10);
             const restB = parseInt(b.id.slice(2), 10);
             return restA - restB;
         };
 
-        // --- 資料庫 (Data) ---
-        
-        // 1. 委員/宮生繳費紀錄 (Updated 115-2-21)
-        const RecordData = [
-            { group: "1", role: "宮生", name: "傅沛柔", date: "114年12月" },
-            { group: "1", role: "宮生", name: "周義棠", date: "114年12月" },
-            { group: "1", role: "宮生", name: "張玉莉", date: "115年12月" },
-            { group: "1", role: "宮生", name: "張佳芸", date: "115年12月" },
-            { group: "1", role: "委員", name: "蔡照能", date: "114年10月" },
-            { group: "1", role: "宮生", name: "林秀娟", date: "115年2月" },
-            { group: "1", role: "委員", name: "林明毅", date: "114年12月" },
-            { group: "1", role: "宮生", name: "張淑婷", date: "114年12月" },
-            { group: "1", role: "宮生", name: "張淑媛", date: "115年12月" },
-            { group: "2", role: "宮生", name: "黃玉鈴", date: "114年6月" },
-            { group: "2", role: "宮生", name: "鍾傳", date: "114年6月" },
-            { group: "2", role: "宮生", name: "鍾曉芳", date: "114年12月" },
-            { group: "2", role: "宮生", name: "鍾曉婷", date: "113年12月" },
-            { group: "2", role: "委員", name: "張朝勇", date: "114年12月" },
-            { group: "2", role: "宮生", name: "吳怡君", date: "114年12月" },
-            { group: "3", role: "委員", name: "曹義輝", date: "115年6月" },
-            { group: "3", role: "委員", name: "涂春鎮", date: "113年12月" },
-            { group: "3", role: "宮生", name: "曾佳茵", date: "113年12月" },
-            { group: "3", role: "委員", name: "戴日茂", date: "114年12月" },
-            { group: "3", role: "宮生", name: "謝淨鞠", date: "114年12月" },
-            { group: "3", role: "宮生", name: "李銘楓", date: "未繳費" },
-            { group: "3", role: "宮生", name: "郭心榆", date: "未繳費" },
-            { group: "4", role: "宮生", name: "徐文清", date: "115年6月" },
-            { group: "4", role: "宮生", name: "羅安廷", date: "115年6月" },
-            { group: "4", role: "宮生", name: "徐文潔", date: "115年6月" },
-            { group: "4", role: "宮生", name: "楊宗修", date: "115年6月" },
-            { group: "4", role: "委員", name: "劉建榮", date: "115年1月" },
-            { group: "4", role: "宮生", name: "楊宗凱", date: "115年12月" },
-            { group: "4", role: "宮生", name: "楊盈嫻", date: "115年12月" },
-            { group: "5", role: "委員", name: "張小燕", date: "115年12月" },
-            { group: "5", role: "委員", name: "呂述園", date: "114年12月" },
-            { group: "5", role: "宮生", name: "盧游鳳", date: "115年12月" },
-            { group: "5", role: "委員", name: "范僑宴", date: "113年12月" },
-            { group: "5", role: "宮生", name: "林宸矓", date: "114年12月" },
-            { group: "6", role: "委員", name: "劉淑婷", date: "114年12月" },
-            { group: "6", role: "委員", name: "林佳燕", date: "115年6月" },
-            { group: "6", role: "宮生", name: "陳瑋杰", date: "113年12月" },
-            { group: "6", role: "委員", name: "林麗娟", date: "115年3月" },
-            { group: "7", role: "委員", name: "胡有昌", date: "114年12月" },
-            { group: "7", role: "宮生", name: "薛紫羚", date: "114年12月" },
-            { group: "7", role: "委員", name: "張錫卿", date: "115年3月" },
-            { group: "7", role: "委員", name: "王琳麒", date: "115年3月" },
-            { group: "7", role: "委員", name: "張志豪", date: "114年9月" },
-            { group: "7", role: "宮生", name: "蕭淑云", date: "114年9月" },
-            { group: "7", role: "宮生", name: "薛心媃", date: "114年9月" },
-            { group: "7", role: "宮生", name: "陳耀宏", date: "114年9月" },
-            { group: "7", role: "宮生", name: "王雅萍", date: "114年12月" },
-            { group: "8", role: "宮生", name: "陳材欣", date: "114年11月" },
-            { group: "8", role: "宮生", name: "蔡欣容", date: "114年6月" },
-            { group: "8", role: "宮生", name: "李心瑜", date: "115年2月" },
-            { group: "8", role: "宮生", name: "李金營", date: "115年2月" },
-            { group: "8", role: "宮生", name: "張麗嬌", date: "114年12月" },
-            { group: "8", role: "宮生", name: "劉玉珍", date: "115年6月" },
-            { group: "8", role: "宮生", name: "蔡美娟", date: "114年9月" },
-            { group: "9", role: "宮生", name: "林建榮", date: "115年4月" },
-            { group: "9", role: "宮生", name: "葉歆筠", date: "115年4月" }
+        // =========================================================================
+        // 內建預設資料 (Fallback - 當無網路或 Google 表單異常時的備用名單)
+        // =========================================================================
+        const DEFAULT_RECORD_DATA = [
+            { group: "1", role: "宮生", name: "傅沛柔", date: "114年12月" },{ group: "1", role: "宮生", name: "周義棠", date: "114年12月" },
+            { group: "1", role: "宮生", name: "張玉莉", date: "115年12月" },{ group: "1", role: "宮生", name: "張佳芸", date: "115年12月" },
+            { group: "1", role: "委員", name: "蔡照能", date: "114年10月" },{ group: "1", role: "宮生", name: "林秀娟", date: "115年2月" },
+            { group: "1", role: "委員", name: "林明毅", date: "114年12月" },{ group: "1", role: "宮生", name: "張淑婷", date: "114年12月" },
+            { group: "1", role: "宮生", name: "張淑媛", date: "115年12月" },{ group: "2", role: "宮生", name: "黃玉鈴", date: "114年6月" },
+            { group: "2", role: "宮生", name: "鍾傳", date: "114年6月" },{ group: "2", role: "宮生", name: "鍾曉芳", date: "114年12月" },
+            { group: "2", role: "宮生", name: "鍾曉婷", date: "113年12月" },{ group: "2", role: "委員", name: "張朝勇", date: "114年12月" },
+            { group: "2", role: "宮生", name: "吳怡君", date: "114年12月" },{ group: "3", role: "委員", name: "曹義輝", date: "115年6月" },
+            { group: "3", role: "委員", name: "涂春鎮", date: "113年12月" },{ group: "3", role: "宮生", name: "曾佳茵", date: "113年12月" },
+            { group: "3", role: "委員", name: "戴日茂", date: "114年12月" },{ group: "3", role: "宮生", name: "謝淨鞠", date: "114年12月" },
+            { group: "3", role: "宮生", name: "李銘楓", date: "未繳費" },{ group: "3", role: "宮生", name: "郭心榆", date: "未繳費" },
+            { group: "4", role: "宮生", name: "徐文清", date: "115年6月" },{ group: "4", role: "宮生", name: "羅安廷", date: "115年6月" },
+            { group: "4", role: "宮生", name: "徐文潔", date: "115年6月" },{ group: "4", role: "宮生", name: "楊宗修", date: "115年6月" },
+            { group: "4", role: "委員", name: "劉建榮", date: "115年1月" },{ group: "4", role: "宮生", name: "楊宗凱", date: "115年12月" },
+            { group: "4", role: "宮生", name: "楊盈嫻", date: "115年12月" },{ group: "5", role: "委員", name: "張小燕", date: "115年12月" },
+            { group: "5", role: "委員", name: "呂述園", date: "114年12月" },{ group: "5", role: "宮生", name: "盧游鳳", date: "115年12月" },
+            { group: "5", role: "委員", name: "范僑宴", date: "113年12月" },{ group: "5", role: "宮生", name: "林宸矓", date: "114年12月" },
+            { group: "6", role: "委員", name: "劉淑婷", date: "114年12月" },{ group: "6", role: "委員", name: "林佳燕", date: "115年6月" },
+            { group: "6", role: "宮生", name: "陳瑋杰", date: "113年12月" },{ group: "6", role: "委員", name: "林麗娟", date: "115年3月" },
+            { group: "7", role: "委員", name: "胡有昌", date: "114年12月" },{ group: "7", role: "宮生", name: "薛紫羚", date: "114年12月" },
+            { group: "7", role: "委員", name: "張錫卿", date: "115年3月" },{ group: "7", role: "委員", name: "王琳麒", date: "115年3月" },
+            { group: "7", role: "委員", name: "張志豪", date: "114年9月" },{ group: "7", role: "宮生", name: "蕭淑云", date: "114年9月" },
+            { group: "7", role: "宮生", name: "薛心媃", date: "114年9月" },{ group: "7", role: "宮生", name: "陳耀宏", date: "114年9月" },
+            { group: "7", role: "宮生", name: "王雅萍", date: "114年12月" },{ group: "8", role: "宮生", name: "陳材欣", date: "114年11月" },
+            { group: "8", role: "宮生", name: "蔡欣容", date: "114年6月" },{ group: "8", role: "宮生", name: "李心瑜", date: "115年2月" },
+            { group: "8", role: "宮生", name: "李金營", date: "115年2月" },{ group: "8", role: "宮生", name: "張麗嬌", date: "114年12月" },
+            { group: "8", role: "宮生", name: "劉玉珍", date: "115年6月" },{ group: "8", role: "宮生", name: "蔡美娟", date: "114年9月" },
+            { group: "9", role: "宮生", name: "林建榮", date: "115年4月" },{ group: "9", role: "宮生", name: "葉歆筠", date: "115年4月" }
         ];
 
-        // 2. 安太歲資料 (Updated 115-02-21)
-        const TaiSuiDataRaw = [
+        const DEFAULT_TAISUI_DATA = [
             {id:"1A1",n:"黃淑霞",r:1,p:1},{id:"1A10",n:"陳盈秀",r:1,p:0},
             {id:"1A11",n:"張桂華",r:1,p:1},{id:"1A12",n:"張友滕",r:1,p:1},{id:"1A13",n:"顏熏葶",r:1,p:1},{id:"1A14",n:"林妍懁",r:1,p:1},
             {id:"1A2",n:"林明毅",r:1,p:1},{id:"1A3",n:"張淑婷",r:1,p:1},{id:"1A31",n:"許婉姿",r:1,p:1},{id:"1A32",n:"林青伭",r:1,p:1},
@@ -181,11 +173,8 @@
             {id:"2X24",n:"康學勝",r:1,p:1},{id:"2X3",n:"康家瑋",r:1,p:1},{id:"2X4",n:"康雅婷",r:1,p:1},{id:"2X5",n:"康吳市",r:1,p:1},
             {id:"2X6",n:"黃金美",r:1,p:1},{id:"2X7",n:"林婉真",r:1,p:1},{id:"2Y1",n:"林坤霖",r:1,p:1},{id:"2Y2",n:"王燕惠",r:1,p:1}
         ];
-        // 排序安太歲資料
-        const TaiSuiData = TaiSuiDataRaw.sort(sortById);
 
-        // 3. 光明燈資料 (Updated 115-02-21)
-        const LightDataRaw = [
+        const DEFAULT_LIGHT_DATA = [
             // 上層 (Type: 1)
             {id:"1B10",n:"游宇閎",t:1,r:1,p:1},{id:"1B7",n:"游建薪",t:1,r:1,p:1},
             {id:"1B8",n:"張佳芸",t:1,r:1,p:1},{id:"1B9",n:"游少均",t:1,r:1,p:1},{id:"1E1",n:"李金紗",t:1,r:1,p:1},{id:"1E19",n:"蕭幸琦",t:1,r:1,p:1},
@@ -264,8 +253,6 @@
             {id:"2S5",n:"張秀專",t:2,r:1,p:1},{id:"2S6",n:"王慶文",t:2,r:1,p:1},{id:"2S7",n:"薛秀蜜",t:2,r:1,p:1},{id:"2T10",n:"張志豪",t:2,r:1,p:1},
             {id:"2T9",n:"蕭淑云",t:2,r:1,p:1},{id:"2X16",n:"林俊成",t:2,r:1,p:1},{id:"1G24",n:"江郁綺",t:2,r:1,p:1},{id:"1A33",n:"楊淑茹",t:2,r:1,p:0}
         ];
-        // 排序光明燈資料
-        const LightData = LightDataRaw.sort(sortById);
 
         // --- 組件: 圖示 ---
         const Icons = {
@@ -281,21 +268,117 @@
 
         // --- 主程式 ---
         function App() {
-            const [activeTab, setActiveTab] = useState("taisui"); // Default: taisui (安太歲)
+            // 資料狀態
+            const [isLoading, setIsLoading] = useState(true);
+            const [RecordData, setRecordData] = useState([]);
+            const [TaiSuiDataRaw, setTaiSuiDataRaw] = useState([]);
+            const [LightDataRaw, setLightDataRaw] = useState([]);
+            
+            // UI 狀態
+            const [activeTab, setActiveTab] = useState("taisui"); 
             const [searchTerm, setSearchTerm] = useState("");
             const [showSuggestions, setShowSuggestions] = useState(false);
             const [filterRole, setFilterRole] = useState("ALL"); 
-            const [lightFilterType, setLightFilterType] = useState("ALL"); // ALL, UPPER, LOWER, UNPAID, PAID
-            const [taiSuiFilterType, setTaiSuiFilterType] = useState("ALL"); // ALL, UNPAID, PAID
+            const [lightFilterType, setLightFilterType] = useState("ALL");
+            const [taiSuiFilterType, setTaiSuiFilterType] = useState("ALL");
             
             // 登入狀態 (委員/宮生)
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [inputPassword, setInputPassword] = useState("");
             const [loginError, setLoginError] = useState(false);
 
+            // ==========================================
+            // 非同步獲取 Google Sheets 資料
+            // ==========================================
+            useEffect(() => {
+                const fetchGoogleSheetsData = async () => {
+                    let fetchedRecord = [], fetchedTaiSui = [], fetchedLight = [];
+
+                    // 1. 抓取委員/宮生資料
+                    if (GOOGLE_SHEETS_URLS.records) {
+                        try {
+                            const res = await fetch(GOOGLE_SHEETS_URLS.records);
+                            if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+                            const text = await res.text();
+                            const parsed = parseCSV(text);
+                            fetchedRecord = parsed.map(row => ({
+                                group: row['組別'] || '', role: row['身份'] || '', name: row['姓名'] || '', date: row['繳交至'] || ''
+                            })).filter(r => r.name);
+                        } catch (e) {
+                            console.error("載入 records 失敗，將使用預設資料:", e);
+                        }
+                    }
+                    
+                    // 2. 抓取太歲資料
+                    if (GOOGLE_SHEETS_URLS.taiSui) {
+                        try {
+                            const res = await fetch(GOOGLE_SHEETS_URLS.taiSui);
+                            if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+                            const text = await res.text();
+                            const parsed = parseCSV(text);
+                            fetchedTaiSui = parsed.map(row => ({
+                                id: row['編號'] || '', n: row['姓名'] || '', 
+                                r: row['太歲登記'] ? parseInt(row['太歲登記']) : 0, 
+                                p: row['太歲繳費'] ? parseInt(row['太歲繳費']) : 0
+                            })).filter(r => r.n);
+                        } catch (e) {
+                            console.error("載入 taiSui 失敗，將使用預設資料:", e);
+                        }
+                    }
+
+                    // 3. 抓取光明燈資料 (上層 + 下層合併)
+                    if (GOOGLE_SHEETS_URLS.lightUpper) {
+                        try {
+                            const res = await fetch(GOOGLE_SHEETS_URLS.lightUpper);
+                            if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+                            const text = await res.text();
+                            const parsed = parseCSV(text);
+                            const upper = parsed.map(row => ({
+                                id: row['編號'] || '', n: row['姓名'] || '', t: 1,
+                                r: row['光明燈上登記'] ? parseInt(row['光明燈上登記']) : 0, 
+                                p: row['光明燈上繳費'] ? parseInt(row['光明燈上繳費']) : 0
+                            })).filter(r => r.n);
+                            fetchedLight = [...fetchedLight, ...upper];
+                        } catch (e) {
+                            console.error("載入 lightUpper 失敗，將使用預設資料:", e);
+                        }
+                    }
+
+                    if (GOOGLE_SHEETS_URLS.lightLower) {
+                        try {
+                            const res = await fetch(GOOGLE_SHEETS_URLS.lightLower);
+                            if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+                            const text = await res.text();
+                            const parsed = parseCSV(text);
+                            const lower = parsed.map(row => ({
+                                id: row['編號'] || '', n: row['姓名'] || '', t: 2,
+                                r: row['光明燈下登記'] ? parseInt(row['光明燈下登記']) : 0, 
+                                p: row['光明燈下繳費'] ? parseInt(row['光明燈下繳費']) : 0
+                            })).filter(r => r.n);
+                            fetchedLight = [...fetchedLight, ...lower];
+                        } catch (e) {
+                            console.error("載入 lightLower 失敗，將使用預設資料:", e);
+                        }
+                    }
+
+                    // 設定最終資料 (如果單項線上抓取為空，就使用該項的預設陣列，避免全部壞掉)
+                    setRecordData(fetchedRecord.length > 0 ? fetchedRecord : [...DEFAULT_RECORD_DATA]);
+                    setTaiSuiDataRaw(fetchedTaiSui.length > 0 ? fetchedTaiSui : [...DEFAULT_TAISUI_DATA]);
+                    setLightDataRaw(fetchedLight.length > 0 ? fetchedLight : [...DEFAULT_LIGHT_DATA]);
+                    
+                    setIsLoading(false);
+                };
+
+                fetchGoogleSheetsData();
+            }, []);
+
+            // 資料排序
+            const TaiSuiData = useMemo(() => [...TaiSuiDataRaw].sort(sortById), [TaiSuiDataRaw]);
+            const LightData = useMemo(() => [...LightDataRaw].sort(sortById), [LightDataRaw]);
+
             const handleLogin = (e) => {
                 e.preventDefault();
-                if (inputPassword === "296296") { // Password: 296296
+                if (inputPassword === "296296") {
                     setIsLoggedIn(true);
                     setLoginError(false);
                 } else {
@@ -308,7 +391,7 @@
             const recordFiltered = useMemo(() => {
                 if (!searchTerm) return RecordData;
                 return RecordData.filter(item => item.name.includes(searchTerm) || item.group.includes(searchTerm));
-            }, [searchTerm]);
+            }, [searchTerm, RecordData]);
 
             const recordStats = useMemo(() => ({
                 all: recordFiltered.length,
@@ -325,7 +408,7 @@
             const taiSuiFiltered = useMemo(() => {
                 if (!searchTerm) return TaiSuiData;
                 return TaiSuiData.filter(item => item.n.includes(searchTerm) || (item.id && item.id.includes(searchTerm.toUpperCase())));
-            }, [searchTerm]);
+            }, [searchTerm, TaiSuiData]);
 
             const taiSuiStats = useMemo(() => ({
                 reg: taiSuiFiltered.filter(i => i.r === 1).length,
@@ -343,7 +426,7 @@
             const lightFiltered = useMemo(() => {
                 if (!searchTerm) return LightData;
                 return LightData.filter(item => item.n.includes(searchTerm) || (item.id && item.id.includes(searchTerm.toUpperCase())));
-            }, [searchTerm]);
+            }, [searchTerm, LightData]);
 
             const lightStats = useMemo(() => ({
                 totalReg: lightFiltered.filter(i => i.r === 1).length,
@@ -364,7 +447,6 @@
                 } else if (lightFilterType === 'PAID') {
                     data = data.filter(item => item.p === 1);
                 }
-                // 'ALL' returns all data
                 return data;
             }, [lightFiltered, lightFilterType]);
 
@@ -379,7 +461,7 @@
                 const matches = allNames
                     .filter(name => name.includes(searchTerm) && name !== searchTerm);
                 return [...new Set(matches)].slice(0, 8);
-            }, [searchTerm]);
+            }, [searchTerm, RecordData, TaiSuiData, LightData]);
 
             // -- 輔助功能 --
             const handleSelectSuggestion = (name) => {
@@ -397,6 +479,16 @@
                 document.addEventListener('click', handleClickOutside);
                 return () => document.removeEventListener('click', handleClickOutside);
             }, []);
+
+            // 載入中 UI
+            if (isLoading) {
+                return (
+                    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+                        <div className="spinner mb-4"></div>
+                        <h2 className="text-xl font-bold text-slate-600 tracking-wider">正在同步最新資料...</h2>
+                    </div>
+                );
+            }
 
             // 渲染列表: 安太歲
             const renderTaiSuiList = () => (
@@ -555,7 +647,6 @@
                                         <span className="text-3xl font-black">{taiSuiStats.unpaid}</span>
                                     </button>
                                 </div>
-                                <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 115-2-21</div>
                                 {renderTaiSuiList()}
                             </div>
                         )}
@@ -586,7 +677,6 @@
                                         <span className="text-2xl font-black">{lightStats.unpaid}</span>
                                     </button>
                                 </div>
-                                <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 115-2-21</div>
                                 {renderLightList()}
                             </div>
                         )}
@@ -638,7 +728,6 @@
                                                 <span className="text-3xl font-bold">{recordStats.student}</span>
                                             </button>
                                         </div>
-                                        <div className="text-right text-xs text-slate-400 font-medium mb-2 px-1">更新日: 115-2-21</div>
                                         {/* 列表 */}
                                         <div className="space-y-2">
                                             {recordDisplay.length > 0 ? recordDisplay.map((item, index) => (
