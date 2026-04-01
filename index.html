@@ -20,6 +20,10 @@
         /* 載入動畫 */
         .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: #3b82f6; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* 隱藏捲軸但保留捲動功能 (給頂部導航列使用) */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-slate-50">
@@ -35,27 +39,57 @@
             taiSui: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1409111845&single=true&output=csv",        
             lightUpper: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1353370878&single=true&output=csv",    
             lightLower: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1743080288&single=true&output=csv",    
-            records: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=0&single=true&output=csv"        
+            records: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=0&single=true&output=csv",
+            eastTrip: "https://docs.google.com/spreadsheets/d/1tyVkgPvtkvnFIoj2Y16a-Z85EXMojL8BUM7KntPzCzU/gviz/tq?tqx=out:csv&gid=43391721", 
+            fujianTrip: "https://docs.google.com/spreadsheets/d/1tyVkgPvtkvnFIoj2Y16a-Z85EXMojL8BUM7KntPzCzU/gviz/tq?tqx=out:csv&gid=691088006",
+            donation: "https://docs.google.com/spreadsheets/d/1tyVkgPvtkvnFIoj2Y16a-Z85EXMojL8BUM7KntPzCzU/gviz/tq?tqx=out:csv&gid=935792502"
         };
 
-        // --- 輔助函式: CSV 解析器 ---
-        const parseCSV = (text) => {
-            // 移除可能存在的 BOM 隱藏字元，避免第一欄標題比對失敗
-            const cleanText = text.replace(/^\uFEFF/, '');
-            const lines = cleanText.split('\n').map(l => l.trim()).filter(l => l);
-            if (lines.length === 0) return [];
-            const headers = lines[0].split(',');
-            return lines.slice(1).map(line => {
-                const values = line.split(',');
-                return headers.reduce((obj, header, i) => {
-                    // 【關鍵修復】確保標題把多餘的雙引號、單引號、「以及所有空白」強制脫掉！
-                    // 這樣您的「姓 名」就會自動變成「姓名」，系統就不會再抓不到資料而載入預設值了
-                    const cleanHeader = header.replace(/["'\s]+/g, '');
-                    const cleanValue = (values[i] || '').trim().replace(/^["']|["']$/g, '');
-                    obj[cleanHeader] = cleanValue;
-                    return obj;
-                }, {});
+        // --- 新增：進階版 CSV 列拆分器 (支援千分位金額的逗號) ---
+        const splitCSVRow = (str) => {
+            let row = [''], i = 0, inQuotes = false;
+            for (let char of str) {
+                if (char === '"') inQuotes = !inQuotes;
+                else if (char === ',' && !inQuotes) row[++i] = '';
+                else row[i] += char;
+            }
+            // 移除前後引號與多餘空白
+            return row.map(v => v.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+        };
+
+        // --- 新增：針對旅遊 (B欄名單 / E欄名單) 的客製化解析邏輯 ---
+        const extractTripData = (parsed) => {
+            if(!parsed || parsed.length === 0) return [];
+            const keys = Object.keys(parsed[0]);
+            let regKey = keys.find(k => k.includes('登記') || k.includes('姓名')) || keys[1]; 
+            let paidKey = keys.find(k => k.includes('繳費')) || keys[4]; 
+            if(!regKey) return [];
+
+            let paidSet = new Set();
+            parsed.forEach(row => {
+                const pName = row[paidKey];
+                if(pName && pName.trim() !== '') paidSet.add(pName.trim());
             });
+
+            return parsed.filter(row => row[regKey] && row[regKey].trim() !== '').map((row, i) => ({
+                id: i, name: row[regKey].trim(), isPaid: paidSet.has(row[regKey].trim())
+            }));
+        };
+
+        // --- 新增：針對捐獻的客製化解析邏輯 ---
+        const extractDonations = (parsed) => {
+            if(!parsed || parsed.length === 0) return [];
+            const keys = Object.keys(parsed[0]);
+            let itemKey = keys.find(k => k.includes('項目')) || keys[0];
+            let nameKey = keys.find(k => k.includes('姓名') || k.includes('名單')) || keys[1];
+            let amountKey = keys.find(k => k.includes('金額') || k.includes('元')) || keys[2];
+
+            return parsed.map((row, i) => ({
+                id: i,
+                item: (row[itemKey] || '').trim(),
+                name: (row[nameKey] || '').trim(),
+                amount: (row[amountKey] || '').trim()
+            })).filter(r => r.name || r.amount);
         };
 
         // --- 輔助函式: 編號排序邏輯 ---
@@ -73,192 +107,23 @@
         };
 
         // =========================================================================
-        // 內建預設資料 (Fallback - 當無網路或 Google 表單異常時的備用名單)
+        // 內建預設資料 (Fallback)
         // =========================================================================
         const DEFAULT_RECORD_DATA = [
-            { group: "1", role: "宮生", name: "傅沛柔", date: "114年12月" },{ group: "1", role: "宮生", name: "周義棠", date: "114年12月" },
-            { group: "1", role: "宮生", name: "張玉莉", date: "115年12月" },{ group: "1", role: "宮生", name: "張佳芸", date: "115年12月" },
-            { group: "1", role: "委員", name: "蔡照能", date: "114年10月" },{ group: "1", role: "宮生", name: "林秀娟", date: "115年2月" },
-            { group: "1", role: "委員", name: "林明毅", date: "114年12月" },{ group: "1", role: "宮生", name: "張淑婷", date: "114年12月" },
-            { group: "1", role: "宮生", name: "張淑媛", date: "115年12月" },{ group: "2", role: "宮生", name: "黃玉鈴", date: "114年6月" },
-            { group: "2", role: "宮生", name: "鍾傳", date: "114年6月" },{ group: "2", role: "宮生", name: "鍾曉芳", date: "114年12月" },
-            { group: "2", role: "宮生", name: "鍾曉婷", date: "113年12月" },{ group: "2", role: "委員", name: "張朝勇", date: "114年12月" },
-            { group: "2", role: "宮生", name: "吳怡君", date: "114年12月" },{ group: "3", role: "委員", name: "曹義輝", date: "115年6月" },
-            { group: "3", role: "委員", name: "涂春鎮", date: "113年12月" },{ group: "3", role: "宮生", name: "曾佳茵", date: "113年12月" },
-            { group: "3", role: "委員", name: "戴日茂", date: "114年12月" },{ group: "3", role: "宮生", name: "謝淨鞠", date: "114年12月" },
-            { group: "3", role: "宮生", name: "李銘楓", date: "未繳費" },{ group: "3", role: "宮生", name: "郭心榆", date: "未繳費" },
-            { group: "4", role: "宮生", name: "徐文清", date: "115年6月" },{ group: "4", role: "宮生", name: "羅安廷", date: "115年6月" },
-            { group: "4", role: "宮生", name: "徐文潔", date: "115年6月" },{ group: "4", role: "宮生", name: "楊宗修", date: "115年6月" },
-            { group: "4", role: "委員", name: "劉建榮", date: "115年1月" },{ group: "4", role: "宮生", name: "楊宗凱", date: "115年12月" },
-            { group: "4", role: "宮生", name: "楊盈嫻", date: "115年12月" },{ group: "5", role: "委員", name: "張小燕", date: "115年12月" },
-            { group: "5", role: "委員", name: "呂述園", date: "114年12月" },{ group: "5", role: "宮生", name: "盧游鳳", date: "115年12月" },
-            { group: "5", role: "委員", name: "范僑宴", date: "113年12月" },{ group: "5", role: "宮生", name: "林宸矓", date: "114年12月" },
-            { group: "6", role: "委員", name: "劉淑婷", date: "114年12月" },{ group: "6", role: "委員", name: "林佳燕", date: "115年6月" },
-            { group: "6", role: "宮生", name: "陳瑋杰", date: "113年12月" },{ group: "6", role: "委員", name: "林麗娟", date: "115年3月" },
-            { group: "7", role: "委員", name: "胡有昌", date: "114年12月" },{ group: "7", role: "宮生", name: "薛紫羚", date: "114年12月" },
-            { group: "7", role: "委員", name: "張錫卿", date: "115年3月" },{ group: "7", role: "委員", name: "王琳麒", date: "115年3月" },
-            { group: "7", role: "委員", name: "張志豪", date: "114年9月" },{ group: "7", role: "宮生", name: "蕭淑云", date: "114年9月" },
-            { group: "7", role: "宮生", name: "薛心媃", date: "114年9月" },{ group: "7", role: "宮生", name: "陳耀宏", date: "114年9月" },
-            { group: "7", role: "宮生", name: "王雅萍", date: "114年12月" },{ group: "8", role: "宮生", name: "陳材欣", date: "114年11月" },
-            { group: "8", role: "宮生", name: "蔡欣容", date: "114年6月" },{ group: "8", role: "宮生", name: "李心瑜", date: "115年2月" },
-            { group: "8", role: "宮生", name: "李金營", date: "115年2月" },{ group: "8", role: "宮生", name: "張麗嬌", date: "114年12月" },
-            { group: "8", role: "宮生", name: "劉玉珍", date: "115年6月" },{ group: "8", role: "宮生", name: "蔡美娟", date: "114年9月" },
-            { group: "9", role: "宮生", name: "林建榮", date: "115年4月" },{ group: "9", role: "宮生", name: "葉歆筠", date: "115年4月" }
+            { group: "1", role: "宮生", name: "傅沛柔", date: "114年12月" }, { group: "1", role: "委員", name: "蔡照能", date: "未繳費" }
         ];
-
         const DEFAULT_TAISUI_DATA = [
-            {id:"1A1",n:"黃淑霞",r:1,p:1},{id:"1A10",n:"陳盈秀",r:1,p:0},
-            {id:"1A11",n:"張桂華",r:1,p:1},{id:"1A12",n:"張友滕",r:1,p:1},{id:"1A13",n:"顏熏葶",r:1,p:1},{id:"1A14",n:"林妍懁",r:1,p:1},
-            {id:"1A2",n:"林明毅",r:1,p:1},{id:"1A3",n:"張淑婷",r:1,p:1},{id:"1A31",n:"許婉姿",r:1,p:1},{id:"1A32",n:"林青伭",r:1,p:1},
-            {id:"1A33",n:"楊淑茹",r:1,p:0},{id:"1A4",n:"林松賢",r:1,p:1},{id:"1A5",n:"林慧宓",r:1,p:1},{id:"1A6",n:"林良宇",r:1,p:1},
-            {id:"1A7",n:"張永炘",r:1,p:1},{id:"1A8",n:"張高瓊珠",r:1,p:1},{id:"1A9",n:"張為舜",r:1,p:1},{id:"1B1",n:"石林秀梅",r:1,p:1},
-            {id:"1B10",n:"游宇閎",r:1,p:1},{id:"1B2",n:"石上助",r:1,p:1},{id:"1B3",n:"張淑媛",r:1,p:1},{id:"1B4",n:"石加靖",r:1,p:1},
-            {id:"1B5",n:"石嘉宸",r:1,p:1},{id:"1B7",n:"游建薪",r:1,p:1},{id:"1B8",n:"張佳芸",r:1,p:1},{id:"1B9",n:"游少均",r:1,p:1},
-            {id:"1C1",n:"蔡林花",r:1,p:1},{id:"1C12",n:"蔡宏懿",r:1,p:0},{id:"1C13",n:"張民發",r:1,p:1},{id:"1C14",n:"蕭美柳",r:1,p:1},
-            {id:"1C15",n:"張郁婕",r:1,p:1},{id:"1C16",n:"張玉莉",r:1,p:1},{id:"1C17",n:"蔡昇鴻",r:1,p:1},{id:"1C18",n:"蔡宛錡",r:1,p:1},
-            {id:"1C19",n:"陳鋅錕",r:1,p:1},{id:"1C2",n:"蔡照能",r:1,p:1},{id:"1C20",n:"張瑜銣",r:1,p:1},{id:"1C21",n:"陳涵鈺",r:1,p:1},
-            {id:"1C22",n:"陳得吉",r:1,p:1},{id:"1C24",n:"簡棠威",r:1,p:1},{id:"1C25",n:"簡茈柃",r:1,p:1},{id:"1C26",n:"蔡承佑",r:1,p:1},
-            {id:"1C27",n:"李美華",r:1,p:1},{id:"1C28",n:"吳湘喆",r:1,p:1},{id:"1C29",n:"黃怡萍",r:1,p:1},{id:"1C3",n:"林秀娟",r:1,p:1},
-            {id:"1C4",n:"蔡湘妤",r:1,p:1},{id:"1C5",n:"蔡承翰",r:1,p:1},{id:"1C9",n:"蔡松村",r:1,p:0},{id:"1D3",n:"張朝勇",r:1,p:1},
-            {id:"1D4",n:"吳怡君",r:1,p:1},{id:"1D5",n:"張云宣",r:1,p:1},{id:"1D6",n:"張緯誼",r:1,p:1},{id:"1E1",n:"李金紗",r:1,p:1},
-            {id:"1E2",n:"劉建榮",r:1,p:1},{id:"1E3",n:"劉坤瑋",r:1,p:1},{id:"1E4",n:"劉佳宜",r:1,p:1},{id:"1E5",n:"楊紹鑫",r:1,p:1},
-            {id:"1E6",n:"劉雅庭",r:1,p:1},{id:"1E7",n:"楊博顯",r:1,p:1},{id:"1E8",n:"楊蕍嬬",r:1,p:1},{id:"1F10",n:"陳如芸",r:1,p:1},
-            {id:"1F11",n:"陳如萍",r:1,p:1},{id:"1F12",n:"林智恩",r:1,p:1},{id:"1F2",n:"黃純堂",r:1,p:1},{id:"1F3",n:"黎虹順",r:1,p:1},
-            {id:"1F8",n:"黃伊苓",r:1,p:1},{id:"1G1",n:"傅森林",r:1,p:1},{id:"1G2",n:"傅祥祐",r:1,p:1},{id:"1G21",n:"王正堯",r:1,p:1},
-            {id:"1G22",n:"王正榮",r:1,p:1},{id:"1G23",n:"陳凱威",r:1,p:1},{id:"1G24",n:"江郁綺",r:1,p:1},{id:"1G3",n:"傅士峯",r:1,p:1},
-            {id:"1G4",n:"林麗娟",r:1,p:1},{id:"1G5",n:"傅霈柔",r:1,p:1},{id:"1G6",n:"周寀瑩",r:1,p:1},{id:"1G7",n:"周家宏",r:1,p:1},
-            {id:"1G8",n:"周義棠",r:1,p:1},{id:"1H1",n:"戴日茂",r:1,p:1},{id:"1H2",n:"謝淨鞠",r:1,p:1},{id:"1H3",n:"戴緯綾",r:1,p:1},
-            {id:"1H4",n:"戴珮羽",r:1,p:1},{id:"1J1",n:"張永坤",r:1,p:1},{id:"1J2",n:"劉玉珍",r:1,p:1},{id:"1J5",n:"陳紹鴻",r:1,p:1},
-            {id:"1L1",n:"李心瑜",r:1,p:1},{id:"1L4",n:"李金營",r:1,p:1},{id:"1L5",n:"李汶蒨",r:1,p:1},{id:"1P1",n:"蔡美娟",r:1,p:1},
-            {id:"1P10",n:"蔡黃美珍",r:1,p:1},{id:"1P11",n:"蔡亨佑",r:1,p:1},{id:"1P2",n:"蔡明宏",r:1,p:1},{id:"1Q1",n:"林佳燕",r:1,p:1},
-            {id:"1Q2",n:"陳瑋杰",r:1,p:1},{id:"1Q3",n:"陳嘉憲",r:1,p:1},{id:"1R1",n:"張麗珠",r:1,p:1},{id:"1R3",n:"林清華",r:1,p:1},
-            {id:"1R4",n:"林清祥",r:1,p:1},{id:"1S1",n:"張麗香",r:1,p:1},{id:"1S2",n:"王士榕",r:1,p:1},{id:"1S3",n:"王俊傑",r:1,p:1},
-            {id:"1S4",n:"王耘蓉",r:1,p:1},{id:"1S5",n:"張家豪",r:1,p:1},{id:"1S6",n:"張煜彤",r:1,p:1},{id:"1S7",n:"張碩鈞",r:1,p:1},
-            {id:"1T1",n:"張麗嬌",r:1,p:1},{id:"1T10",n:"蔡欣怡",r:1,p:1},{id:"1T11",n:"洪國文",r:1,p:1},{id:"1T12",n:"洪佑琪",r:1,p:1},
-            {id:"1T13",n:"洪柏瑞",r:1,p:1},{id:"1T14",n:"洪文勲",r:1,p:1},{id:"1T15",n:"林香",r:1,p:1},{id:"1T18",n:"洪國展",r:1,p:1},
-            {id:"1T19",n:"鍾佳芬",r:1,p:1},{id:"1T2",n:"陳材欣",r:1,p:1},{id:"1T3",n:"蔡欣容",r:1,p:1},{id:"1T4",n:"陳丞頡",r:1,p:1},
-            {id:"1T5",n:"陳兆賢",r:1,p:1},{id:"1T6",n:"陳佳芊",r:1,p:1},{id:"1T7",n:"陳韋勝",r:1,p:1},{id:"1T8",n:"許惟婷",r:1,p:1},
-            {id:"1T9",n:"陳昕廷",r:1,p:1},{id:"1U1",n:"陳春宇",r:1,p:1},{id:"1U10",n:"陳巧雯",r:1,p:1},{id:"1U11",n:"陳欣妮",r:1,p:1},
-            {id:"1U12",n:"陳婕恩",r:1,p:1},{id:"1U13",n:"林于勝",r:1,p:1},{id:"1U14",n:"陳兆甫",r:1,p:1},{id:"1U2",n:"張英粧",r:1,p:1},
-            {id:"1U3",n:"陳明智",r:1,p:1},{id:"1U4",n:"陳巧伶",r:1,p:1},{id:"1U5",n:"陳巧萍",r:1,p:1},{id:"1U6",n:"陳俞雯",r:1,p:1},
-            {id:"1U7",n:"陳庭婕",r:1,p:1},{id:"1U8",n:"陳宥恩",r:1,p:1},{id:"1U9",n:"陳冠翔",r:1,p:1},{id:"1V1",n:"楊瑛豪",r:1,p:1},
-            {id:"1V10",n:"楊宗修",r:1,p:1},{id:"1V11",n:"徐文潔",r:1,p:1},{id:"1V12",n:"楊承彧",r:1,p:1},{id:"1V13",n:"楊侑澤",r:1,p:1},
-            {id:"1V14",n:"徐續源",r:1,p:1},{id:"1V15",n:"楊宗凱",r:1,p:1},{id:"1V16",n:"楊盈嫺",r:1,p:1},{id:"1V17",n:"楊雨蓁",r:1,p:1},
-            {id:"1V18",n:"徐文娟",r:1,p:1},{id:"1V2",n:"張素真",r:1,p:1},{id:"1V3",n:"楊博翔",r:1,p:1},{id:"1V4",n:"楊弘聖",r:1,p:1},
-            {id:"1V5",n:"楊再添",r:1,p:1},{id:"1V6",n:"羅安廷",r:1,p:1},{id:"1V7",n:"徐文清",r:1,p:1},{id:"1V8",n:"羅立泓",r:1,p:1},
-            {id:"1V9",n:"羅宇佑",r:1,p:1},{id:"1W1",n:"曾春義",r:1,p:1},{id:"1W2",n:"張素梅",r:1,p:1},{id:"1X1",n:"張如羊",r:1,p:1},
-            {id:"1X11",n:"張芷緁",r:1,p:1},{id:"1X12",n:"張睿佑",r:1,p:1},{id:"1X2",n:"粘淑英",r:1,p:1},{id:"1X21",n:"洪月卿",r:1,p:1},
-            {id:"1X26",n:"潘況菀",r:1,p:1},{id:"1X27",n:"潘小琦",r:1,p:1},{id:"1X29",n:"曹義輝",r:1,p:1},{id:"1X3",n:"張丞希",r:1,p:1},
-            {id:"1X34",n:"黃明政",r:1,p:1},{id:"1X35",n:"陳氏梁",r:1,p:1},{id:"1X4",n:"張玉龍",r:1,p:1},{id:"1X42",n:"張仟嬟",r:1,p:1},
-            {id:"1X43",n:"阮佳樺",r:1,p:1},{id:"1X6",n:"張羽潔",r:1,p:1},{id:"1X7",n:"張兆葳",r:1,p:1},{id:"1X9",n:"張汝萱",r:1,p:1},
-            {id:"1Y1",n:"范僑宴",r:1,p:1},{id:"1Y19",n:"盧游鳳",r:1,p:1},{id:"1Y2",n:"林宸矓",r:1,p:1},{id:"1Y20",n:"陳怡秀",r:1,p:1},
-            {id:"1Y21",n:"陳盈茹",r:1,p:1},{id:"1Y22",n:"陳盈萱",r:1,p:1},{id:"1Y51",n:"吳宗明",r:1,p:1},{id:"1Z1",n:"劉淑婷",r:1,p:1},
-            {id:"1Z18",n:"張習",r:1,p:1},{id:"1Z19",n:"張彥苡",r:1,p:1},{id:"1Z2",n:"蔡子芸",r:1,p:1},{id:"1Z3",n:"劉昌利",r:1,p:1},
-            {id:"1Z4",n:"劉陳蔥",r:1,p:1},{id:"1Z5",n:"張明凱",r:1,p:1},{id:"1Z6",n:"林佳螢",r:1,p:1},{id:"1Z7",n:"張煒謙",r:1,p:1},
-            {id:"1Z9",n:"楊宏義",r:1,p:1},{id:"2A1",n:"鍾益生",r:1,p:0},{id:"2A10",n:"廖希令",r:1,p:1},{id:"2A2",n:"黃玉鈴",r:1,p:0},
-            {id:"2A3",n:"鍾傳",r:1,p:0},{id:"2A5",n:"鍾曉婷",r:1,p:0},{id:"2A6",n:"鍾允喬",r:1,p:0},{id:"2A7",n:"鍾曉芳",r:1,p:1},
-            {id:"2A8",n:"廖文吉",r:1,p:1},{id:"2A9",n:"廖希桓",r:1,p:1},{id:"2E1",n:"陳美臻",r:1,p:1},{id:"2E2",n:"巫品嘉",r:1,p:1},
-            {id:"2E3",n:"巫沛萱",r:1,p:1},{id:"2E4",n:"林甄蒂",r:1,p:1},{id:"2E5",n:"邱宣呈",r:1,p:1},{id:"2P1",n:"吳金墩",r:1,p:1},
-            {id:"2P10",n:"葉玉婷",r:1,p:1},{id:"2P2",n:"薛滿祝",r:1,p:1},{id:"2P3",n:"陳耀宏",r:1,p:1},{id:"2P4",n:"薛心媃",r:1,p:1},
-            {id:"2P5",n:"陳金辰",r:1,p:1},{id:"2P6",n:"胡有昌",r:1,p:1},{id:"2P7",n:"薛紫羚",r:1,p:1},{id:"2P8",n:"胡辰憬",r:1,p:1},
-            {id:"2P9",n:"蔡孟君",r:1,p:1},{id:"2R1",n:"邱世明",r:1,p:1},{id:"2R2",n:"黃小芬",r:1,p:1},{id:"2R3",n:"邱竑華",r:1,p:1},
-            {id:"2R4",n:"黃琬筑",r:1,p:1},{id:"2S1",n:"徐會然",r:1,p:1},{id:"2S2",n:"王雅萍",r:1,p:1},{id:"2S3",n:"徐翊緁",r:1,p:1},
-            {id:"2S4",n:"徐昀彤",r:1,p:1},{id:"2S5",n:"張秀專",r:1,p:1},{id:"2S6",n:"王慶文",r:1,p:1},{id:"2S7",n:"薛秀蜜",r:1,p:1},
-            {id:"2T1",n:"張錫卿",r:1,p:1},{id:"2T10",n:"張志豪",r:1,p:1},{id:"2T2",n:"初盈潔",r:1,p:1},{id:"2T3",n:"張景棠",r:1,p:1},
-            {id:"2T4",n:"張景崴",r:1,p:1},{id:"2T5",n:"黃淑蓉",r:1,p:1},{id:"2T6",n:"張志郎",r:1,p:1},{id:"2T7",n:"王琳麒",r:1,p:1},
-            {id:"2T8",n:"劉琬茜",r:1,p:1},{id:"2T9",n:"蕭淑云",r:1,p:1},{id:"2U1",n:"林建榮",r:1,p:1},{id:"2U2",n:"葉歆筠",r:1,p:1},
-            {id:"2U3",n:"林秉義",r:1,p:1},{id:"2U4",n:"林姿羽",r:1,p:1},{id:"2U5",n:"施淑梨",r:1,p:1},{id:"2U6",n:"林羿彣",r:1,p:1},
-            {id:"2V1",n:"劉玥汝",r:1,p:1},{id:"2V10",n:"謝宗錡",r:1,p:1},{id:"2V11",n:"曾珮謹",r:1,p:1},{id:"2V13",n:"劉宇珊",r:1,p:1},
-            {id:"2V14",n:"謝政憲",r:1,p:1},{id:"2V15",n:"楊秋娟",r:1,p:1},{id:"2V16",n:"謝侑宸",r:1,p:1},{id:"2V17",n:"謝姿渝",r:1,p:1},
-            {id:"2V2",n:"劉衍呈",r:1,p:1},{id:"2V3",n:"劉羽瑄",r:1,p:1},{id:"2V4",n:"陳姿樺",r:1,p:1},{id:"2V5",n:"劉昭鴻",r:1,p:1},
-            {id:"2V6",n:"王信寬",r:1,p:1},{id:"2V7",n:"曾慈慧",r:1,p:1},{id:"2V8",n:"王柏程",r:1,p:1},{id:"2V9",n:"劉孟珍",r:1,p:1},
-            {id:"2W1",n:"黃大仁",r:1,p:1},{id:"2W12",n:"王祥麟",r:1,p:1},{id:"2W14",n:"邱順元",r:1,p:1},{id:"2W15",n:"李慧香",r:1,p:1},
-            {id:"2W16",n:"邱一",r:1,p:1},{id:"2W17",n:"邱子杰",r:1,p:1},{id:"2W2",n:"賴莉莉",r:1,p:1},{id:"2W3",n:"賴瑞隆",r:1,p:1},
-            {id:"2W4",n:"陳素華",r:1,p:1},{id:"2W5",n:"程皖兒",r:1,p:1},{id:"2W6",n:"程琳",r:1,p:1},{id:"2X1",n:"康慶中",r:1,p:1},
-            {id:"2X15",n:"曾麓安",r:1,p:1},{id:"2X16",n:"林俊成",r:1,p:1},{id:"2X17",n:"羅昭雄",r:1,p:1},{id:"2X18",n:"羅翊榕",r:1,p:1},
-            {id:"2X19",n:"陳昱君",r:1,p:1},{id:"2X2",n:"張小燕",r:1,p:1},{id:"2X20",n:"陳昶廷",r:1,p:1},{id:"2X23",n:"康丞勲",r:1,p:1},
-            {id:"2X24",n:"康學勝",r:1,p:1},{id:"2X3",n:"康家瑋",r:1,p:1},{id:"2X4",n:"康雅婷",r:1,p:1},{id:"2X5",n:"康吳市",r:1,p:1},
-            {id:"2X6",n:"黃金美",r:1,p:1},{id:"2X7",n:"林婉真",r:1,p:1},{id:"2Y1",n:"林坤霖",r:1,p:1},{id:"2Y2",n:"王燕惠",r:1,p:1}
+            {id:"1A1",n:"黃淑霞",r:1,p:1},{id:"1A10",n:"陳盈秀",r:1,p:0}
         ];
-
         const DEFAULT_LIGHT_DATA = [
-            // 上層 (Type: 1)
-            {id:"1B10",n:"游宇閎",t:1,r:1,p:1},{id:"1B7",n:"游建薪",t:1,r:1,p:1},
-            {id:"1B8",n:"張佳芸",t:1,r:1,p:1},{id:"1B9",n:"游少均",t:1,r:1,p:1},{id:"1E1",n:"李金紗",t:1,r:1,p:1},{id:"1E19",n:"蕭幸琦",t:1,r:1,p:1},
-            {id:"1E2",n:"劉建榮",t:1,r:1,p:1},{id:"1E20",n:"蕭幸茹",t:1,r:1,p:1},{id:"1E5",n:"楊紹鑫",t:1,r:1,p:1},{id:"1E6",n:"劉雅庭",t:1,r:1,p:1},
-            {id:"1E7",n:"楊博顯",t:1,r:1,p:1},{id:"1E8",n:"楊蕍嬬",t:1,r:1,p:1},{id:"1G3",n:"傅士峯",t:1,r:1,p:1},{id:"1G4",n:"林麗娟",t:1,r:1,p:1},
-            {id:"1L1",n:"李心瑜",t:1,r:1,p:1},{id:"1L4",n:"李金營",t:1,r:1,p:1},{id:"1L5",n:"李汶蒨",t:1,r:1,p:1},{id:"1Q1",n:"林佳燕",t:1,r:1,p:1},
-            {id:"1Q2",n:"陳瑋杰",t:1,r:1,p:1},{id:"1Q3",n:"陳嘉憲",t:1,r:1,p:1},{id:"1R1",n:"張麗珠",t:1,r:1,p:1},{id:"1R3",n:"林清華",t:1,r:1,p:1},
-            {id:"1R4",n:"林清祥",t:1,r:1,p:1},{id:"1S1",n:"張麗香",t:1,r:1,p:1},{id:"1S2",n:"王士榕",t:1,r:1,p:1},{id:"1S3",n:"王俊傑",t:1,r:1,p:1},
-            {id:"1S4",n:"王耘蓉",t:1,r:1,p:1},{id:"1S5",n:"張家豪",t:1,r:1,p:1},{id:"1S6",n:"張煜彤",t:1,r:1,p:1},{id:"1S7",n:"張碩鈞",t:1,r:1,p:1},
-            {id:"1T1",n:"張麗嬌",t:1,r:1,p:1},{id:"1T10",n:"蔡欣怡",t:1,r:1,p:1},{id:"1T11",n:"洪國文",t:1,r:1,p:1},{id:"1T12",n:"洪佑琪",t:1,r:1,p:1},
-            {id:"1T13",n:"洪柏瑞",t:1,r:1,p:1},{id:"1T14",n:"洪文勲",t:1,r:1,p:1},{id:"1T15",n:"林香",t:1,r:1,p:1},{id:"1T18",n:"洪國展",t:1,r:1,p:1},
-            {id:"1T19",n:"鍾佳芬",t:1,r:1,p:1},{id:"1T7",n:"陳韋勝",t:1,r:1,p:1},{id:"1T8",n:"許惟婷",t:1,r:1,p:1},{id:"1T9",n:"陳昕廷",t:1,r:1,p:1},
-            {id:"1X29",n:"曹義輝",t:1,r:1,p:1},{id:"1X40",n:"劉芷菱",t:1,r:1,p:1},{id:"1X41",n:"陳誼",t:1,r:1,p:1},{id:"1Y1",n:"范僑宴",t:1,r:1,p:1},
-            {id:"1Y19",n:"盧游鳳",t:1,r:1,p:1},{id:"1Y2",n:"林宸矓",t:1,r:1,p:1},{id:"1Y20",n:"陳怡秀",t:1,r:1,p:1},{id:"1Y21",n:"陳盈茹",t:1,r:1,p:1},
-            {id:"1Y22",n:"陳盈萱",t:1,r:1,p:1},{id:"1Y51",n:"吳宗明",t:1,r:1,p:1},{id:"2A10",n:"廖希令",t:1,r:1,p:1},{id:"2A7",n:"鍾曉芳",t:1,r:1,p:1},
-            {id:"2A8",n:"廖文吉",t:1,r:1,p:1},{id:"2A9",n:"廖希桓",t:1,r:1,p:1},{id:"2T1",n:"張錫卿",t:1,r:1,p:1},{id:"2T2",n:"初盈潔",t:1,r:1,p:1},
-            {id:"2T3",n:"張景棠",t:1,r:1,p:1},{id:"2T4",n:"張景崴",t:1,r:1,p:1},{id:"2T5",n:"黃淑蓉",t:1,r:1,p:1},{id:"2T6",n:"張志郎",t:1,r:1,p:1},
-            {id:"2T7",n:"王琳麒",t:1,r:1,p:1},{id:"2T8",n:"劉琬茜",t:1,r:1,p:1},{id:"2U1",n:"林建榮",t:1,r:1,p:1},{id:"2U2",n:"葉歆筠",t:1,r:1,p:1},
-            {id:"2U3",n:"林秉義",t:1,r:1,p:1},{id:"2U4",n:"林姿羽",t:1,r:1,p:1},{id:"2U5",n:"施淑梨",t:1,r:1,p:1},{id:"2U6",n:"林羿彣",t:1,r:1,p:1},
-            {id:"2V10",n:"謝宗錡",t:1,r:1,p:1},{id:"2V11",n:"曾珮謹",t:1,r:1,p:1},{id:"2V14",n:"謝政憲",t:1,r:1,p:1},{id:"2V15",n:"楊秋娟",t:1,r:1,p:1},
-            {id:"2V16",n:"謝侑宸",t:1,r:1,p:1},{id:"2V17",n:"謝姿渝",t:1,r:1,p:1},{id:"2V4",n:"陳姿樺",t:1,r:1,p:1},{id:"2V5",n:"劉昭鴻",t:1,r:1,p:1},
-            {id:"2V6",n:"王信寬",t:1,r:1,p:1},{id:"2V7",n:"曾慈慧",t:1,r:1,p:1},{id:"2V9",n:"劉孟珍",t:1,r:1,p:1},{id:"2W1",n:"黃大仁",t:1,r:1,p:1},
-            {id:"2W12",n:"王祥麟",t:1,r:1,p:1},{id:"2W2",n:"賴莉莉",t:1,r:1,p:1},{id:"2W3",n:"賴瑞隆",t:1,r:1,p:1},{id:"2W4",n:"陳素華",t:1,r:1,p:1},
-            {id:"2W5",n:"程皖兒",t:1,r:1,p:1},{id:"2W6",n:"程琳",t:1,r:1,p:1},{id:"2X1",n:"康慶中",t:1,r:1,p:1},{id:"2X15",n:"曾麓安",t:1,r:1,p:1},
-            {id:"2X17",n:"羅昭雄",t:1,r:1,p:1},{id:"2X18",n:"羅翊榕",t:1,r:1,p:1},{id:"2X19",n:"陳昱君",t:1,r:1,p:1},{id:"2X2",n:"張小燕",t:1,r:1,p:1},
-            {id:"2X20",n:"陳昶廷",t:1,r:1,p:1},{id:"2X23",n:"康丞勲",t:1,r:1,p:1},{id:"2X3",n:"康家瑋",t:1,r:1,p:1},{id:"2X4",n:"康雅婷",t:1,r:1,p:1},
-            {id:"2X5",n:"康吳市",t:1,r:1,p:1},{id:"2X6",n:"黃金美",t:1,r:1,p:1},{id:"2X7",n:"林婉真",t:1,r:1,p:1},{id:"2Y1",n:"林坤霖",t:1,r:1,p:1},
-            {id:"2Y2",n:"王燕惠",t:1,r:1,p:1},{id:"2W14",n:"邱順元",t:1,r:1,p:1},{id:"2W15",n:"李慧香",t:1,r:1,p:1},{id:"2W16",n:"邱一",t:1,r:1,p:1},
-            {id:"2W17",n:"邱子杰",t:1,r:1,p:1},{id:"2X24",n:"康學勝",t:1,r:1,p:1},
-
-            // 下層 (Type: 2)
-            {id:"1A1",n:"黃淑霞",t:2,r:1,p:1},{id:"1A10",n:"陳盈秀",t:2,r:1,p:0},
-            {id:"1A11",n:"張桂華",t:2,r:1,p:1},{id:"1A12",n:"張友滕",t:2,r:1,p:1},{id:"1A13",n:"顏熏葶",t:2,r:1,p:1},{id:"1A14",n:"林妍懁",t:2,r:1,p:1},
-            {id:"1A2",n:"林明毅",t:2,r:1,p:1},{id:"1A3",n:"張淑婷",t:2,r:1,p:1},{id:"1A31",n:"許婉姿",t:2,r:1,p:1},{id:"1A32",n:"林青伭",t:2,r:1,p:1},
-            {id:"1A4",n:"林松賢",t:2,r:1,p:1},{id:"1A5",n:"林慧宓",t:2,r:1,p:1},{id:"1A6",n:"林良宇",t:2,r:1,p:1},{id:"1A7",n:"張永炘",t:2,r:1,p:1},
-            {id:"1A8",n:"張高瓊珠",t:2,r:1,p:1},{id:"1A9",n:"張為舜",t:2,r:1,p:1},{id:"1B1",n:"石林秀梅",t:2,r:1,p:1},{id:"1B2",n:"石上助",t:2,r:1,p:1},
-            {id:"1B3",n:"張淑媛",t:2,r:1,p:1},{id:"1B4",n:"石加靖",t:2,r:1,p:1},{id:"1B5",n:"石嘉宸",t:2,r:1,p:1},{id:"1C1",n:"蔡林花",t:2,r:1,p:1},
-            {id:"1C12",n:"蔡宏懿",t:2,r:1,p:0},{id:"1C13",n:"張民發",t:2,r:1,p:1},{id:"1C14",n:"蕭美柳",t:2,r:1,p:1},{id:"1C15",n:"張郁婕",t:2,r:1,p:1},
-            {id:"1C16",n:"張玉莉",t:2,r:1,p:1},{id:"1C17",n:"蔡昇鴻",t:2,r:1,p:1},{id:"1C18",n:"蔡宛錡",t:2,r:1,p:1},{id:"1C19",n:"陳鋅錕",t:2,r:1,p:1},
-            {id:"1C2",n:"蔡照能",t:2,r:1,p:1},{id:"1C20",n:"張瑜銣",t:2,r:1,p:1},{id:"1C21",n:"陳涵鈺",t:2,r:1,p:1},{id:"1C22",n:"陳得吉",t:2,r:1,p:1},
-            {id:"1C24",n:"簡棠威",t:2,r:1,p:1},{id:"1C25",n:"簡茈柃",t:2,r:1,p:1},{id:"1C26",n:"蔡承佑",t:2,r:1,p:1},{id:"1C27",n:"李美華",t:2,r:1,p:1},
-            {id:"1C28",n:"吳湘喆",t:2,r:1,p:1},{id:"1C29",n:"黃怡萍",t:2,r:1,p:1},{id:"1C3",n:"林秀娟",t:2,r:1,p:1},{id:"1C4",n:"蔡湘妤",t:2,r:1,p:1},
-            {id:"1C5",n:"蔡承翰",t:2,r:1,p:1},{id:"1C9",n:"蔡松村",t:2,r:1,p:0},{id:"1D3",n:"張朝勇",t:2,r:1,p:1},{id:"1D4",n:"吳怡君",t:2,r:1,p:1},
-            {id:"1D5",n:"張云宣",t:2,r:1,p:1},{id:"1D6",n:"張緯誼",t:2,r:1,p:1},{id:"1E3",n:"劉坤瑋",t:2,r:1,p:1},{id:"1E4",n:"劉佳宜",t:2,r:1,p:1},
-            {id:"1F1",n:"黃明和",t:2,r:1,p:1},{id:"1F10",n:"陳如芸",t:2,r:1,p:1},{id:"1F11",n:"陳如萍",t:2,r:1,p:1},{id:"1F2",n:"黃純堂",t:2,r:1,p:1},
-            {id:"1F3",n:"黎虹順",t:2,r:1,p:1},{id:"1F8",n:"黃伊苓",t:2,r:1,p:1},{id:"1F9",n:"陳冠宇",t:2,r:1,p:1},{id:"1G1",n:"傅森林",t:2,r:1,p:1},
-            {id:"1G2",n:"傅祥祐",t:2,r:1,p:1},{id:"1G21",n:"王正堯",t:2,r:1,p:1},{id:"1G22",n:"王正榮",t:2,r:1,p:1},{id:"1G23",n:"陳凱威",t:2,r:1,p:1},
-            {id:"1G5",n:"傅霈柔",t:2,r:1,p:1},{id:"1G6",n:"周寀瑩",t:2,r:1,p:1},{id:"1G7",n:"周家宏",t:2,r:1,p:1},{id:"1G8",n:"周義棠",t:2,r:1,p:1},
-            {id:"1H1",n:"戴日茂",t:2,r:1,p:1},{id:"1H2",n:"謝淨鞠",t:2,r:1,p:1},{id:"1H3",n:"戴緯綾",t:2,r:1,p:1},{id:"1H4",n:"戴珮羽",t:2,r:1,p:1},
-            {id:"1J1",n:"張永坤",t:2,r:1,p:1},{id:"1J2",n:"劉玉珍",t:2,r:1,p:1},{id:"1J3",n:"張家豪",t:2,r:1,p:1},{id:"1J6",n:"張文凱",t:2,r:1,p:1},
-            {id:"1J8",n:"劉秋金",t:2,r:1,p:1},{id:"1J9",n:"劉玉璋",t:2,r:1,p:1},{id:"1P1",n:"蔡美娟",t:2,r:1,p:1},{id:"1P10",n:"蔡黃美珍",t:2,r:1,p:1},
-            {id:"1P11",n:"蔡亨佑",t:2,r:1,p:1},{id:"1P12",n:"張芸瑄",t:2,r:1,p:1},{id:"1P2",n:"蔡明宏",t:2,r:1,p:1},{id:"1T2",n:"陳材欣",t:2,r:1,p:1},
-            {id:"1T3",n:"蔡欣容",t:2,r:1,p:1},{id:"1T4",n:"陳丞頡",t:2,r:1,p:1},{id:"1T5",n:"陳兆賢",t:2,r:1,p:1},{id:"1T6",n:"陳佳芊",t:2,r:1,p:1},
-            {id:"1U1",n:"陳春宇",t:2,r:1,p:1},{id:"1U10",n:"陳巧雯",t:2,r:1,p:1},{id:"1U11",n:"陳欣妮",t:2,r:1,p:1},{id:"1U12",n:"陳婕恩",t:2,r:1,p:1},
-            {id:"1U13",n:"林于勝",t:2,r:1,p:1},{id:"1U14",n:"陳兆甫",t:2,r:1,p:1},{id:"1U2",n:"張英粧",t:2,r:1,p:1},{id:"1U3",n:"陳明智",t:2,r:1,p:1},
-            {id:"1U4",n:"陳巧伶",t:2,r:1,p:1},{id:"1U5",n:"陳巧萍",t:2,r:1,p:1},{id:"1U6",n:"陳俞雯",t:2,r:1,p:1},{id:"1U7",n:"陳庭婕",t:2,r:1,p:1},
-            {id:"1U8",n:"陳宥恩",t:2,r:1,p:1},{id:"1U9",n:"陳冠翔",t:2,r:1,p:1},{id:"1V1",n:"楊瑛豪",t:2,r:1,p:1},{id:"1V10",n:"楊宗修",t:2,r:1,p:1},
-            {id:"1V11",n:"徐文潔",t:2,r:1,p:1},{id:"1V12",n:"楊承彧",t:2,r:1,p:1},{id:"1V13",n:"楊侑澤",t:2,r:1,p:1},{id:"1V14",n:"徐續源",t:2,r:1,p:1},
-            {id:"1V15",n:"楊宗凱",t:2,r:1,p:1},{id:"1V16",n:"楊盈嫺",t:2,r:1,p:1},{id:"1V17",n:"楊雨蓁",t:2,r:1,p:1},{id:"1V18",n:"徐文娟",t:2,r:1,p:1},
-            {id:"1V2",n:"張素真",t:2,r:1,p:1},{id:"1V3",n:"楊博翔",t:2,r:1,p:1},{id:"1V4",n:"楊弘聖",t:2,r:1,p:1},{id:"1V5",n:"楊再添",t:2,r:1,p:1},
-            {id:"1V6",n:"羅安廷",t:2,r:1,p:1},{id:"1V7",n:"徐文清",t:2,r:1,p:1},{id:"1V8",n:"羅立泓",t:2,r:1,p:1},{id:"1V9",n:"羅宇佑",t:2,r:1,p:1},
-            {id:"1W1",n:"曾春義",t:2,r:1,p:1},{id:"1W2",n:"張素梅",t:2,r:1,p:1},{id:"1X1",n:"張如羊",t:2,r:1,p:1},{id:"1X11",n:"張芷緁",t:2,r:1,p:1},
-            {id:"1X12",n:"張睿佑",t:2,r:1,p:1},{id:"1X2",n:"粘淑英",t:2,r:1,p:1},{id:"1X21",n:"洪月卿",t:2,r:1,p:1},{id:"1X26",n:"潘況菀",t:2,r:1,p:1},
-            {id:"1X27",n:"潘小琦",t:2,r:1,p:1},{id:"1X3",n:"張丞希",t:2,r:1,p:1},{id:"1X30",n:"謝林宏",t:2,r:1,p:1},{id:"1X31",n:"黃思嘉",t:2,r:1,p:1},
-            {id:"1X32",n:"謝旻哲",t:2,r:1,p:1},{id:"1X33",n:"謝諺承",t:2,r:1,p:1},{id:"1X34",n:"黃明政",t:2,r:1,p:1},{id:"1X35",n:"陳氏梁",t:2,r:1,p:1},
-            {id:"1X4",n:"張玉龍",t:2,r:1,p:1},{id:"1X42",n:"張仟嬟",t:2,r:1,p:1},{id:"1X43",n:"阮佳樺",t:2,r:1,p:1},{id:"1X6",n:"張羽潔",t:2,r:1,p:1},
-            {id:"1X7",n:"張兆葳",t:2,r:1,p:1},{id:"1X8",n:"張兆辰",t:2,r:1,p:1},{id:"1X9",n:"張汝萱",t:2,r:1,p:1},{id:"1Z1",n:"劉淑婷",t:2,r:1,p:1},
-            {id:"1Z18",n:"張習",t:2,r:1,p:1},{id:"1Z19",n:"張彥苡",t:2,r:1,p:1},{id:"1Z2",n:"蔡子芸",t:2,r:1,p:1},{id:"1Z3",n:"劉昌利",t:2,r:1,p:1},
-            {id:"1Z4",n:"劉陳蔥",t:2,r:1,p:1},{id:"1Z5",n:"張明凱",t:2,r:1,p:1},{id:"1Z6",n:"林佳螢",t:2,r:1,p:1},{id:"1Z7",n:"張煒謙",t:2,r:1,p:1},
-            {id:"1Z9",n:"楊宏義",t:2,r:1,p:1},{id:"2A1",n:"鍾益生",t:2,r:1,p:0},{id:"2A10",n:"廖希令",t:2,r:1,p:1},{id:"2A2",n:"黃玉鈴",t:2,r:1,p:0},{id:"2A3",n:"鍾傳",t:2,r:1,p:0},
-            {id:"2A5",n:"鍾曉婷",t:2,r:1,p:0},{id:"2A6",n:"鍾允喬",t:2,r:1,p:0},{id:"2E1",n:"陳美臻",t:2,r:1,p:1},{id:"2P1",n:"吳金墩",t:2,r:1,p:1},
-            {id:"2P2",n:"薛滿祝",t:2,r:1,p:1},{id:"2P3",n:"陳耀宏",t:2,r:1,p:1},{id:"2P4",n:"薛心媃",t:2,r:1,p:1},{id:"2P5",n:"陳金辰",t:2,r:1,p:1},
-            {id:"2P6",n:"胡有昌",t:2,r:1,p:1},{id:"2P7",n:"薛紫羚",t:2,r:1,p:1},{id:"2P8",n:"胡辰憬",t:2,r:1,p:1},{id:"2P9",n:"蔡孟君",t:2,r:1,p:1},
-            {id:"2R1",n:"邱世明",t:2,r:1,p:1},{id:"2R2",n:"黃小芬",t:2,r:1,p:1},{id:"2R3",n:"邱竑華",t:2,r:1,p:1},{id:"2R4",n:"黃琬筑",t:2,r:1,p:1},
-            {id:"2S1",n:"徐會然",t:2,r:1,p:1},{id:"2S2",n:"王雅萍",t:2,r:1,p:1},{id:"2S3",n:"徐翊緁",t:2,r:1,p:1},{id:"2S4",n:"徐昀彤",t:2,r:1,p:1},
-            {id:"2S5",n:"張秀專",t:2,r:1,p:1},{id:"2S6",n:"王慶文",t:2,r:1,p:1},{id:"2S7",n:"薛秀蜜",t:2,r:1,p:1},{id:"2T10",n:"張志豪",t:2,r:1,p:1},
-            {id:"2T9",n:"蕭淑云",t:2,r:1,p:1},{id:"2X16",n:"林俊成",t:2,r:1,p:1},{id:"1G24",n:"江郁綺",t:2,r:1,p:1},{id:"1A33",n:"楊淑茹",t:2,r:1,p:0}
+            {id:"1B10",n:"游宇閎",t:1,r:1,p:1}, {id:"1A1",n:"黃淑霞",t:2,r:1,p:0}
+        ];
+        const DEFAULT_TRIP_DATA = [
+            { id: 1, name: "測試資料 (尚未連線)", isPaid: true },
+            { id: 2, name: "測試資料 (尚未連線)", isPaid: false }
+        ];
+        const DEFAULT_DONATION_DATA = [
+            { id: 1, item: "白米", name: "張善人 (測試)", amount: "500" }
         ];
 
         // --- 組件: 圖示 ---
@@ -268,304 +133,302 @@
             XCircle: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>,
             Check: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-emerald-600"><polyline points="20 6 9 17 4 12"></polyline></svg>,
             User: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
-            Flame: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>,
             Scroll: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>,
             Lock: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>,
-            Refresh: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-4 h-4 ${className}`}><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.13-5.83L2 8"></path></svg>
+            Refresh: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-4 h-4 ${className}`}><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.13-5.83L2 8"></path></svg>,
+            Gift: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M12 8v13"></path><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"></path></svg>,
+            Alert: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
         };
 
         // --- 主程式 ---
         function App() {
-            // 資料狀態
+            // 資料與載入狀態
             const [isLoading, setIsLoading] = useState(true);
             const [isRefreshing, setIsRefreshing] = useState(false);
-            const [updateDate, setUpdateDate] = useState(""); // 新增：存放 Google 表單的更新日
             
+            // 各分頁獨立更新日狀態 (抓取 F1 欄位)
+            const [updateDates, setUpdateDates] = useState({
+                records: "", taisui: "", light: "", east: "", fujian: "", donation: ""
+            });
+            
+            // 資料狀態
             const [RecordData, setRecordData] = useState([]);
             const [TaiSuiDataRaw, setTaiSuiDataRaw] = useState([]);
             const [LightDataRaw, setLightDataRaw] = useState([]);
-            
-            // UI 狀態
-            const [activeTab, setActiveTab] = useState("taisui"); 
+            const [EastTripDataRaw, setEastTripDataRaw] = useState([]);
+            const [FujianTripDataRaw, setFujianTripDataRaw] = useState([]);
+            const [DonationDataRaw, setDonationDataRaw] = useState([]);
+
+            // 錯誤狀態
+            const [fetchErrors, setFetchErrors] = useState({ east: false, fujian: false, donation: false });
+
+            // UI 狀態 (預設為東部參香)
+            const [activeTab, setActiveTab] = useState("east"); 
             const [searchTerm, setSearchTerm] = useState("");
             const [showSuggestions, setShowSuggestions] = useState(false);
+            
+            // 篩選狀態
             const [filterRole, setFilterRole] = useState("ALL"); 
             const [lightFilterType, setLightFilterType] = useState("ALL");
             const [taiSuiFilterType, setTaiSuiFilterType] = useState("ALL");
+            const [eastTripFilter, setEastTripFilter] = useState("ALL");
+            const [fujianTripFilter, setFujianTripFilter] = useState("ALL");
+            const [donationFilterItem, setDonationFilterItem] = useState("ALL");
             
             // 登入狀態 (委員/宮生)
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [inputPassword, setInputPassword] = useState("");
             const [loginError, setLoginError] = useState(false);
 
-            // --- 新增：超進化「標題模糊比對」與「數值寬鬆判斷」 ---
             const checkStatus = (row, ...keywords) => {
                 let val = "";
-                // 1. 精準比對
                 for (let k of keywords) {
-                    if (row[k] !== undefined && row[k] !== '') {
-                        val = String(row[k]).trim();
-                        break;
-                    }
+                    if (row[k] !== undefined && row[k] !== '') { val = String(row[k]).trim(); break; }
                 }
-                // 2. 模糊比對：就算 Google 表單的標題有前後綴(例如"113年太歲登記")也能抓到
                 if (!val) {
                     const rowKeys = Object.keys(row);
                     for (let key of rowKeys) {
                         for (let k of keywords) {
-                            if (key.includes(k) && row[key] !== undefined && row[key] !== '') {
-                                val = String(row[key]).trim();
-                                break;
-                            }
+                            if (key.includes(k) && row[key] !== undefined && row[key] !== '') { val = String(row[key]).trim(); break; }
                         }
                         if (val) break;
                     }
                 }
-                
-                // 3. 終極判斷邏輯 (完全依照您的需求：1代表有，空白代表無)：
-                // 如果是空白，就是 0 (無 / 未登記 / 未繳費)
                 if (!val) return 0;
-                
                 const upperVal = val.toUpperCase();
-                // 額外防呆：如果填了 0 或是文字的無，也視為未繳費
                 if (upperVal === '0' || upperVal === 'FALSE' || upperVal === '否' || upperVal === '無') return 0;
-                
-                // 只要有填寫 1 (或 V, 是, OK 等非空白字元)，全部視為 1 (有 / 已登記 / 已繳費)
                 return 1; 
             };
 
             // ==========================================
-            // 非同步獲取 Google Sheets 資料 (包含重新整理邏輯)
+            // 非同步獲取 Google Sheets 資料
             // ==========================================
             const fetchGoogleSheetsData = useCallback(async () => {
                 setIsRefreshing(true);
-                let fetchedRecord = [], fetchedTaiSui = [], fetchedLight = [];
-                let fetchedUpdateDate = ""; // 用來暫存抓到的更新日
                 
-                // 為了防止瀏覽器快取舊資料，我們給網址加上時間戳記
                 const getFreshUrl = (url) => `${url}&t=${new Date().getTime()}`;
                 const fetchOptions = { cache: 'no-store' };
 
-                // 輔助函式：自動從資料列或標題中尋找並提取「更新日」
-                const extractUpdateDate = (parsed) => {
-                    if (!fetchedUpdateDate && parsed.length > 0) {
-                        const firstRow = parsed[0];
-                        const keys = Object.keys(firstRow);
-                        const dateKey = keys.find(k => k.includes('更新日'));
+                // 核心 Fetch 工具，並抓取各表單的 F1 更新日 (index: 5)
+                const fetchData = async (url, parser) => {
+                    if (!url) return { data: [], date: "", error: false };
+                    try {
+                        const res = await fetch(getFreshUrl(url), fetchOptions);
+                        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+                        const text = await res.text();
                         
-                        if (dateKey) {
-                            // 情境 1：F1 直接寫 "更新日:2025-2-20"，此時標題 (dateKey) 就包含了日期
-                            if (dateKey.includes(':') || dateKey.includes('：')) {
-                                fetchedUpdateDate = dateKey.split(/[:：]/)[1].trim();
-                            } 
-                            // 情境 2：F1 寫 "更新日2025-2-20" (沒冒號，直接連在一起)
-                            else if (dateKey.length > 3 && /\d/.test(dateKey)) {
-                                fetchedUpdateDate = dateKey.replace(/更新日/g, '').trim();
-                            } 
-                            // 情境 3：F1 寫 "更新日"，F2 (資料列) 寫 "2025-2-20"
-                            else if (firstRow[dateKey]) {
-                                fetchedUpdateDate = String(firstRow[dateKey]).trim();
-                            }
+                        if (text.trim().toLowerCase().startsWith('<!doctype html>')) {
+                             return { data: [], date: "", error: true };
                         }
+
+                        const cleanText = text.replace(/^\uFEFF/, '');
+                        const lines = cleanText.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+                        if (lines.length === 0) return { data: [], date: "", error: false };
+
+                        const headersRaw = splitCSVRow(lines[0]);
+                        let extractedDate = "";
+                        
+                        // 1. 直接讀取 F1 欄位 (通常 index 是 5)
+                        if (headersRaw.length > 5 && headersRaw[5].includes('更新')) {
+                            extractedDate = headersRaw[5].replace(/更新日?[:：\s]?/g, '').trim();
+                        } else {
+                            // 2. 找不到則在表頭搜尋
+                            const found = headersRaw.find(h => h.includes('更新日'));
+                            if (found) extractedDate = found.replace(/更新日?[:：\s]?/g, '').trim();
+                        }
+
+                        const parsed = lines.slice(1).map(line => {
+                            const values = splitCSVRow(line);
+                            return headersRaw.reduce((obj, header, i) => {
+                                const cleanHeader = header.replace(/["'\s]+/g, '');
+                                obj[cleanHeader] = values[i] || '';
+                                return obj;
+                            }, {});
+                        });
+
+                        return { data: parser ? parser(parsed) : parsed, date: extractedDate, error: false };
+                    } catch (e) {
+                        return { data: [], date: "", error: true };
                     }
                 };
 
-                // 1. 抓取委員/宮生資料
-                if (GOOGLE_SHEETS_URLS.records) {
-                    try {
-                        const res = await fetch(getFreshUrl(GOOGLE_SHEETS_URLS.records), fetchOptions);
-                        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-                        const text = await res.text();
-                        const parsed = parseCSV(text);
-                        extractUpdateDate(parsed); // 嘗試抓取更新日
-                        fetchedRecord = parsed.map(row => ({
-                            group: row['組別'] || '', role: row['身份'] || '', name: row['姓名'] || '', date: row['繳交至'] || ''
-                        })).filter(r => r.name);
-                    } catch (e) {
-                        console.error("載入 records 失敗，將使用預設資料:", e);
-                    }
-                }
+                const resRecord = await fetchData(GOOGLE_SHEETS_URLS.records, parsed => parsed.map(row => ({
+                    group: row['組別'] || '', role: row['身份'] || '', name: row['姓名'] || '', date: row['繳交至'] || ''
+                })).filter(r => r.name));
+
+                const resTaiSui = await fetchData(GOOGLE_SHEETS_URLS.taiSui, parsed => parsed.map(row => ({
+                    id: row['編號'] || '', n: row['姓名'] || '', 
+                    r: checkStatus(row, '太歲登記', '登記', '安奉', '太歲'), 
+                    p: checkStatus(row, '太歲繳費', '繳費', '付款', '金額')
+                })).filter(r => r.n));
+
+                const resLightUpper = await fetchData(GOOGLE_SHEETS_URLS.lightUpper, parsed => parsed.map(row => ({
+                    id: row['編號'] || '', n: row['姓名'] || '', t: 1,
+                    r: checkStatus(row, '光明燈上登記', '上層登記', '登記', '安奉', '光明燈'), 
+                    p: checkStatus(row, '光明燈上繳費', '上層繳費', '繳費', '付款', '金額')
+                })).filter(r => r.n));
                 
-                // 2. 抓取太歲資料
-                if (GOOGLE_SHEETS_URLS.taiSui) {
-                    try {
-                        const res = await fetch(getFreshUrl(GOOGLE_SHEETS_URLS.taiSui), fetchOptions);
-                        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-                        const text = await res.text();
-                        const parsed = parseCSV(text);
-                        extractUpdateDate(parsed); // 嘗試抓取更新日
-                        fetchedTaiSui = parsed.map(row => ({
-                            id: row['編號'] || '', n: row['姓名'] || '', 
-                            r: checkStatus(row, '太歲登記', '登記', '安奉', '太歲'), 
-                            p: checkStatus(row, '太歲繳費', '繳費', '付款', '金額')
-                        })).filter(r => r.n);
-                    } catch (e) {
-                        console.error("載入 taiSui 失敗，將使用預設資料:", e);
-                    }
-                }
+                const resLightLower = await fetchData(GOOGLE_SHEETS_URLS.lightLower, parsed => parsed.map(row => ({
+                    id: row['編號'] || '', n: row['姓名'] || '', t: 2,
+                    r: checkStatus(row, '光明燈下登記', '下層登記', '登記', '安奉', '光明燈'), 
+                    p: checkStatus(row, '光明燈下繳費', '下層繳費', '繳費', '付款', '金額')
+                })).filter(r => r.n));
 
-                // 3. 抓取光明燈資料 (上層 + 下層合併)
-                if (GOOGLE_SHEETS_URLS.lightUpper) {
-                    try {
-                        const res = await fetch(getFreshUrl(GOOGLE_SHEETS_URLS.lightUpper), fetchOptions);
-                        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-                        const text = await res.text();
-                        const parsed = parseCSV(text);
-                        extractUpdateDate(parsed); // 嘗試抓取更新日
-                        const upper = parsed.map(row => ({
-                            id: row['編號'] || '', n: row['姓名'] || '', t: 1,
-                            r: checkStatus(row, '光明燈上登記', '上層登記', '登記', '安奉', '光明燈'), 
-                            p: checkStatus(row, '光明燈上繳費', '上層繳費', '繳費', '付款', '金額')
-                        })).filter(r => r.n);
-                        fetchedLight = [...fetchedLight, ...upper];
-                    } catch (e) {
-                        console.error("載入 lightUpper 失敗，將使用預設資料:", e);
-                    }
-                }
+                const resEast = await fetchData(GOOGLE_SHEETS_URLS.eastTrip, extractTripData);
+                const resFujian = await fetchData(GOOGLE_SHEETS_URLS.fujianTrip, extractTripData);
+                const resDonation = await fetchData(GOOGLE_SHEETS_URLS.donation, extractDonations);
 
-                if (GOOGLE_SHEETS_URLS.lightLower) {
-                    try {
-                        const res = await fetch(getFreshUrl(GOOGLE_SHEETS_URLS.lightLower), fetchOptions);
-                        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-                        const text = await res.text();
-                        const parsed = parseCSV(text);
-                        extractUpdateDate(parsed); // 嘗試抓取更新日
-                        const lower = parsed.map(row => ({
-                            id: row['編號'] || '', n: row['姓名'] || '', t: 2,
-                            r: checkStatus(row, '光明燈下登記', '下層登記', '登記', '安奉', '光明燈'), 
-                            p: checkStatus(row, '光明燈下繳費', '下層繳費', '繳費', '付款', '金額')
-                        })).filter(r => r.n);
-                        fetchedLight = [...fetchedLight, ...lower];
-                    } catch (e) {
-                        console.error("載入 lightLower 失敗，將使用預設資料:", e);
-                    }
-                }
+                // 設定各自的更新日
+                setUpdateDates({
+                    records: resRecord.date,
+                    taisui: resTaiSui.date,
+                    light: resLightUpper.date || resLightLower.date,
+                    east: resEast.date,
+                    fujian: resFujian.date,
+                    donation: resDonation.date
+                });
 
-                // 設定最終資料 (如果單項線上抓取為空，就使用該項的預設陣列，避免全部壞掉)
-                setRecordData(fetchedRecord.length > 0 ? fetchedRecord : [...DEFAULT_RECORD_DATA]);
-                setTaiSuiDataRaw(fetchedTaiSui.length > 0 ? fetchedTaiSui : [...DEFAULT_TAISUI_DATA]);
-                setLightDataRaw(fetchedLight.length > 0 ? fetchedLight : [...DEFAULT_LIGHT_DATA]);
+                // 設定錯誤狀態
+                setFetchErrors({
+                    east: resEast.error || resEast.data.length === 0,
+                    fujian: resFujian.error || resFujian.data.length === 0,
+                    donation: resDonation.error || resDonation.data.length === 0
+                });
+
+                // 設定最終資料
+                setRecordData(resRecord.data.length > 0 ? resRecord.data : [...DEFAULT_RECORD_DATA]);
+                setTaiSuiDataRaw(resTaiSui.data.length > 0 ? resTaiSui.data : [...DEFAULT_TAISUI_DATA]);
+                setLightDataRaw(resLightUpper.data.length > 0 || resLightLower.data.length > 0 ? [...resLightUpper.data, ...resLightLower.data] : [...DEFAULT_LIGHT_DATA]);
                 
-                // 將抓取到的更新日設定到畫面上
-                setUpdateDate(fetchedUpdateDate || "無日期資訊");
+                // 新增資料 Fallback
+                setEastTripDataRaw(resEast.data.length > 0 ? resEast.data : [...DEFAULT_TRIP_DATA]);
+                setFujianTripDataRaw(resFujian.data.length > 0 ? resFujian.data : [...DEFAULT_TRIP_DATA]);
+                setDonationDataRaw(resDonation.data.length > 0 ? resDonation.data : [...DEFAULT_DONATION_DATA]);
+                
                 setIsLoading(false);
                 setIsRefreshing(false);
             }, []);
 
-            // 網頁第一次開啟時載入
-            useEffect(() => {
-                fetchGoogleSheetsData();
-            }, [fetchGoogleSheetsData]);
+            useEffect(() => { fetchGoogleSheetsData(); }, [fetchGoogleSheetsData]);
 
-            // 資料排序
             const TaiSuiData = useMemo(() => [...TaiSuiDataRaw].sort(sortById), [TaiSuiDataRaw]);
             const LightData = useMemo(() => [...LightDataRaw].sort(sortById), [LightDataRaw]);
 
             const handleLogin = (e) => {
                 e.preventDefault();
                 if (inputPassword === "296296") {
-                    setIsLoggedIn(true);
-                    setLoginError(false);
+                    setIsLoggedIn(true); setLoginError(false);
                 } else {
-                    setLoginError(true);
-                    setTimeout(() => setLoginError(false), 500);
+                    setLoginError(true); setTimeout(() => setLoginError(false), 500);
                 }
             };
 
-            // -- 資料邏輯: 繳費紀錄 --
+            // ==========================================
+            // 資料邏輯過濾區
+            // ==========================================
+            
             const recordFiltered = useMemo(() => {
                 if (!searchTerm) return RecordData;
                 return RecordData.filter(item => item.name.includes(searchTerm) || item.group.includes(searchTerm));
             }, [searchTerm, RecordData]);
-
             const recordStats = useMemo(() => ({
-                all: recordFiltered.length,
-                committee: recordFiltered.filter(item => item.role === '委員').length,
-                student: recordFiltered.filter(item => item.role === '宮生').length
+                all: recordFiltered.length, committee: recordFiltered.filter(i => i.role === '委員').length, student: recordFiltered.filter(i => i.role === '宮生').length
             }), [recordFiltered]);
-
             const recordDisplay = useMemo(() => {
-                if (filterRole === 'ALL') return recordFiltered;
-                return recordFiltered.filter(item => item.role === filterRole);
+                if (filterRole === 'ALL') return recordFiltered; return recordFiltered.filter(i => i.role === filterRole);
             }, [recordFiltered, filterRole]);
 
-            // -- 資料邏輯: 安太歲 --
             const taiSuiFiltered = useMemo(() => {
                 if (!searchTerm) return TaiSuiData;
                 return TaiSuiData.filter(item => item.n.includes(searchTerm) || (item.id && item.id.includes(searchTerm.toUpperCase())));
             }, [searchTerm, TaiSuiData]);
-
             const taiSuiStats = useMemo(() => ({
-                reg: taiSuiFiltered.filter(i => i.r === 1).length,
-                paid: taiSuiFiltered.filter(i => i.p === 1).length,
-                unpaid: taiSuiFiltered.filter(i => i.p === 0).length
+                reg: taiSuiFiltered.filter(i => i.r === 1).length, paid: taiSuiFiltered.filter(i => i.p === 1).length, unpaid: taiSuiFiltered.filter(i => i.p === 0).length
             }), [taiSuiFiltered]);
-
             const taiSuiDisplay = useMemo(() => {
                 if (taiSuiFilterType === 'UNPAID') return taiSuiFiltered.filter(i => i.p === 0);
                 if (taiSuiFilterType === 'PAID') return taiSuiFiltered.filter(i => i.p === 1);
                 return taiSuiFiltered;
             }, [taiSuiFiltered, taiSuiFilterType]);
 
-            // -- 資料邏輯: 光明燈 --
             const lightFiltered = useMemo(() => {
                 if (!searchTerm) return LightData;
                 return LightData.filter(item => item.n.includes(searchTerm) || (item.id && item.id.includes(searchTerm.toUpperCase())));
             }, [searchTerm, LightData]);
-
             const lightStats = useMemo(() => ({
-                totalReg: lightFiltered.filter(i => i.r === 1).length,
-                upperReg: lightFiltered.filter(i => i.t === 1 && i.r === 1).length,
-                lowerReg: lightFiltered.filter(i => i.t === 2 && i.r === 1).length,
-                paid: lightFiltered.filter(i => i.p === 1).length,
-                unpaid: lightFiltered.filter(i => i.p === 0).length
+                totalReg: lightFiltered.filter(i => i.r === 1).length, upperReg: lightFiltered.filter(i => i.t === 1 && i.r === 1).length,
+                lowerReg: lightFiltered.filter(i => i.t === 2 && i.r === 1).length, paid: lightFiltered.filter(i => i.p === 1).length, unpaid: lightFiltered.filter(i => i.p === 0).length
             }), [lightFiltered]);
-
             const lightDisplay = useMemo(() => {
                 let data = lightFiltered;
-                if (lightFilterType === 'UPPER') {
-                    data = data.filter(item => item.t === 1);
-                } else if (lightFilterType === 'LOWER') {
-                    data = data.filter(item => item.t === 2);
-                } else if (lightFilterType === 'UNPAID') {
-                    data = data.filter(item => item.p === 0);
-                } else if (lightFilterType === 'PAID') {
-                    data = data.filter(item => item.p === 1);
-                }
+                if (lightFilterType === 'UPPER') data = data.filter(i => i.t === 1);
+                else if (lightFilterType === 'LOWER') data = data.filter(i => i.t === 2);
+                else if (lightFilterType === 'UNPAID') data = data.filter(i => i.p === 0);
+                else if (lightFilterType === 'PAID') data = data.filter(i => i.p === 1);
                 return data;
             }, [lightFiltered, lightFilterType]);
 
-            // 搜尋建議 (混合所有資料)
+            const eastTripFiltered = useMemo(() => {
+                let list = EastTripDataRaw;
+                if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
+                if(eastTripFilter === 'PAID') return list.filter(i => i.isPaid);
+                if(eastTripFilter === 'UNPAID') return list.filter(i => !i.isPaid);
+                return list;
+            }, [EastTripDataRaw, searchTerm, eastTripFilter]);
+            const eastTripStats = useMemo(() => ({
+                reg: EastTripDataRaw.filter(i => !searchTerm || i.name.includes(searchTerm)).length,
+                paid: EastTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm)) && i.isPaid).length,
+                unpaid: EastTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm)) && !i.isPaid).length
+            }), [EastTripDataRaw, searchTerm]);
+
+            const fujianTripFiltered = useMemo(() => {
+                let list = FujianTripDataRaw;
+                if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
+                if(fujianTripFilter === 'PAID') return list.filter(i => i.isPaid);
+                if(fujianTripFilter === 'UNPAID') return list.filter(i => !i.isPaid);
+                return list;
+            }, [FujianTripDataRaw, searchTerm, fujianTripFilter]);
+            const fujianTripStats = useMemo(() => ({
+                reg: FujianTripDataRaw.filter(i => !searchTerm || i.name.includes(searchTerm)).length,
+                paid: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm)) && i.isPaid).length,
+                unpaid: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm)) && !i.isPaid).length
+            }), [FujianTripDataRaw, searchTerm]);
+
+            const donationItemsList = useMemo(() => {
+                const items = DonationDataRaw.map(i => i.item).filter(Boolean);
+                return [...new Set(items)];
+            }, [DonationDataRaw]);
+            
+            const donationFiltered = useMemo(() => {
+                let list = DonationDataRaw;
+                if(searchTerm) list = list.filter(i => i.name.includes(searchTerm) || i.item.includes(searchTerm));
+                if(donationFilterItem !== 'ALL') list = list.filter(i => i.item === donationFilterItem);
+                return list;
+            }, [DonationDataRaw, searchTerm, donationFilterItem]);
+
             const suggestions = useMemo(() => {
                 if (!searchTerm) return [];
                 const allNames = [
-                    ...RecordData.map(i => i.name),
-                    ...TaiSuiData.map(i => i.n),
-                    ...LightData.map(i => i.n)
+                    ...RecordData.map(i => i.name), ...TaiSuiData.map(i => i.n), ...LightData.map(i => i.n),
+                    ...EastTripDataRaw.map(i => i.name), ...FujianTripDataRaw.map(i => i.name), ...DonationDataRaw.map(i => i.name)
                 ];
-                const matches = allNames
-                    .filter(name => name.includes(searchTerm) && name !== searchTerm);
+                const matches = allNames.filter(name => name.includes(searchTerm) && name !== searchTerm);
                 return [...new Set(matches)].slice(0, 8);
-            }, [searchTerm, RecordData, TaiSuiData, LightData]);
+            }, [searchTerm, RecordData, TaiSuiData, LightData, EastTripDataRaw, FujianTripDataRaw, DonationDataRaw]);
 
-            // -- 輔助功能 --
-            const handleSelectSuggestion = (name) => {
-                setSearchTerm(name);
-                setShowSuggestions(false);
-            };
-
-            const handleClear = () => {
-                setSearchTerm("");
-                setShowSuggestions(false);
-            };
-
+            const handleSelectSuggestion = (name) => { setSearchTerm(name); setShowSuggestions(false); };
+            const handleClear = () => { setSearchTerm(""); setShowSuggestions(false); };
             useEffect(() => {
                 const handleClickOutside = () => setShowSuggestions(false);
                 document.addEventListener('click', handleClickOutside);
                 return () => document.removeEventListener('click', handleClickOutside);
             }, []);
+            
+            const resetFilters = () => {
+                setSearchTerm(""); setTaiSuiFilterType("ALL"); setLightFilterType("ALL"); setFilterRole("ALL");
+                setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL");
+            };
 
-            // 載入中 UI
             if (isLoading) {
                 return (
                     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
@@ -575,32 +438,46 @@
                 );
             }
 
-            // 渲染列表: 安太歲
-            const renderTaiSuiList = () => (
+            // ==========================================
+            // 共用渲染組件區
+            // ==========================================
+
+            // 共用獨立更新日徽章
+            const TabUpdateDate = ({ tabKey }) => (
+                <div className="flex justify-end mb-2 fade-in">
+                    <span className="text-xs text-slate-500 font-bold bg-white border border-slate-200 px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm">
+                        <Icons.Refresh className="w-3 h-3 text-blue-500" />
+                        更新日：{updateDates[tabKey] || "未標示 / 讀取中"}
+                    </span>
+                </div>
+            );
+
+            const ErrorBanner = ({ show }) => {
+                if(!show) return null;
+                return (
+                    <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded-r-xl shadow-sm flex items-start gap-3">
+                        <div className="text-red-500 mt-0.5"><Icons.Alert /></div>
+                        <div>
+                            <h3 className="text-red-800 font-bold text-sm">資料讀取失敗</h3>
+                            <p className="text-red-600 text-xs mt-1 font-medium leading-relaxed">
+                                目前顯示為預設測試資料。系統無法連線至您的試算表，請至 Google 試算表點擊 <span className="font-bold underline">「共用」</span>，將一般存取權設為<span className="font-bold">「知道連結的任何人皆可檢視」</span>，或使用「發布到網路」功能。
+                            </p>
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderTripList = (dataList) => (
                 <div className="space-y-2 fade-in">
-                    {taiSuiDisplay.length > 0 ? taiSuiDisplay.map((item, idx) => (
-                        <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    {dataList.length > 0 ? dataList.map((item, idx) => (
+                        <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between group">
                             <div className="flex items-center gap-3">
-                                {item.id ? (
-                                    <div className="bg-rose-100 px-2 py-1 rounded text-rose-600 font-bold text-sm min-w-[3rem] text-center">
-                                        {item.id}
-                                    </div>
-                                ) : (
-                                    <div className="bg-rose-100 p-2 rounded-full text-rose-600">
-                                        <Icons.Scroll />
-                                    </div>
-                                )}
-                                <span className="text-xl font-bold text-slate-800">{item.n}</span>
+                                <div className="bg-blue-50 p-2 rounded-full text-blue-500"><Icons.User /></div>
+                                <span className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</span>
                             </div>
-                            <div className="flex gap-2 text-sm">
-                                <div className={`px-3 py-1 rounded-md flex items-center gap-1 border ${item.r ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
-                                    {item.r ? <Icons.Check /> : <span className="w-4 h-4 block border border-slate-300 rounded-sm"></span>}
-                                    <span className="font-bold">登記</span>
-                                </div>
-                                <div className={`px-3 py-1 rounded-md flex items-center gap-1 border ${item.p ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
-                                    {item.p ? <Icons.Check /> : <span className="w-4 h-4 block border border-slate-300 rounded-sm"></span>}
-                                    <span className="font-bold">繳費</span>
-                                </div>
+                            <div className={`px-4 py-1.5 rounded-lg flex items-center gap-2 border shadow-sm ${item.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                                {item.isPaid ? <Icons.Check /> : <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
+                                <span className="font-bold">{item.isPaid ? '已繳費' : '未繳費'}</span>
                             </div>
                         </div>
                     )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
@@ -616,51 +493,39 @@
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-xl font-bold text-slate-800">{item.n}</span>
-                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-                                item.t === 1 
-                                ? 'bg-amber-100 text-amber-700' 
-                                : 'bg-indigo-100 text-indigo-700'
-                            }`}>
+                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${item.t === 1 ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}`}>
                                 {item.t === 1 ? '(上層)' : '(下層)'}
                             </span>
                         </div>
                     </div>
                     <div className="flex gap-2 text-sm">
-                        <div className={`px-2 py-1 rounded flex items-center gap-1 ${item.r ? 'text-green-700 font-bold' : 'text-slate-300'}`}>
-                             {item.r ? '已登記' : '未登記'}
-                        </div>
-                        <div className={`px-2 py-1 rounded flex items-center gap-1 border ${item.p ? 'bg-green-100 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
-                             {item.p ? '已繳費' : '未繳費'}
-                        </div>
+                        <div className={`px-2 py-1 rounded flex items-center gap-1 ${item.r ? 'text-green-700 font-bold' : 'text-slate-300'}`}>{item.r ? '已登記' : '未登記'}</div>
+                        <div className={`px-2 py-1 rounded flex items-center gap-1 border ${item.p ? 'bg-green-100 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>{item.p ? '已繳費' : '未繳費'}</div>
                     </div>
                 </div>
             );
 
-            // 渲染列表: 光明燈
-            const renderLightList = () => (
-                <div className="space-y-2 fade-in">
-                    {lightDisplay.length > 0 ? lightDisplay.map((item, idx) => (
-                        <LightCard key={idx} item={item} />
-                    )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
-                </div>
-            );
+            // 調整後的排序陣列
+            const TABS_CONFIG = [
+                { id: 'east', name: '東部參香' },
+                { id: 'donation', name: '參香捐獻' },
+                { id: 'fujian', name: '福建五日行' },
+                { id: 'records', name: '委員/宮生' },
+                { id: 'taisui', name: '安太歲' },
+                { id: 'light', name: '光明燈' }
+            ];
 
             return (
                 <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-10">
                     
-                    {/* 頂部導航列 (包含重新整理按鈕與同步時間) */}
+                    {/* 頂部導航列 (已移除全域更新日) */}
                     <div className="bg-blue-600 sticky top-0 z-50 shadow-md">
-                        <div className="p-3 text-center border-b border-blue-500 relative flex flex-col items-center justify-center">
-                            <h1 className="text-lg font-bold text-white flex items-center justify-center gap-2">
+                        <div className="p-4 text-center border-b border-blue-500 relative flex flex-col items-center justify-center">
+                            <h1 className="text-xl font-bold text-white flex items-center justify-center gap-2">
                                 <Icons.Calendar /> 帳務查詢系統
                             </h1>
-                            <div className="text-blue-200 text-xs mt-0.5 font-medium">
-                                更新日: {updateDate}
-                            </div>
-                            
                             <button 
-                                onClick={fetchGoogleSheetsData}
-                                disabled={isRefreshing}
+                                onClick={fetchGoogleSheetsData} disabled={isRefreshing}
                                 className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-blue-700 hover:bg-blue-800 active:bg-blue-900 text-white text-xs px-3 py-2 rounded-lg flex items-center gap-1 transition-all shadow-sm disabled:opacity-50 border border-blue-500"
                             >
                                 <Icons.Refresh className={isRefreshing ? "animate-spin" : ""} />
@@ -668,17 +533,14 @@
                             </button>
                         </div>
                         
-                        {/* 頁籤選單 (Order: 安太歲 -> 光明燈 -> 委員/宮生) */}
-                        <div className="flex bg-blue-700">
-                            <button onClick={() => { setActiveTab('taisui'); setSearchTerm(""); setTaiSuiFilterType("ALL"); }} className={`flex-1 py-4 text-xl font-bold transition-colors ${activeTab === 'taisui' ? 'bg-white text-blue-800' : 'text-blue-100 hover:bg-blue-600'}`}>
-                                安太歲
-                            </button>
-                            <button onClick={() => { setActiveTab('light'); setSearchTerm(""); setLightFilterType("ALL"); }} className={`flex-1 py-4 text-xl font-bold transition-colors ${activeTab === 'light' ? 'bg-white text-blue-800' : 'text-blue-100 hover:bg-blue-600'}`}>
-                                光明燈
-                            </button>
-                            <button onClick={() => { setActiveTab('records'); setSearchTerm(""); setFilterRole("ALL"); }} className={`flex-1 py-4 text-xl font-bold transition-colors ${activeTab === 'records' ? 'bg-white text-blue-800' : 'text-blue-100 hover:bg-blue-600'}`}>
-                                委員/宮生
-                            </button>
+                        {/* 頁籤選單 */}
+                        <div className="flex bg-blue-700 overflow-x-auto no-scrollbar snap-x scroll-smooth">
+                            {TABS_CONFIG.map(tab => (
+                                <button key={tab.id} onClick={() => { setActiveTab(tab.id); resetFilters(); }} 
+                                    className={`flex-none px-5 py-4 text-lg font-bold transition-colors whitespace-nowrap snap-start border-b-4 ${activeTab === tab.id ? 'bg-white text-blue-800 border-blue-800' : 'text-blue-100 hover:bg-blue-600 border-transparent'}`}>
+                                    {tab.name}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
@@ -693,139 +555,147 @@
                                     placeholder="輸入姓名..."
                                     value={searchTerm}
                                     onChange={(e) => {
-                                        setSearchTerm(e.target.value);
-                                        setShowSuggestions(true);
-                                        setFilterRole("ALL");
-                                        setLightFilterType("ALL");
-                                        setTaiSuiFilterType("ALL");
+                                        setSearchTerm(e.target.value); setShowSuggestions(true);
+                                        setFilterRole("ALL"); setLightFilterType("ALL"); setTaiSuiFilterType("ALL");
+                                        setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL");
                                     }}
                                     onFocus={() => { if(searchTerm) setShowSuggestions(true); }}
                                 />
-                                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400">
-                                    <Icons.Search />
-                                </div>
+                                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"><Icons.Search /></div>
                                 {searchTerm && (
-                                    <button onClick={handleClear} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                                        <Icons.XCircle />
-                                    </button>
+                                    <button onClick={handleClear} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"><Icons.XCircle /></button>
                                 )}
                             </div>
-
-                            {/* 建議下拉選單 */}
                             {showSuggestions && suggestions.length > 0 && (
                                 <div className="absolute w-full bg-white mt-2 rounded-xl shadow-xl border border-slate-100 overflow-hidden z-40">
                                     <div className="bg-slate-50 px-4 py-2 text-sm text-slate-500 font-bold">相關建議</div>
                                     {suggestions.map((name, index) => (
-                                        <button key={index} className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-slate-50 last:border-0 text-lg font-medium text-slate-700" onClick={() => handleSelectSuggestion(name)}>
-                                            {name}
-                                        </button>
+                                        <button key={index} className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-slate-50 last:border-0 text-lg font-medium text-slate-700" onClick={() => handleSelectSuggestion(name)}>{name}</button>
                                     ))}
                                 </div>
                             )}
                         </div>
 
-                        {/* 內容區塊: 依頁籤顯示 */}
+                        {/* ========================================================= */}
+                        {/* 內容區塊 */}
+                        {/* ========================================================= */}
                         
-                        {/* 2. 安太歲頁面 (預設顯示) */}
-                        {activeTab === 'taisui' && (
+                        {/* 功能：東部參香 */}
+                        {activeTab === 'east' && (
                             <div className="fade-in">
-                                {/* 安太歲統計與篩選 (可點擊) */}
-                                <div className="bg-rose-50 rounded-xl p-3 shadow-inner border border-rose-100 mb-4 flex justify-between gap-2 overflow-x-auto">
-                                    <button onClick={() => setTaiSuiFilterType('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'ALL' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-white text-rose-500 border-rose-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">登記總數</span>
-                                        <span className="text-3xl font-black">{taiSuiStats.reg}</span>
+                                <TabUpdateDate tabKey="east" />
+                                <ErrorBanner show={fetchErrors.east} />
+                                <div className="bg-sky-50 rounded-xl p-3 shadow-inner border border-sky-100 mb-4 flex justify-between gap-2 overflow-x-auto">
+                                    <button onClick={() => setEastTripFilter('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${eastTripFilter === 'ALL' ? 'bg-sky-600 text-white border-sky-600 shadow-md' : 'bg-white text-sky-600 border-sky-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">總人數</span><span className="text-3xl font-black">{eastTripStats.reg}</span>
                                     </button>
-                                    <button onClick={() => setTaiSuiFilterType('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span>
-                                        <span className="text-3xl font-black">{taiSuiStats.paid}</span>
+                                    <button onClick={() => setEastTripFilter('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${eastTripFilter === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-3xl font-black">{eastTripStats.paid}</span>
                                     </button>
-                                    <button onClick={() => setTaiSuiFilterType('UNPAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span>
-                                        <span className="text-3xl font-black">{taiSuiStats.unpaid}</span>
+                                    <button onClick={() => setEastTripFilter('UNPAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${eastTripFilter === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-3xl font-black">{eastTripStats.unpaid}</span>
                                     </button>
                                 </div>
-                                {renderTaiSuiList()}
+                                {renderTripList(eastTripFiltered)}
                             </div>
                         )}
 
-                        {/* 3. 光明燈頁面 */}
-                        {activeTab === 'light' && (
+                        {/* 功能：參香捐獻 */}
+                        {activeTab === 'donation' && (
                             <div className="fade-in">
-                                {/* 光明燈互動式統計與篩選 (含未繳費) */}
-                                <div className="bg-amber-50 rounded-xl p-3 shadow-inner border border-amber-100 mb-4 flex justify-between gap-2 overflow-x-auto min-w-full">
-                                    <button onClick={() => setLightFilterType('ALL')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'ALL' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-white text-slate-500 border-amber-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">登記總數</span>
-                                        <span className="text-2xl font-black">{lightStats.totalReg}</span>
-                                    </button>
-                                    <button onClick={() => setLightFilterType('UPPER')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'UPPER' ? 'bg-amber-500 text-white border-amber-500 shadow-md' : 'bg-white text-amber-700 border-amber-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">上層登記</span>
-                                        <span className="text-2xl font-black">{lightStats.upperReg}</span>
-                                    </button>
-                                    <button onClick={() => setLightFilterType('LOWER')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'LOWER' ? 'bg-indigo-500 text-white border-indigo-500 shadow-md' : 'bg-white text-indigo-700 border-indigo-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">下層登記</span>
-                                        <span className="text-2xl font-black">{lightStats.lowerReg}</span>
-                                    </button>
-                                    <button onClick={() => setLightFilterType('PAID')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span>
-                                        <span className="text-2xl font-black">{lightStats.paid}</span>
-                                    </button>
-                                    <button onClick={() => setLightFilterType('UNPAID')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span>
-                                        <span className="text-2xl font-black">{lightStats.unpaid}</span>
-                                    </button>
+                                <TabUpdateDate tabKey="donation" />
+                                <ErrorBanner show={fetchErrors.donation} />
+                                <div className="bg-purple-50 rounded-xl p-4 shadow-inner border border-purple-100 mb-4 flex items-center justify-between gap-4">
+                                    <div className="flex-1 relative">
+                                        <select 
+                                            value={donationFilterItem} 
+                                            onChange={e => setDonationFilterItem(e.target.value)} 
+                                            className="w-full p-3 rounded-lg border-2 border-purple-200 bg-white text-purple-800 font-bold focus:outline-none focus:border-purple-500 appearance-none shadow-sm"
+                                        >
+                                            <option value="ALL">全部捐獻項目</option>
+                                            {donationItemsList.map((name, i) => <option key={i} value={name}>{name}</option>)}
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-purple-400">▼</div>
+                                    </div>
+                                    <div className="bg-purple-600 text-white px-4 py-3 rounded-lg shadow-md flex flex-col items-center justify-center">
+                                        <span className="text-xs font-bold opacity-80 whitespace-nowrap">總筆數</span>
+                                        <span className="text-2xl font-black leading-none">{donationFiltered.length}</span>
+                                    </div>
                                 </div>
-                                {renderLightList()}
+                                <div className="space-y-3 fade-in">
+                                    {donationFiltered.length > 0 ? donationFiltered.map((item, idx) => (
+                                        <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center group relative overflow-hidden">
+                                            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-purple-400"></div>
+                                            <div className="pl-2">
+                                                <div className="inline-flex items-center gap-1 text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded mb-1 border border-purple-100">
+                                                    <Icons.Gift /> {item.item}
+                                                </div>
+                                                <div className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xs text-slate-400 font-bold mb-0.5">捐獻金額</div>
+                                                <div className="text-2xl font-black text-emerald-600">${item.amount}</div>
+                                            </div>
+                                        </div>
+                                    )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
+                                </div>
                             </div>
                         )}
 
-                        {/* 1. 委員/宮生頁面 (需密碼, 排在最後) */}
+                        {/* 功能：福建五日行 */}
+                        {activeTab === 'fujian' && (
+                            <div className="fade-in">
+                                <TabUpdateDate tabKey="fujian" />
+                                <ErrorBanner show={fetchErrors.fujian} />
+                                <div className="bg-teal-50 rounded-xl p-3 shadow-inner border border-teal-100 mb-4 flex justify-between gap-2 overflow-x-auto">
+                                    <button onClick={() => setFujianTripFilter('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${fujianTripFilter === 'ALL' ? 'bg-teal-600 text-white border-teal-600 shadow-md' : 'bg-white text-teal-600 border-teal-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">總人數</span><span className="text-3xl font-black">{fujianTripStats.reg}</span>
+                                    </button>
+                                    <button onClick={() => setFujianTripFilter('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${fujianTripFilter === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-3xl font-black">{fujianTripStats.paid}</span>
+                                    </button>
+                                    <button onClick={() => setFujianTripFilter('UNPAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${fujianTripFilter === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-3xl font-black">{fujianTripStats.unpaid}</span>
+                                    </button>
+                                </div>
+                                {renderTripList(fujianTripFiltered)}
+                            </div>
+                        )}
+
+                        {/* 功能：委員/宮生 */}
                         {activeTab === 'records' && (
                             <div className="fade-in">
+                                <TabUpdateDate tabKey="records" />
                                 {!isLoggedIn ? (
-                                    <div className="flex flex-col items-center justify-center py-12 px-4">
+                                    <div className="flex flex-col items-center justify-center py-8 px-4">
                                         <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-sm border border-slate-200 text-center">
-                                            <div className="bg-blue-50 p-4 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 text-blue-600">
-                                                <Icons.Lock />
-                                            </div>
+                                            <div className="bg-blue-50 p-4 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 text-blue-600"><Icons.Lock /></div>
                                             <h3 className="text-xl font-bold text-slate-800 mb-2">請輸入密碼</h3>
                                             <p className="text-slate-500 text-sm mb-6">此頁面內容僅供授權人員查看</p>
                                             <form onSubmit={handleLogin} className="space-y-4">
                                                 <input 
-                                                    type="password" 
-                                                    value={inputPassword}
-                                                    onChange={(e) => setInputPassword(e.target.value)}
+                                                    type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)}
                                                     className={`w-full p-3 rounded-lg border-2 text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all ${loginError ? 'border-red-500 shake' : 'border-slate-200 focus:border-blue-500'}`}
-                                                    placeholder="密碼"
-                                                    autoFocus
+                                                    placeholder="密碼" autoFocus
                                                 />
                                                 {loginError && <p className="text-red-500 text-sm font-bold">密碼錯誤，請重試</p>}
-                                                <button 
-                                                    type="submit"
-                                                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-md"
-                                                >
-                                                    解鎖查看
-                                                </button>
+                                                <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-md">解鎖查看</button>
                                             </form>
                                         </div>
                                     </div>
                                 ) : (
                                     <>
-                                        {/* 統計列 */}
                                         <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 mb-4 flex justify-between gap-2 overflow-x-auto">
                                             <button onClick={() => setFilterRole('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${filterRole === 'ALL' ? 'bg-slate-600 text-white border-slate-600 shadow-md' : 'bg-slate-50 text-slate-500 border-transparent'}`}>
-                                                <span className="text-base font-bold opacity-90 mb-1">全部</span>
-                                                <span className="text-3xl font-bold">{recordStats.all}</span>
+                                                <span className="text-base font-bold opacity-90 mb-1">全部</span><span className="text-3xl font-bold">{recordStats.all}</span>
                                             </button>
                                             <button onClick={() => setFilterRole('委員')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${filterRole === '委員' ? 'bg-amber-500 text-white border-amber-500 shadow-md' : 'bg-amber-50 text-amber-700 border-transparent'}`}>
-                                                <span className="text-base font-bold opacity-90 mb-1">委員</span>
-                                                <span className="text-3xl font-bold">{recordStats.committee}</span>
+                                                <span className="text-base font-bold opacity-90 mb-1">委員</span><span className="text-3xl font-bold">{recordStats.committee}</span>
                                             </button>
                                             <button onClick={() => setFilterRole('宮生')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${filterRole === '宮生' ? 'bg-indigo-500 text-white border-indigo-500 shadow-md' : 'bg-indigo-50 text-indigo-700 border-transparent'}`}>
-                                                <span className="text-base font-bold opacity-90 mb-1">宮生</span>
-                                                <span className="text-3xl font-bold">{recordStats.student}</span>
+                                                <span className="text-base font-bold opacity-90 mb-1">宮生</span><span className="text-3xl font-bold">{recordStats.student}</span>
                                             </button>
                                         </div>
-                                        {/* 列表 */}
                                         <div className="space-y-2">
                                             {recordDisplay.length > 0 ? recordDisplay.map((item, index) => (
                                                 <div key={index} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-1 relative overflow-hidden group">
@@ -856,13 +726,76 @@
                             </div>
                         )}
 
+                        {/* 功能：安太歲 */}
+                        {activeTab === 'taisui' && (
+                            <div className="fade-in">
+                                <TabUpdateDate tabKey="taisui" />
+                                <div className="bg-rose-50 rounded-xl p-3 shadow-inner border border-rose-100 mb-4 flex justify-between gap-2 overflow-x-auto">
+                                    <button onClick={() => setTaiSuiFilterType('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'ALL' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-white text-rose-500 border-rose-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">登記總數</span><span className="text-3xl font-black">{taiSuiStats.reg}</span>
+                                    </button>
+                                    <button onClick={() => setTaiSuiFilterType('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-3xl font-black">{taiSuiStats.paid}</span>
+                                    </button>
+                                    <button onClick={() => setTaiSuiFilterType('UNPAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-3xl font-black">{taiSuiStats.unpaid}</span>
+                                    </button>
+                                </div>
+                                <div className="space-y-2 fade-in">
+                                    {taiSuiDisplay.length > 0 ? taiSuiDisplay.map((item, idx) => (
+                                        <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                {item.id ? <div className="bg-rose-100 px-2 py-1 rounded text-rose-600 font-bold text-sm min-w-[3rem] text-center">{item.id}</div> : <div className="bg-rose-100 p-2 rounded-full text-rose-600"><Icons.Scroll /></div>}
+                                                <span className="text-xl font-bold text-slate-800">{item.n}</span>
+                                            </div>
+                                            <div className="flex gap-2 text-sm">
+                                                <div className={`px-3 py-1 rounded-md flex items-center gap-1 border ${item.r ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
+                                                    {item.r ? <Icons.Check /> : <span className="w-4 h-4 block border border-slate-300 rounded-sm"></span>}<span className="font-bold">登記</span>
+                                                </div>
+                                                <div className={`px-3 py-1 rounded-md flex items-center gap-1 border ${item.p ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
+                                                    {item.p ? <Icons.Check /> : <span className="w-4 h-4 block border border-slate-300 rounded-sm"></span>}<span className="font-bold">繳費</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 功能：光明燈 */}
+                        {activeTab === 'light' && (
+                            <div className="fade-in">
+                                <TabUpdateDate tabKey="light" />
+                                <div className="bg-amber-50 rounded-xl p-3 shadow-inner border border-amber-100 mb-4 flex justify-between gap-2 overflow-x-auto min-w-full no-scrollbar">
+                                    <button onClick={() => setLightFilterType('ALL')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'ALL' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-white text-slate-500 border-amber-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">登記總數</span><span className="text-2xl font-black">{lightStats.totalReg}</span>
+                                    </button>
+                                    <button onClick={() => setLightFilterType('UPPER')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'UPPER' ? 'bg-amber-500 text-white border-amber-500 shadow-md' : 'bg-white text-amber-700 border-amber-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">上層登記</span><span className="text-2xl font-black">{lightStats.upperReg}</span>
+                                    </button>
+                                    <button onClick={() => setLightFilterType('LOWER')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'LOWER' ? 'bg-indigo-500 text-white border-indigo-500 shadow-md' : 'bg-white text-indigo-700 border-indigo-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">下層登記</span><span className="text-2xl font-black">{lightStats.lowerReg}</span>
+                                    </button>
+                                    <button onClick={() => setLightFilterType('PAID')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-2xl font-black">{lightStats.paid}</span>
+                                    </button>
+                                    <button onClick={() => setLightFilterType('UNPAID')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-2xl font-black">{lightStats.unpaid}</span>
+                                    </button>
+                                </div>
+                                <div className="space-y-2 fade-in">
+                                    {lightDisplay.length > 0 ? lightDisplay.map((item, idx) => <LightCard key={idx} item={item} />) : <div className="text-center py-8 text-slate-500">查無資料</div>}
+                                </div>
+                            </div>
+                        )}
+
                     </div>
                 </div>
             );
         }
 
         if (typeof ReactDOM === 'undefined') {
-            document.getElementById('root').innerHTML = '<div style="text-align:center; padding:2rem; color:red; font-weight:bold;">無法載入 React 函式庫 (ReactDOM is not defined)，請檢查網路或 CDN 連線狀態。</div>';
+            document.getElementById('root').innerHTML = '<div style="text-align:center; padding:2rem; color:red; font-weight:bold;">無法載入 React 函式庫，請檢查網路狀態。</div>';
         } else {
             const root = ReactDOM.createRoot(document.getElementById('root'));
             root.render(<App />);
