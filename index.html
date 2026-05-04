@@ -1,803 +1,1021 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>帳務查詢系統</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.3/babel.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>魔法單字小達人 ✨</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+:root {
+  /* 酷洛米配色 */
+  --kuromi-dark: #2d2b36;
+  --kuromi-purple: #8e78a6;
+  --kuromi-pink: #f48fb1;
+  /* 彩虹小馬配色 */
+  --pony-blue: #b3e5fc;
+  --pony-purple: #e1bee7;
+  --pony-pink: #f8bbd0;
+  --pony-yellow: #fff9c4;
+  --pony-green: #c8e6c9;
+  
+  --bg-light: #fdfbfd;
+  --text-dark: #2d2b36;
+  --text-light: #ffffff;
+}
+* { font-family: 'Nunito', 'Noto Sans TC', sans-serif; box-sizing: border-box; }
+body { margin:0; padding:0; overflow-x:hidden; background: var(--bg-light); color: var(--text-dark); -webkit-tap-highlight-color: transparent; }
 
-    <style>
-        * { -webkit-tap-highlight-color: transparent; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
-        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
-        
-        /* 載入動畫 */
-        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: #3b82f6; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        /* 隱藏捲軸但保留捲動功能 (給頂部導航列使用) */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    </style>
+/* ─── 動畫 ─── */
+@keyframes float { 0%,100%{transform:translateY(0) rotate(-2deg)} 50%{transform:translateY(-8px) rotate(2deg)} }
+@keyframes bounce-in { 0%{transform:scale(0) rotate(-10deg);opacity:0} 60%{transform:scale(1.1) rotate(3deg)} 80%{transform:scale(0.95)} 100%{transform:scale(1) rotate(0);opacity:1} }
+@keyframes shake { 0%,100%{transform:translateX(0) rotate(0)} 20%{transform:translateX(-8px) rotate(-4deg)} 40%{transform:translateX(8px) rotate(4deg)} 60%{transform:translateX(-6px) rotate(-3deg)} 80%{transform:translateX(6px) rotate(3deg)} }
+@keyframes wiggle { 0%,100%{transform:rotate(-5deg)} 50%{transform:rotate(5deg)} }
+@keyframes star-pop { 0%{transform:scale(0) rotate(0)} 50%{transform:scale(1.3) rotate(180deg)} 100%{transform:scale(1) rotate(360deg)} }
+@keyframes rainbow-bg { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+@keyframes pulse-gentle { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+@keyframes confetti-fall { 0%{transform:translateY(-20px) rotate(0);opacity:1} 100%{transform:translateY(120vh) rotate(720deg);opacity:0} }
+
+.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-bounce-in { animation: bounce-in 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards; }
+.animate-shake { animation: shake 0.4s ease both; }
+.animate-wiggle { animation: wiggle 0.4s ease infinite; }
+.animate-star-pop { animation: star-pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards; }
+.animate-pulse-gentle { animation: pulse-gentle 2s ease-in-out infinite; }
+
+/* ─── 魔法按鈕 ─── */
+.candy-btn {
+  position: relative; border-radius: 999px; font-weight: 900;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.15), 0 6px 15px rgba(0,0,0,0.08);
+  transition: all 0.15s ease; cursor: pointer; border: none; outline: none;
+  letter-spacing: 0.02em; padding: 12px 16px; font-size: 1rem;
+}
+.candy-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 0 rgba(0,0,0,0.15), 0 8px 20px rgba(0,0,0,0.12); }
+.candy-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
+
+/* ─── 卡片 ─── */
+.kawaii-card {
+  background: white; border-radius: 20px;
+  box-shadow: 0 6px 0 rgba(142,120,166,0.15), 0 10px 30px rgba(142,120,166,0.1);
+  border: 2px solid rgba(225,190,231,0.5);
+  padding: 20px; width: 100%;
+}
+
+/* ─── 輸入框 ─── */
+.kawaii-input {
+  border: 3px solid var(--pony-purple); border-radius: 16px;
+  background: #fdfbfd; font-weight: 800; font-size: 1.2rem;
+  text-align: center; padding: 12px 16px; outline: none; width: 100%;
+  transition: all 0.2s ease; color: var(--text-dark);
+}
+.kawaii-input:focus { border-color: var(--kuromi-purple); background: white; box-shadow: 0 0 0 3px rgba(142,120,166,0.15); }
+
+/* ─── 進度條 ─── */
+.progress-bar {
+  height: 12px; border-radius: 99px;
+  background: linear-gradient(90deg, #ff9a9e, #fecfef, #a1c4fd, #c2e9fb);
+  background-size: 200% 100%;
+  animation: rainbow-bg 3s ease infinite;
+  transition: width 0.4s ease;
+}
+
+/* ─── 彩帶 ─── */
+.confetti-piece {
+  position: fixed; width: 8px; height: 8px; border-radius: 2px;
+  animation: confetti-fall linear forwards; pointer-events: none; z-index: 999;
+}
+
+/* ─── 角色彈窗 ─── */
+.character-popup {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  z-index: 200; background: rgba(45,43,54,0.6); backdrop-filter: blur(4px); padding: 16px;
+}
+</style>
 </head>
-<body class="bg-slate-50">
-    <div id="root"></div>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
 
-    <script type="text/babel">
-        const { useState, useMemo, useEffect, useCallback } = React;
+// ══════════════════════════════════════════════
+// 音效引擎
+// ══════════════════════════════════════════════
+const AudioEngine = (function(){
+  let ctx=null, unlocked=false;
+  function init(){
+    try{
+      if(!ctx){const C=window.AudioContext||window.webkitAudioContext;if(C)ctx=new C();}
+      if(ctx&&ctx.state==='suspended')ctx.resume();
+      if(ctx&&!unlocked){const b=ctx.createBuffer(1,1,22050);const s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start(0);unlocked=true;}
+    }catch(e){}
+  }
+  function tone(freq,type,dur,vol=0.3){
+    try{if(!ctx)return;const t=ctx.currentTime;const o=ctx.createOscillator();const g=ctx.createGain();o.type=type;o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+dur);}catch(e){}
+  }
+  return {
+    init,
+    play(type){
+      init();
+      if(type==='correct'){tone(659,'sine',0.1,0.3);setTimeout(()=>tone(880,'sine',0.1,0.3),80);setTimeout(()=>tone(1047,'sine',0.2,0.4),160);}
+      else if(type==='incorrect'){tone(300,'sawtooth',0.15,0.3);setTimeout(()=>tone(220,'sawtooth',0.25,0.3),150);}
+      else if(type==='clear'){[523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>tone(f,'sine',0.1,0.3),i*60));setTimeout(()=>{tone(1047,'sine',0.4,0.5);tone(784,'sine',0.4,0.5);},360);}
+      else if(type==='fail'){tone(392,'triangle',0.2,0.3);setTimeout(()=>tone(330,'triangle',0.4,0.3),200);}
+    }
+  };
+})();
 
-        // =========================================================================
-        // [正式啟動] Google Sheets CSV 自動抓取網址區
-        // =========================================================================
-        const GOOGLE_SHEETS_URLS = {
-            taiSui: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1409111845&single=true&output=csv",        
-            lightUpper: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1353370878&single=true&output=csv",    
-            lightLower: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1743080288&single=true&output=csv",    
-            records: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=0&single=true&output=csv",
-            eastTrip: "https://docs.google.com/spreadsheets/d/1tyVkgPvtkvnFIoj2Y16a-Z85EXMojL8BUM7KntPzCzU/gviz/tq?tqx=out:csv&gid=43391721", 
-            fujianTrip: "https://docs.google.com/spreadsheets/d/1tyVkgPvtkvnFIoj2Y16a-Z85EXMojL8BUM7KntPzCzU/gviz/tq?tqx=out:csv&gid=691088006",
-            donation: "https://docs.google.com/spreadsheets/d/1tyVkgPvtkvnFIoj2Y16a-Z85EXMojL8BUM7KntPzCzU/gviz/tq?tqx=out:csv&gid=935792502"
-        };
+// ══════════════════════════════════════════════
+// 口說辨識 - 極度寬鬆的模糊比對 (只要音接近就算對)
+// ══════════════════════════════════════════════
+const getLev=(a,b)=>{
+  const dp=Array.from({length:b.length+1},(_,i)=>[i]);
+  for(let j=0;j<=a.length;j++)dp[0][j]=j;
+  for(let i=1;i<=b.length;i++)for(let j=1;j<=a.length;j++)dp[i][j]=b[i-1]===a[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j-1],dp[i][j-1],dp[i-1][j]);
+  return dp[b.length][a.length];
+};
+const SOUND={'ph':'f','ck':'k','gh':'g','kn':'n','wr':'r','mb':'m','wh':'w','qu':'kw'};
+const normS=(s)=>{let r=s.toLowerCase().trim();Object.entries(SOUND).forEach(([f,t])=>{r=r.replaceAll(f,t);});return r;};
+const isFuzzy=(spoken,target)=>{
+  let cs=spoken.toLowerCase().replace(/[^a-z0-9 ]/g,'');
+  const ct=target.toLowerCase().replace(/[^a-z ]/g,'').trim();
+  if(cs.includes(ct)) return true;
+  
+  const words=cs.split(/\s+/);
+  for(let w of words){
+    if(!w)continue;
+    if(w===ct)return true;
+    
+    // 超高容錯：允許高達 50% 編輯距離的錯誤
+    const thr = Math.ceil(ct.length / 2);
+    if(getLev(w, ct) <= thr) return true;
+    
+    // 超高容錯：只要字首前綴符合即可 (短字2個字母，長字3個字母)
+    const pLen = ct.length <= 4 ? 2 : 3;
+    if (w.length >= pLen && ct.length >= pLen && (w.startsWith(ct.substring(0,pLen)) || ct.startsWith(w.substring(0,pLen)))) {
+       return true;
+    }
+  }
+  return cs.replace(/\s/g,'').includes(ct);
+};
 
-        const splitCSVRow = (str) => {
-            let row = [''], i = 0, inQuotes = false;
-            for (let char of str) {
-                if (char === '"') inQuotes = !inQuotes;
-                else if (char === ',' && !inQuotes) row[++i] = '';
-                else row[i] += char;
-            }
-            return row.map(v => v.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
-        };
+// ══════════════════════════════════════════════
+// 角色 SVG (酷洛米 + 彩虹小馬 + 新增三麗鷗角色)
+// ══════════════════════════════════════════════
+const Characters = {
+  kuromi: (size=100) => (
+    <svg width={size} height={size} viewBox="0 0 120 120">
+      <path d="M 60 20 Q 20 20 20 60 Q 20 100 60 100 Q 100 100 100 60 Q 100 20 60 20 Z" fill="#2d2b36" />
+      <path d="M 30 30 L 10 10 L 40 25 Z" fill="#2d2b36" />
+      <path d="M 90 30 L 110 10 L 80 25 Z" fill="#2d2b36" />
+      <circle cx="10" cy="10" r="4" fill="#f48fb1"/><circle cx="110" cy="10" r="4" fill="#f48fb1"/>
+      <ellipse cx="60" cy="65" rx="35" ry="28" fill="#ffffff" />
+      <ellipse cx="60" cy="35" rx="8" ry="6" fill="#f48fb1" />
+      <circle cx="56" cy="34" r="1.5" fill="#2d2b36"/><circle cx="64" cy="34" r="1.5" fill="#2d2b36"/>
+      <path d="M 45 60 Q 50 55 55 60" fill="none" stroke="#2d2b36" strokeWidth="2"/>
+      <path d="M 75 60 Q 70 55 65 60" fill="none" stroke="#2d2b36" strokeWidth="2"/>
+      <circle cx="50" cy="62" r="3" fill="#2d2b36"/><circle cx="70" cy="62" r="3" fill="#2d2b36"/>
+      <ellipse cx="60" cy="68" rx="4" ry="2" fill="#f48fb1"/>
+      <path d="M 55 75 Q 60 80 65 75" fill="none" stroke="#2d2b36" strokeWidth="2"/>
+    </svg>
+  ),
+  pochacco: (size=100) => (
+    <svg width={size} height={size} viewBox="0 0 120 120">
+      <ellipse cx="60" cy="65" rx="35" ry="30" fill="#ffffff" />
+      <path d="M 28 50 Q 15 70 20 85 Q 25 95 32 80 Q 35 60 38 50" fill="#2d2b36" />
+      <path d="M 92 50 Q 105 70 100 85 Q 95 95 88 80 Q 85 60 82 50" fill="#2d2b36" />
+      <ellipse cx="48" cy="60" rx="3" ry="5" fill="#2d2b36" />
+      <ellipse cx="72" cy="60" rx="3" ry="5" fill="#2d2b36" />
+      <ellipse cx="60" cy="68" rx="4" ry="3" fill="#2d2b36" />
+      <path d="M 60 71 L 60 76 M 55 76 Q 60 80 65 76" fill="none" stroke="#2d2b36" strokeWidth="1.5"/>
+      <path d="M 60 35 Q 55 25 65 30" fill="none" stroke="#2d2b36" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  cinnamoroll: (size=100) => (
+    <svg width={size} height={size} viewBox="0 0 120 120">
+      <path d="M 35 55 Q 5 50 10 75 Q 15 100 40 75" fill="#ffffff" stroke="#b3e5fc" strokeWidth="2"/>
+      <path d="M 85 55 Q 115 50 110 75 Q 105 100 80 75" fill="#ffffff" stroke="#b3e5fc" strokeWidth="2"/>
+      <ellipse cx="60" cy="60" rx="40" ry="28" fill="#ffffff" />
+      <ellipse cx="42" cy="60" rx="4" ry="6" fill="#0288d1" />
+      <ellipse cx="78" cy="60" rx="4" ry="6" fill="#0288d1" />
+      <ellipse cx="32" cy="65" rx="6" ry="3" fill="#f8bbd0" opacity="0.8"/>
+      <ellipse cx="88" cy="65" rx="6" ry="3" fill="#f8bbd0" opacity="0.8"/>
+      <path d="M 55 68 Q 60 73 65 68" fill="none" stroke="#0288d1" strokeWidth="2"/>
+    </svg>
+  ),
+  hangyodon: (size=100) => (
+    <svg width={size} height={size} viewBox="0 0 120 120">
+      <ellipse cx="60" cy="65" rx="35" ry="40" fill="#4dd0e1" />
+      <path d="M 60 25 Q 50 15 60 10 Q 70 15 60 25" fill="#00acc1" />
+      <circle cx="48" cy="50" r="12" fill="#ffffff" stroke="#00838f" strokeWidth="1"/>
+      <circle cx="72" cy="50" r="12" fill="#ffffff" stroke="#00838f" strokeWidth="1"/>
+      <circle cx="52" cy="50" r="3" fill="#2d2b36"/>
+      <circle cx="68" cy="50" r="3" fill="#2d2b36"/>
+      <ellipse cx="60" cy="75" rx="14" ry="6" fill="#ff8a80" />
+      <path d="M 46 75 Q 60 75 74 75" stroke="#d50000" strokeWidth="1" fill="none"/>
+    </svg>
+  ),
+  melody: (size=100) => (
+    <svg width={size} height={size} viewBox="0 0 120 120">
+      <ellipse cx="60" cy="70" rx="36" ry="30" fill="#ffffff" />
+      <path d="M 20 60 Q 20 25 60 25 Q 100 25 100 60 Q 100 80 80 80 Q 60 70 40 80 Q 20 80 20 60 Z" fill="#f48fb1" />
+      <ellipse cx="35" cy="20" rx="10" ry="25" fill="#f48fb1" />
+      <ellipse cx="85" cy="25" rx="10" ry="25" fill="#f48fb1" transform="rotate(20 85 25)" />
+      <ellipse cx="60" cy="70" rx="32" ry="26" fill="#ffffff" />
+      <ellipse cx="48" cy="68" rx="3" ry="4" fill="#2d2b36"/>
+      <ellipse cx="72" cy="68" rx="3" ry="4" fill="#2d2b36"/>
+      <ellipse cx="60" cy="74" rx="3" ry="2" fill="#ffeb3b"/>
+      <ellipse cx="40" cy="74" rx="5" ry="3" fill="#f8bbd0" opacity="0.8"/>
+      <ellipse cx="80" cy="74" rx="5" ry="3" fill="#f8bbd0" opacity="0.8"/>
+    </svg>
+  ),
+  twilight: (size=100) => (
+    <svg width={size} height={size} viewBox="0 0 120 120">
+      <ellipse cx="60" cy="70" rx="36" ry="32" fill="#d1c4e9" />
+      <path d="M 30 50 L 20 20 L 45 40 Z" fill="#d1c4e9" />
+      <path d="M 55 40 L 60 10 L 65 40 Z" fill="#d1c4e9" stroke="#b39ddb" strokeWidth="1"/>
+      <path d="M 40 40 Q 60 20 80 40 Q 90 60 85 80 Q 70 50 40 40" fill="#311b92" />
+      <path d="M 45 42 Q 60 25 75 42" fill="none" stroke="#e91e63" strokeWidth="3"/>
+      <ellipse cx="45" cy="65" rx="7" ry="10" fill="#ffffff" />
+      <ellipse cx="45" cy="65" rx="4" ry="7" fill="#673ab7" />
+      <ellipse cx="75" cy="65" rx="7" ry="10" fill="#ffffff" />
+      <ellipse cx="75" cy="65" rx="4" ry="7" fill="#673ab7" />
+      <circle cx="44" cy="62" r="2" fill="white"/>
+      <circle cx="74" cy="62" r="2" fill="white"/>
+      <circle cx="60" cy="80" r="1.5" fill="#7e57c2"/>
+      <path d="M 55 88 Q 60 92 65 88" fill="none" stroke="#7e57c2" strokeWidth="2"/>
+    </svg>
+  ),
+  rainbow: (size=100) => (
+    <svg width={size} height={size} viewBox="0 0 120 120">
+      <ellipse cx="60" cy="70" rx="36" ry="32" fill="#81d4fa" />
+      <path d="M 30 50 L 20 20 L 45 40 Z" fill="#81d4fa" />
+      <path d="M 35 45 Q 60 10 85 50 Q 95 30 70 15 Q 40 20 35 45" fill="#f44336" />
+      <path d="M 40 48 Q 60 18 80 50 Q 85 35 65 25 Q 45 30 40 48" fill="#ffeb3b" />
+      <path d="M 45 50 Q 60 25 75 50 Q 75 40 60 35 Q 50 40 45 50" fill="#4caf50" />
+      <ellipse cx="45" cy="65" rx="7" ry="10" fill="#ffffff" />
+      <ellipse cx="45" cy="65" rx="4" ry="7" fill="#e91e63" />
+      <ellipse cx="75" cy="65" rx="7" ry="10" fill="#ffffff" />
+      <ellipse cx="75" cy="65" rx="4" ry="7" fill="#e91e63" />
+      <circle cx="44" cy="62" r="2" fill="white"/>
+      <circle cx="74" cy="62" r="2" fill="white"/>
+      <path d="M 55 85 Q 60 88 65 85" fill="none" stroke="#0288d1" strokeWidth="2"/>
+    </svg>
+  ),
+  pinkie: (size=100) => (
+    <svg width={size} height={size} viewBox="0 0 120 120">
+      <ellipse cx="60" cy="70" rx="36" ry="32" fill="#f8bbd0" />
+      <path d="M 30 50 L 20 20 L 45 40 Z" fill="#f8bbd0" />
+      <circle cx="50" cy="25" r="15" fill="#e91e63" />
+      <circle cx="70" cy="30" r="18" fill="#e91e63" />
+      <circle cx="85" cy="50" r="15" fill="#e91e63" />
+      <circle cx="35" cy="35" r="12" fill="#e91e63" />
+      <ellipse cx="45" cy="65" rx="8" ry="11" fill="#ffffff" />
+      <ellipse cx="45" cy="65" rx="4" ry="8" fill="#03a9f4" />
+      <ellipse cx="75" cy="65" rx="8" ry="11" fill="#ffffff" />
+      <ellipse cx="75" cy="65" rx="4" ry="8" fill="#03a9f4" />
+      <circle cx="44" cy="62" r="2.5" fill="white"/>
+      <circle cx="74" cy="62" r="2.5" fill="white"/>
+      <path d="M 50 85 Q 60 95 70 85" fill="none" stroke="#c2185b" strokeWidth="2.5"/>
+    </svg>
+  ),
+};
 
-        const extractTripData = (parsed) => {
-            if(!parsed || parsed.length === 0) return [];
-            const keys = Object.keys(parsed[0]);
-            let idKey = keys.find(k => k.includes('序號') || k.includes('編號')) || keys[0];
-            let regKey = keys.find(k => k.includes('登記') || k.includes('姓名')) || keys[1]; 
-            let paidKey = keys.find(k => k.includes('繳費')) || keys[4]; 
-            if(!regKey) return [];
+// ══════════════════════════════════════════════
+// 彩帶特效
+// ══════════════════════════════════════════════
+function Confetti(){
+  const colors=['#f48fb1','#b3e5fc','#fff9c4','#e1bee7','#c8e6c9','#2d2b36'];
+  const pieces = Array.from({length:50},(_,i)=>({
+    id:i, color:colors[i%colors.length], left:`${Math.random()*100}vw`, delay:`${Math.random()*1.5}s`, dur:`${1.5+Math.random()*2}s`, size:`${5+Math.random()*8}px`, shape: Math.random()>0.5?'50%':'2px',
+  }));
+  return (
+    <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:999,overflow:'hidden'}}>
+      {pieces.map(p=>(
+        <div key={p.id} className="confetti-piece" style={{left:p.left, backgroundColor:p.color, width:p.size, height:p.size, borderRadius:p.shape, animationDuration:p.dur, animationDelay:p.delay}}/>
+      ))}
+    </div>
+  );
+}
 
-            let paidSet = new Set();
-            parsed.forEach(row => {
-                const pName = row[paidKey];
-                if(pName && pName.trim() !== '') paidSet.add(pName.trim());
-            });
+// ══════════════════════════════════════════════
+// 角色彈窗與訊息 (多元分配角色 + 可愛配音)
+// ══════════════════════════════════════════════
+const PASS_MESSAGES = {
+  correct: ['太厲害了！💖','完美魔法！✨','好棒喔！🌟','你最強！🎀','魔法滿分！🦄'],
+  listening: { char:'twilight', msg:'聽力魔法使！🎵\n紫悅為你鼓掌！', color:'#b39ddb', text:'#fff' },
+  dictation: { char:'kuromi', msg:'默寫黑魔法！✏️\n酷洛米覺得你超酷！', color:'#2d2b36', text:'#fff' },
+  speaking: { char:'rainbow', msg:'口說大師！🎤\n雲寶說你發音超快！', color:'#81d4fa', text:'#111' },
+  'dictation-en': { char:'pochacco', msg:'聽音拼字達人！🎧\n帕恰狗為你歡呼！', color:'#cfd8dc', text:'#2d2b36' },
+  sentence: { char:'melody', msg:'句型文法通！📚\n美樂蒂說你超有語感！', color:'#f48fb1', text:'#fff' },
+  comprehensive: { char:'hangyodon', msg:'錯題全擊破！🏆\n漢頓覺得你不可思議！', color:'#4dd0e1', text:'#004d40' },
+  perfect: { char:'cinnamoroll', msg:'🎊 完美通關！🎊\n大耳狗帶你飛向天空！', color:'#e3f2fd', text:'#01579b' },
+};
 
-            return parsed.filter(row => row[regKey] && row[regKey].trim() !== '').map((row, i) => ({
-                id: (row[idKey] || '').trim() || (i + 1),
-                name: row[regKey].trim(), 
-                isPaid: paidSet.has(row[regKey].trim())
-            }));
-        };
+function CharacterPopup({ mode, onClose }){
+  const info = PASS_MESSAGES[mode] || PASS_MESSAGES.listening;
+  const CharSvg = Characters[info.char];
+  return (
+    <div className="character-popup" onClick={onClose}>
+      <div className="animate-bounce-in" style={{textAlign:'center',position:'relative', width:'100%', maxWidth:'300px'}} onClick={e=>e.stopPropagation()}>
+        <div style={{position:'absolute',inset:-30,borderRadius:'50%',background:`radial-gradient(circle,${info.color}88,transparent 70%)`,animation:'pulse-gentle 2s ease-in-out infinite'}}/>
+        <div className="animate-float" style={{display:'inline-block',position:'relative',zIndex:1}}><CharSvg size={140}/></div>
+        <div style={{background:info.color,borderRadius:20,padding:'16px 20px',marginTop:8,boxShadow:`0 6px 0 rgba(0,0,0,0.2)`,border:`2px solid rgba(255,255,255,0.4)`,position:'relative',zIndex:1}}>
+          <p style={{fontSize:'1.15rem',fontWeight:900,color:info.text,margin:0,whiteSpace:'pre-line',lineHeight:1.4}}>{info.msg}</p>
+        </div>
+        <button onClick={onClose} className="candy-btn" style={{marginTop:16,padding:'10px 30px',fontSize:'1rem',background:'#fff',color:info.color==='#fff'||info.color==='#e3f2fd'?'#01579b':info.color,width:'100%',zIndex:1}}>
+          繼續魔法旅程 ✨
+        </button>
+      </div>
+    </div>
+  );
+}
 
-        const extractDonations = (parsed) => {
-            if(!parsed || parsed.length === 0) return [];
-            const keys = Object.keys(parsed[0]);
-            let itemKey = keys.find(k => k.includes('項目')) || keys[0];
-            let nameKey = keys.find(k => k.includes('姓名') || k.includes('名單')) || keys[1];
-            let amountKey = keys.find(k => k.includes('金額') || k.includes('元')) || keys[2];
+// ══════════════════════════════════════════════
+// 擴充版句型題庫 (共 20 題，每次取 15 題)
+// ══════════════════════════════════════════════
+const SENTENCE_TEMPLATES = [
+  // fill_blank (7)
+  { type:'fill_blank', template:'My ___ likes to eat fish.', word_tag:'animal_pet', blank_hint:'寵物動物', grammar_tip:'主詞後面接 likes（第三人稱單數）', zh_template:'我的___喜歡吃魚。' },
+  { type:'fill_blank', template:'She is very ___.', word_tag:'adj', blank_hint:'形容詞', grammar_tip:'be動詞後面接形容詞', zh_template:'她非常___。' },
+  { type:'fill_blank', template:'I want to ___ after school.', word_tag:'verb_activity', blank_hint:'活動動詞', grammar_tip:'want to 後面接原形動詞', zh_template:'我放學後想要___。' },
+  { type:'fill_blank', template:'The ___ is on the table.', word_tag:'thing', blank_hint:'物品名詞', grammar_tip:'The + 名詞 + is', zh_template:'那個___在桌子上。' },
+  { type:'fill_blank', template:'I have a new ___.', word_tag:'thing', blank_hint:'單數物品', grammar_tip:'a 後面接單數名詞', zh_template:'我有一個新___。' },
+  { type:'fill_blank', template:'We play ___ in the park.', word_tag:'thing', blank_hint:'遊戲/物品', grammar_tip:'play 後面接名詞', zh_template:'我們在公園玩___。' },
+  { type:'fill_blank', template:'The ___ is running fast.', word_tag:'animal_pet', blank_hint:'動物', grammar_tip:'The + 名詞 + is running', zh_template:'那隻___跑得很快。' },
+  // choice (8)
+  { type:'choice', sentence:'She ___ English every day.', options_template:['study','studies','studied','studying'], answer:'studies', translation:'她每天讀英語。', grammar_tip:'第三人稱單數現在式，study → studies' },
+  { type:'choice', sentence:'There ___ two cats on the sofa.', options_template:['is','am','are','be'], answer:'are', translation:'沙發上有兩隻貓。', grammar_tip:'主詞複數 two cats，用 are' },
+  { type:'choice', sentence:'I ___ a banana this morning.', options_template:['eat','eats','ate','eating'], answer:'ate', translation:'我今天早上吃了一根香蕉。', grammar_tip:'this morning 表示過去式 ate' },
+  { type:'choice', sentence:'The dog is ___ than the cat.', options_template:['big','bigger','biggest','more big'], answer:'bigger', translation:'狗比貓大。', grammar_tip:'比較級：big → bigger' },
+  { type:'choice', sentence:'___ you like magic?', options_template:['Do','Does','Are','Is'], answer:'Do', translation:'你喜歡魔法嗎？', grammar_tip:'一般動詞疑問句，主詞 you，用 Do' },
+  { type:'choice', sentence:'He ___ a book now.', options_template:['reads','reading','is reading','read'], answer:'is reading', translation:'他現在正在看書。', grammar_tip:'now 表示現在進行式 (be + V-ing)' },
+  { type:'choice', sentence:'My mother ___ cooking dinner.', options_template:['is','am','are','be'], answer:'is', translation:'我媽媽正在煮晚餐。', grammar_tip:'My mother 是單數，用 is' },
+  { type:'choice', sentence:'They ___ to the park yesterday.', options_template:['go','goes','went','going'], answer:'went', translation:'他們昨天去公園了。', grammar_tip:'yesterday 表示過去式 went' },
+  // arrange (5)
+  { type:'arrange', words_template:['is','The','very','beautiful','flower'], answer_template:'The flower is very beautiful', translation:'這朵花非常美麗。', grammar_tip:'主詞 + be動詞 + 形容詞' },
+  { type:'arrange', words_template:['lunch','I','eat','at','noon'], answer_template:'I eat lunch at noon', translation:'我在中午吃午餐。', grammar_tip:'時間副詞 at noon 放句尾' },
+  { type:'arrange', words_template:['my','I','sister','love'], answer_template:'I love my sister', translation:'我愛我的姊姊。', grammar_tip:'主詞 + 動詞 + 受詞' },
+  { type:'arrange', words_template:['are','playing','They','basketball'], answer_template:'They are playing basketball', translation:'他們正在打籃球。', grammar_tip:'現在進行式: be + V-ing' },
+  { type:'arrange', words_template:['have','I','a','red','apple'], answer_template:'I have a red apple', translation:'我有一顆紅蘋果。', grammar_tip:'形容詞 red 在名詞 apple 之前' },
+];
 
-            return parsed.map((row, i) => ({
-                id: i,
-                item: (row[itemKey] || '').trim(),
-                name: (row[nameKey] || '').trim(),
-                amount: (row[amountKey] || '').trim()
-            })).filter(r => r.name || r.amount);
-        };
+function buildSentenceQuestions(wordPool) {
+  const shuffle=(a)=>{const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return r;};
+  const animals=wordPool.filter(w=>['cat','dog','bird','fish','rabbit','hamster','horse','monkey','elephant','tiger','lion','bear','duck','pig','goat','sheep','turtle','snake','frog'].includes(w.en));
+  const adjectives=wordPool.filter(w=>['happy','sad','big','small','tall','short','hot','cold','fast','slow','clean','dirty','beautiful','ugly','funny','tired','hungry','angry','brave','cute','smart'].includes(w.en));
+  const verbs=wordPool.filter(w=>['run','swim','jump','sing','dance','draw','read','write','play','cook','eat','drink','sleep','study','walk','ride','fly','laugh','cry'].includes(w.en));
+  const things=wordPool.filter(w=>['book','pen','ball','bag','key','hat','cup','phone','computer','clock','desk','chair','door','window'].includes(w.en));
 
-        const sortById = (a, b) => {
-            if (!a.id || !b.id) return 0;
-            const firstA = a.id[0];
-            const firstB = b.id[0];
-            if (firstA !== firstB) return firstA.localeCompare(firstB);
-            const secondA = a.id[1];
-            const secondB = b.id[1];
-            if (secondA !== secondB) return secondA.localeCompare(secondB);
-            const restA = parseInt(a.id.slice(2), 10);
-            const restB = parseInt(b.id.slice(2), 10);
-            return restA - restB;
-        };
+  const pick=(arr)=>arr.length?arr[Math.floor(Math.random()*arr.length)]:null;
+  const selected = shuffle(SENTENCE_TEMPLATES).slice(0, 15);
+  return selected.map(tpl=>{
+    if(tpl.type==='fill_blank'){
+      let word=null;
+      if(tpl.word_tag==='animal_pet') word=pick(animals)||pick(wordPool);
+      else if(tpl.word_tag==='adj') word=pick(adjectives)||pick(wordPool);
+      else if(tpl.word_tag==='verb_activity') word=pick(verbs)||pick(wordPool);
+      else word=pick(things)||pick(wordPool);
+      if(!word) word={en:'cat',zh:'貓'};
+      return { type:'fill_blank', sentence:tpl.template.replace('___',`___`), blank_word:word.en, blank_word_zh:word.zh, hint:`中文：「${word.zh}」`, translation:tpl.zh_template.replace('___',`(${word.zh})`), grammar_tip:tpl.grammar_tip };
+    } else if(tpl.type==='choice') {
+      return { type:'choice', ...tpl };
+    } else {
+      return { type:'arrange', words:shuffle(tpl.words_template), answer:tpl.answer_template, translation:tpl.translation, grammar_tip:tpl.grammar_tip };
+    }
+  });
+}
 
-        const DEFAULT_RECORD_DATA = [
-            { group: "1", role: "宮生", name: "傅沛柔", date: "114年12月" }, { group: "1", role: "委員", name: "蔡照能", date: "未繳費" }
-        ];
-        const DEFAULT_TAISUI_DATA = [{id:"1A1",n:"黃淑霞",r:1,p:1},{id:"1A10",n:"陳盈秀",r:1,p:0}];
-        const DEFAULT_LIGHT_DATA = [{id:"1B10",n:"游宇閎",t:1,r:1,p:1}, {id:"1A1",n:"黃淑霞",t:2,r:1,p:0}];
-        const DEFAULT_TRIP_DATA = [
-            { id: 1, name: "測試資料 (尚未連線)", isPaid: true }, { id: 2, name: "測試資料 (尚未連線)", isPaid: false }
-        ];
-        const DEFAULT_DONATION_DATA = [{ id: 1, item: "白米", name: "張善人 (測試)", amount: "500" }];
+// ══════════════════════════════════════════════
+// 題庫字串 (縮減版)
+// ══════════════════════════════════════════════
+const ELEM = "a:一個,about:關於,act:行動,after:在之後,air:空氣,all:全部,am:是,and:和,angry:生氣的,animal:動物,apple:蘋果,are:是,art:藝術,baby:嬰兒,bad:壞的,bag:袋子,ball:球,banana:香蕉,bat:蝙蝠,be:是,bear:熊,beautiful:美麗的,bed:床,bee:蜜蜂,big:大的,bird:鳥,black:黑色的,blue:藍色的,book:書本,boy:男孩,bread:麵包,brother:兄弟,brown:棕色的,bug:蟲,bus:公車,but:但是,buy:買,cake:蛋糕,car:汽車,cat:貓,chair:椅子,clean:乾淨的,clock:時鐘,close:關閉,cloud:雲,cold:冷的,color:顏色,come:來,cook:烹調,cool:涼爽的,cow:母牛,cry:哭泣,cup:杯子,cute:可愛的,dance:跳舞,day:白天,desk:書桌,dirty:髒的,do:做,dog:狗,door:門,down:向下,draw:畫,dream:夢想,drink:喝,duck:鴨子,ear:耳朵,eat:吃,egg:蛋,eight:八,elephant:大象,end:結束,eye:眼睛,face:臉,family:家庭,fast:快速的,fat:胖的,father:父親,fire:火,fish:魚,five:五,flower:花,fly:飛,food:食物,foot:腳,four:四,fox:狐狸,friend:朋友,frog:青蛙,front:前面,fruit:水果,fun:樂趣,funny:有趣的,game:遊戲,girl:女孩,give:給予,go:去,goat:山羊,good:好的,green:綠色的,hair:頭髮,hand:手,happy:快樂的,hat:帽子,have:有,he:他,head:頭,hear:聽見,heart:心,hello:哈囉,help:幫助,here:這裡,high:高的,home:家,horse:馬,hot:熱的,house:房子,hungry:飢餓的,ice:冰,in:在裡面,it:它,jump:跳躍,key:鑰匙,kid:小孩,kite:風箏,know:知道,lamp:燈,leg:腿,like:喜歡,lion:獅子,listen:聽,little:小的,long:長的,look:看,love:愛,make:製造,man:男人,many:許多,milk:牛奶,monkey:猴子,moon:月亮,more:更多,morning:早晨,mother:母親,mouse:老鼠,mouth:嘴巴,name:名字,new:新的,night:夜晚,nine:九,no:不,nose:鼻子,now:現在,ocean:海洋,old:老的,on:在上面,one:一,open:打開,orange:橘子,park:公園,pen:筆,pencil:鉛筆,pig:豬,play:玩,police:警察,push:推,rabbit:兔子,rain:雨,red:紅色的,rice:米飯,ride:騎乘,right:右邊,river:河流,run:跑步,sad:悲傷的,school:學校,sea:海,see:看見,seven:七,she:她,sheep:綿羊,shoe:鞋子,short:短的,sing:唱歌,sister:姐妹,sit:坐,six:六,sky:天空,sleep:睡覺,slow:緩慢的,small:小的,smart:聰明的,smile:微笑,snake:蛇,snow:雪,so:所以,some:一些,song:歌曲,soon:很快,sorry:抱歉的,star:星星,stop:停止,story:故事,student:學生,study:學習,sun:太陽,swim:游泳,table:桌子,take:拿,talk:說話,tall:高的,teacher:老師,ten:十,thank:謝謝,that:那個,there:那裡,they:他們,thin:瘦的,this:這個,three:三,tiger:老虎,time:時間,tired:疲倦的,today:今天,together:一起,too:也,tree:樹,turtle:烏龜,two:二,under:在下面,up:向上,use:使用,very:非常,walk:走路,want:想要,wash:清洗,watch:手錶,water:水,we:我們,weather:天氣,welcome:歡迎,what:什麼,when:何時,where:何處,white:白色的,who:誰,why:為什麼,wind:風,window:窗戶,work:工作,world:世界,write:寫,year:年,yellow:黃色的,yes:是的,you:你,zoo:動物園";
 
-        const Icons = {
-            Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
-            Search: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
-            XCircle: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>,
-            Check: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-emerald-600"><polyline points="20 6 9 17 4 12"></polyline></svg>,
-            User: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
-            Scroll: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>,
-            Lock: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>,
-            Refresh: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-4 h-4 ${className}`}><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.13-5.83L2 8"></path></svg>,
-            Gift: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M12 8v13"></path><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"></path></svg>,
-            Alert: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-        };
+// ══════════════════════════════════════════════
+// 創新功能：魔法單字故事機 (StoryReader)
+// ══════════════════════════════════════════════
+function StoryReader({ wordsPool, onBack, setNotif }) {
+  const [storyEn, setStoryEn] = useState('');
+  const [storyZh, setStoryZh] = useState('');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [speechRate, setSpeechRate] = useState(0.85); 
+  const [isRec, setIsRec] = useState(false); 
+  const [rtText, setRtText] = useState(''); 
+  const [speakScore, setSpeakScore] = useState(null); 
+  
+  const recRef = useRef(null);
+  const tmRef = useRef(null);
 
-        const TABS_CONFIG = [
-            { id: 'east', name: '東部參香' },
-            { id: 'donation', name: '參香捐獻' },
-            { id: 'fujian', name: '福建五日行' },
-            { id: 'records', name: '委員/宮生' },
-            { id: 'taisui', name: '安太歲' },
-            { id: 'light', name: '光明燈' }
-        ];
+  useEffect(() => {
+    const shuffle=(a)=>{const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return r;};
+    const ws = shuffle(wordsPool).slice(0, 5);
+    while(ws.length < 5) ws.push({en:'magic', zh:'魔法'});
+    
+    const en = `Hello! Kuromi and Hangyodon went on an adventure today. They found a beautiful ${ws[0].en}. Kuromi said, "I really like this ${ws[0].en}!" Then, they saw a ${ws[1].en} and a ${ws[2].en}. They wanted to use them to ${ws[3].en}. It made everyone feel very ${ws[4].en}. What a magical day!`;
+    const zh = `你好！酷洛米和漢頓今天去冒險了。他們找到了一個美麗的「${ws[0].zh}」。酷洛米說：「我真的很喜歡這個${ws[0].zh}！」接著，他們看到了一個「${ws[1].zh}」和一個「${ws[2].zh}」。他們想要用它們來「${ws[3].zh}」。這讓每個人都覺得非常「${ws[4].zh}」。真是充滿魔法的一天！`;
+    
+    setStoryEn(en); setStoryZh(zh);
+  }, [wordsPool]);
 
-        function App() {
-            const [isLoading, setIsLoading] = useState(true);
-            const [isRefreshing, setIsRefreshing] = useState(false);
-            
-            // --- 狀態：管理各分頁的隱藏/顯示 ---
-            const [visibleTabs, setVisibleTabs] = useState({
-                records: true, taisui: true, light: true, east: true, fujian: true, donation: true
-            });
+  const toggleSpeak = () => {
+    if(!('speechSynthesis' in window)) return alert('不支援語音功能');
+    if(isPlaying) {
+      window.speechSynthesis.cancel(); setIsPlaying(false);
+    } else {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(storyEn);
+      u.lang = 'en-US'; u.rate = speechRate; 
+      u.onend = () => setIsPlaying(false);
+      setIsPlaying(true); window.speechSynthesis.speak(u);
+    }
+  };
 
-            const [updateDates, setUpdateDates] = useState({
-                records: "", taisui: "", light: "", east: "", fujian: "", donation: ""
-            });
-            
-            const [RecordData, setRecordData] = useState([]);
-            const [TaiSuiDataRaw, setTaiSuiDataRaw] = useState([]);
-            const [LightDataRaw, setLightDataRaw] = useState([]);
-            const [EastTripDataRaw, setEastTripDataRaw] = useState([]);
-            const [FujianTripDataRaw, setFujianTripDataRaw] = useState([]);
-            const [DonationDataRaw, setDonationDataRaw] = useState([]);
+  const handlePracticeSpeak = () => {
+    if(isRec){
+      if(recRef.current) recRef.current.stop();
+      setIsRec(false); return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SR) { setNotif('❌ 瀏覽器不支援語音輸入！'); return; }
+    
+    const r = new SR(); recRef.current = r;
+    r.lang = 'en-US'; r.interimResults = true; r.continuous = true;
+    let done = false;
+    setRtText('🎙️ 聆聽中... (請試著唸出上方英文)'); setSpeakScore(null);
+    
+    r.onstart = () => {
+      setIsRec(true);
+      tmRef.current = setTimeout(() => { if(!done){ done=true; r.stop(); setIsRec(false); } }, 20000);
+    };
+    r.onresult = (ev) => {
+      if(done) return;
+      let lt = ''; for(let i=0; i<ev.results.length; i++) lt += ev.results[i][0].transcript + ' ';
+      setRtText(lt);
+    };
+    r.onerror = () => { if(!done){ done=true; r.stop(); setIsRec(false); } };
+    r.onend = () => {
+      if(!done){ done=true; } setIsRec(false);
+      if(rtText === '🎙️ 聆聽中... (請試著唸出上方英文)' || !rtText.trim()) { setRtText(''); return; }
+      
+      const spokenWords = rtText.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(Boolean);
+      const storyWords = storyEn.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(Boolean);
+      let matchCount = 0;
+      storyWords.forEach(w => { if(spokenWords.includes(w)) matchCount++; });
+      const score = Math.min(100, Math.round((matchCount / storyWords.length) * 100 * 1.5));
+      setSpeakScore(score);
+    };
+    try { r.start(); } catch(e) { setIsRec(false); }
+  };
 
-            const [fetchErrors, setFetchErrors] = useState({ east: false, fujian: false, donation: false });
+  useEffect(()=>{ return () => { window.speechSynthesis.cancel(); if(recRef.current) recRef.current.stop(); if(tmRef.current) clearTimeout(tmRef.current); }; },[]);
 
-            const [activeTab, setActiveTab] = useState("east"); 
-            const [searchTerm, setSearchTerm] = useState("");
-            const [showSuggestions, setShowSuggestions] = useState(false);
-            
-            const [filterRole, setFilterRole] = useState("ALL"); 
-            const [lightFilterType, setLightFilterType] = useState("ALL");
-            const [taiSuiFilterType, setTaiSuiFilterType] = useState("ALL");
-            const [eastTripFilter, setEastTripFilter] = useState("ALL");
-            const [fujianTripFilter, setFujianTripFilter] = useState("ALL");
-            const [donationFilterItem, setDonationFilterItem] = useState("ALL");
-            
-            const [isLoggedIn, setIsLoggedIn] = useState(false);
-            const [inputPassword, setInputPassword] = useState("");
-            const [loginError, setLoginError] = useState(false);
+  return (
+    <div className="kawaii-card animate-slide-up" style={{padding:'20px 16px', textAlign:'center', display:'flex', flexDirection:'column', gap: '12px'}}>
+      <h2 style={{fontSize:'1.4rem', fontWeight:900, color:'var(--kuromi-dark)', margin:0}}>📖 魔法故事時間</h2>
+      
+      <div style={{background: 'linear-gradient(135deg, #e1bee7, #f8bbd0)', borderRadius:16, padding:16, boxShadow:'0 4px 10px rgba(225,190,231,0.5)', position:'relative', overflow:'hidden'}}>
+        <div style={{position:'absolute', top:-10, right:-20, opacity:0.6}}>{Characters.hangyodon(80)}</div>
+        <p style={{fontSize:'0.95rem', fontWeight:800, color:'#3a1c4a', lineHeight:1.5, textAlign:'left', margin:'0 0 10px', position:'relative', zIndex:1}}>{storyEn}</p>
+        <p style={{fontSize:'0.85rem', fontWeight:700, color:'#5c2b4a', lineHeight:1.4, textAlign:'left', borderTop:'1px dashed rgba(255,255,255,0.6)', paddingTop:8, margin:0, position:'relative', zIndex:1}}>{storyZh}</p>
+      </div>
 
-            const checkStatus = (row, ...keywords) => {
-                let val = "";
-                for (let k of keywords) {
-                    if (row[k] !== undefined && row[k] !== '') { val = String(row[k]).trim(); break; }
-                }
-                if (!val) {
-                    const rowKeys = Object.keys(row);
-                    for (let key of rowKeys) {
-                        for (let k of keywords) {
-                            if (key.includes(k) && row[key] !== undefined && row[key] !== '') { val = String(row[key]).trim(); break; }
-                        }
-                        if (val) break;
-                    }
-                }
-                if (!val) return 0;
-                const upperVal = val.toUpperCase();
-                if (upperVal === '0' || upperVal === 'FALSE' || upperVal === '否' || upperVal === '無') return 0;
-                return 1; 
-            };
+      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8}}>
+        <span style={{fontWeight: 800, fontSize:'0.85rem', color: '#8e78a6'}}>語速:</span>
+        <input type="range" min="0.4" max="1.2" step="0.1" value={speechRate} onChange={e=>setSpeechRate(parseFloat(e.target.value))} style={{width:'100px'}} />
+        <span style={{fontWeight: 900, fontSize:'0.85rem', color: '#f48fb1'}}>{speechRate}x</span>
+      </div>
 
-            const fetchGoogleSheetsData = useCallback(async () => {
-                setIsRefreshing(true);
-                const getFreshUrl = (url) => `${url}&t=${new Date().getTime()}`;
-                const fetchOptions = { cache: 'no-store' };
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+        <button className="candy-btn" onClick={toggleSpeak} style={{background:isPlaying?'#f44336':'#81d4fa', color:isPlaying?'#fff':'#111', fontSize:'0.9rem'}}>
+          {isPlaying ? '⏹️ 停止' : '🔊 朗讀'}
+        </button>
+        <button className="candy-btn" onClick={handlePracticeSpeak} style={{background:isRec?'#f44336':'#c8e6c9', color:isRec?'#fff':'#2e7d32', fontSize:'0.9rem'}}>
+          {isRec ? '⏹️ 停止' : '🎤 練習口說'}
+        </button>
+      </div>
+      <button className="candy-btn" onClick={onBack} style={{background:'#2d2b36', color:'#fff', fontSize:'0.9rem'}}>返回選單</button>
 
-                const fetchData = async (url, parser) => {
-                    if (!url) return { data: [], date: "", error: false, isHidden: false };
-                    try {
-                        const res = await fetch(getFreshUrl(url), fetchOptions);
-                        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-                        const text = await res.text();
-                        
-                        if (text.trim().toLowerCase().startsWith('<!doctype html>')) {
-                             return { data: [], date: "", error: true, isHidden: false };
-                        }
+      {(rtText || speakScore !== null) && (
+        <div className="animate-slide-up" style={{background: '#fdfbfd', border: '2px dashed #e1bee7', borderRadius: 12, padding: '12px', marginTop: 4}}>
+          <p style={{fontSize:'0.8rem', color:'#8e78a6', fontWeight: 800, margin: '0 0 4px 0'}}>你的發音內容：</p>
+          <p style={{fontSize:'0.9rem', color:'#3a1c4a', fontWeight: 900, margin: '0 0 8px 0', minHeight: 20}}>{rtText}</p>
+          {speakScore !== null && (
+            <div className="animate-bounce-in" style={{background: speakScore > 60 ? '#c8e6c9' : '#fff9c4', color: speakScore > 60 ? '#2e7d32' : '#f57f17', padding: '4px 12px', borderRadius: 99, fontSize:'0.85rem', fontWeight: 900, display: 'inline-block'}}>
+              評分：{speakScore} {speakScore > 60 ? '✨ 太棒了！' : '💪 再試一次！'}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
-                        const cleanText = text.replace(/^\uFEFF/, '');
-                        const lines = cleanText.split(/\r?\n/).map(l => l.trim()).filter(l => l);
-                        if (lines.length === 0) return { data: [], date: "", error: false, isHidden: false };
+// ══════════════════════════════════════════════
+// 主元件
+// ══════════════════════════════════════════════
+function App(){
+  const [st, setSt]=useState('setup');
+  const [sDate, setSDate]=useState('');
+  const [vocab, setVocab]=useState([]);
+  const [records, setRecords]=useState({});
+  const [activeDI, setActiveDI]=useState(null);
+  const [wordsPool, setWordsPool]=useState([]);
+  const [testMode, setTestMode]=useState(null);
+  const [words, setWords]=useState([]);
+  const [idx, setIdx]=useState(0);
+  const [initCount, setInitCount]=useState(0);
+  const [fpCorrect, setFpCorrect]=useState(0);
+  const [isFirstPass, setIsFirstPass]=useState(true);
+  const [feedback, setFeedback]=useState(null);
+  const [notif, setNotif]=useState('');
+  const [wrongW, setWrongW]=useState([]);
+  const [opts, setOpts]=useState([]);
+  const [inp, setInp]=useState('');
+  const [isRec, setIsRec]=useState(false);
+  const [rtText, setRtText]=useState('');
+  const [charPopup, setCharPopup]=useState(null);
+  const [showConfetti, setShowConfetti]=useState(false);
+  
+  // 句型 - 擴增重測相關狀態
+  const [sqList, setSqList]=useState([]);
+  const [sqIdx, setSqIdx]=useState(0);
+  const [sqScore, setSqScore]=useState(0);
+  const [sqFb, setSqFb]=useState(null);
+  const [fillInp, setFillInp]=useState('');
+  const [arrWords, setArrWords]=useState([]);
+  const [arrAns, setArrAns]=useState([]);
+  const [wrongSq, setWrongSq]=useState([]);
+  const [isSqFirstPass, setIsSqFirstPass]=useState(true);
+  const [fpSqCorrect, setFpSqCorrect]=useState(0);
+  const [sqInitCount, setSqInitCount]=useState(0);
 
-                        const headersRaw = splitCSVRow(lines[0]);
-                        let extractedDate = "";
-                        
-                        // --- 功能新增：判斷 H1 欄位 (index 7) 是否輸入隱藏 ---
-                        // 如果試算表 H 欄有資料，陣列長度會大於 7
-                        const isHidden = headersRaw.length > 7 && headersRaw[7].includes('隱藏');
+  const recRef=useRef(null);
+  const tmRef=useRef(null);
+  const heardRef=useRef('');
 
-                        if (headersRaw.length > 5 && headersRaw[5].includes('更新')) {
-                            extractedDate = headersRaw[5].replace(/更新日?[:：\s]?/g, '').trim();
-                        } else {
-                            const found = headersRaw.find(h => h.includes('更新日'));
-                            if (found) extractedDate = found.replace(/更新日?[:：\s]?/g, '').trim();
-                        }
+  useEffect(()=>{
+    const fmtDate=(d)=>{const dt=new Date(d);return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;};
+    const ss=localStorage.getItem('wm_start');
+    const sr=localStorage.getItem('wm_rec');
+    const sv=localStorage.getItem('wm_vocab');
+    const pv=ELEM.split(',').map(p=>{const[en,zh]=p.split(':');return{en,zh};});
+    if(sv)setVocab(JSON.parse(sv));
+    else{const s=[...pv].sort(()=>Math.random()-0.5);setVocab(s);localStorage.setItem('wm_vocab',JSON.stringify(s));}
+    if(sr)setRecords(JSON.parse(sr));
+    if(ss&&ss!=='undefined'&&ss!=='null'){setSDate(ss);setSt('calendar');}
+    else{setSDate(fmtDate(new Date()));setSt('setup');}
+  },[]);
 
-                        const parsed = lines.slice(1).map(line => {
-                            const values = splitCSVRow(line);
-                            return headersRaw.reduce((obj, header, i) => {
-                                const cleanHeader = header.replace(/["'\s]+/g, '');
-                                obj[cleanHeader] = values[i] || '';
-                                return obj;
-                            }, {});
-                        });
+  const fmtDate=(d)=>{const dt=new Date(d);return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;};
+  const weekDiff=(s,t)=>{const sd=new Date(s);sd.setHours(0,0,0,0);const sD=sd.getDay()||7;sd.setDate(sd.getDate()-sD+1);const td=new Date(t);td.setHours(0,0,0,0);const tD=td.getDay()||7;td.setDate(td.getDate()-tD+1);return Math.max(0,Math.round((td-sd)/(86400000*7)));};
+  const getRec=(rec,mode)=>{if(!rec||rec[mode]===undefined)return null;if(typeof rec[mode]==='number')return{correct:rec[mode]/10,total:rec[mode]/10};return rec[mode];};
+  const MODES=['listening','dictation','speaking','dictation-en','sentence'];
 
-                        return { data: parser ? parser(parsed) : parsed, date: extractedDate, error: false, isHidden };
-                    } catch (e) {
-                        return { data: [], date: "", error: true, isHidden: false };
-                    }
-                };
+  const showCharReward=(mode)=>{
+    setCharPopup(mode); setShowConfetti(true); AudioEngine.play('clear');
+    
+    // ★ 加入可愛勝利配音
+    if('speechSynthesis' in window) {
+       const cheers = ["Great job!", "You are amazing!", "Perfect!", "Magic!", "Wonderful!", "Super!"];
+       const msg = new SpeechSynthesisUtterance(cheers[Math.floor(Math.random()*cheers.length)]);
+       msg.lang = 'en-US'; msg.rate = 1.1; msg.pitch = 1.5; // 可愛高音調
+       window.speechSynthesis.speak(msg);
+    }
+    setTimeout(()=>setShowConfetti(false),3500);
+  };
 
-                const resRecord = await fetchData(GOOGLE_SHEETS_URLS.records, parsed => parsed.map(row => ({
-                    group: row['組別'] || '', role: row['身份'] || '', name: row['姓名'] || '', date: row['繳交至'] || ''
-                })).filter(r => r.name));
+  const handleSetup=()=>{
+    localStorage.setItem('wm_start',sDate);
+    const pv=ELEM.split(',').map(p=>{const[en,zh]=p.split(':');return{en,zh};});
+    const cv=[...pv].sort(()=>Math.random()-0.5);
+    localStorage.setItem('wm_vocab',JSON.stringify(cv));
+    setVocab(cv); setRecords({});
+    setSt('calendar'); AudioEngine.init();
+  };
 
-                const resTaiSui = await fetchData(GOOGLE_SHEETS_URLS.taiSui, parsed => parsed.map(row => ({
-                    id: row['編號'] || '', n: row['姓名'] || '', 
-                    r: checkStatus(row, '太歲登記', '登記', '安奉', '太歲'), 
-                    p: checkStatus(row, '太歲繳費', '繳費', '付款', '金額')
-                })).filter(r => r.n));
+  const getWords=(ds)=>{
+    if(!vocab.length)return[];
+    const wd=weekDiff(sDate,ds); const tw=Math.ceil(vocab.length/100)||1;
+    const si=((wd%tw)+tw)%tw*100;
+    let ww=[];for(let i=0;i<100;i++)ww.push(vocab[(si+i)%vocab.length]);
+    const dow=new Date(ds).getDay();
+    if(dow>=1&&dow<=5){const i=dow-1;return ww.slice(i*20,(i+1)*20);}
+    return ww.slice(0,30);
+  };
 
-                const resLightUpper = await fetchData(GOOGLE_SHEETS_URLS.lightUpper, parsed => parsed.map(row => ({
-                    id: row['編號'] || '', n: row['姓名'] || '', t: 1,
-                    r: checkStatus(row, '光明燈上登記', '上層登記', '登記', '安奉', '光明燈'), 
-                    p: checkStatus(row, '光明燈上繳費', '上層繳費', '繳費', '付款', '金額')
-                })).filter(r => r.n));
-                
-                const resLightLower = await fetchData(GOOGLE_SHEETS_URLS.lightLower, parsed => parsed.map(row => ({
-                    id: row['編號'] || '', n: row['姓名'] || '', t: 2,
-                    r: checkStatus(row, '光明燈下登記', '下層登記', '登記', '安奉', '光明燈'), 
-                    p: checkStatus(row, '光明燈下繳費', '下層繳費', '繳費', '付款', '金額')
-                })).filter(r => r.n));
+  const selectDay=(ds)=>{
+    const w=getWords(ds);
+    setActiveDI({date:ds,isWE:new Date(ds).getDay()===0||new Date(ds).getDay()===6});
+    setWordsPool(w);setSt('review');AudioEngine.init();
+  };
 
-                const resEast = await fetchData(GOOGLE_SHEETS_URLS.eastTrip, extractTripData);
-                const resFujian = await fetchData(GOOGLE_SHEETS_URLS.fujianTrip, extractTripData);
-                const resDonation = await fetchData(GOOGLE_SHEETS_URLS.donation, extractDonations);
+  const startGame=(mode)=>{
+    if(mode==='sentence'){
+      const qs=buildSentenceQuestions(wordsPool);
+      setSqList(qs);setSqIdx(0);setSqScore(0);setSqFb(null);setFillInp('');
+      setWrongSq([]); setIsSqFirstPass(true); setFpSqCorrect(0); setSqInitCount(qs.length);
+      if(qs[0]?.type==='arrange'){setArrWords([...qs[0].words].sort(()=>Math.random()-0.5));setArrAns([]);}
+      setTestMode('sentence');setSt('sentence'); return;
+    }
+    let tw=[];
+    if(mode==='comprehensive')tw=[...(records[activeDI.date]?.wrongWords||[])].sort(()=>Math.random()-0.5);
+    else tw=[...wordsPool].sort(()=>Math.random()-0.5).slice(0,15);
+    setWords(tw);setIdx(0);setInitCount(tw.length);setFpCorrect(0);setIsFirstPass(true);
+    setFeedback(null);setWrongW([]);setRtText('');heardRef.current='';
+    setTestMode(mode);setSt(mode);AudioEngine.init();
+  };
 
-                setUpdateDates({
-                    records: resRecord.date,
-                    taisui: resTaiSui.date,
-                    light: resLightUpper.date || resLightLower.date,
-                    east: resEast.date,
-                    fujian: resFujian.date,
-                    donation: resDonation.date
-                });
+  const speakW=(w,corr=false)=>{
+    if('speechSynthesis' in window){
+      window.speechSynthesis.cancel();
+      window.cu=new SpeechSynthesisUtterance(w);
+      window.cu.lang='en-US';window.cu.rate=corr?0.65:0.82;
+      window.speechSynthesis.speak(window.cu);
+    }
+  };
 
-                // --- 依照擷取的 isHidden 狀態更新顯示屬性 ---
-                setVisibleTabs({
-                    records: !resRecord.isHidden,
-                    taisui: !resTaiSui.isHidden,
-                    light: !(resLightUpper.isHidden || resLightLower.isHidden), // 光明燈若任一標籤隱藏即隱藏
-                    east: !resEast.isHidden,
-                    fujian: !resFujian.isHidden,
-                    donation: !resDonation.isHidden
-                });
+  useEffect(()=>{
+    if((st==='listening'||st==='comprehensive')&&words.length>0&&!feedback){
+      const cw=words[idx];
+      const wr=[...vocab.filter(v=>v.en!==cw.en)].sort(()=>Math.random()-0.5).slice(0,3);
+      setOpts([cw,...wr].sort(()=>Math.random()-0.5));speakW(cw.en);
+    }else if((st==='dictation-en'||st==='speaking'||st==='dictation')&&words.length>0&&!feedback){
+      if(st==='dictation-en')speakW(words[idx].en);
+      setRtText('');heardRef.current='';
+    }
+  },[idx,st,words,feedback]);
 
-                setFetchErrors({
-                    east: resEast.error || resEast.data.length === 0,
-                    fujian: resFujian.error || resFujian.data.length === 0,
-                    donation: resDonation.error || resDonation.data.length === 0
-                });
+  // ★ 手動推進下一題邏輯 (一般單字測驗)
+  const proceedNext = () => {
+    if (tmRef.current) clearTimeout(tmRef.current);
+    setFeedback(null); setInp('');
+    
+    if (idx < words.length - 1) {
+      setIdx(p => p + 1);
+    } else {
+      if (wrongW.length > 0) {
+        AudioEngine.play('fail'); setNotif(`還有 ${wrongW.length} 個字需複習喔！💪`);
+        setWords([...wrongW].sort(()=>Math.random()-0.5)); setIdx(0); setWrongW([]); setIsFirstPass(false);
+      } else {
+        setRecords(prev => {
+          const nr={...prev};if(!nr[activeDI.date])nr[activeDI.date]={};
+          if(testMode==='comprehensive')nr[activeDI.date].comprehensiveDone=true;
+          else{const pr=getRec(nr[activeDI.date],testMode);const pc=pr?pr.correct:-1;if(fpCorrect>=pc)nr[activeDI.date][testMode]={correct:fpCorrect,total:initCount};}
+          localStorage.setItem('wm_rec',JSON.stringify(nr));return nr;
+        });
+        showCharReward(testMode==='comprehensive'?'comprehensive':testMode);
+        setTimeout(()=>setSt('result'),100);
+      }
+    }
+  };
 
-                setRecordData(resRecord.data.length > 0 ? resRecord.data : [...DEFAULT_RECORD_DATA]);
-                setTaiSuiDataRaw(resTaiSui.data.length > 0 ? resTaiSui.data : [...DEFAULT_TAISUI_DATA]);
-                setLightDataRaw(resLightUpper.data.length > 0 || resLightLower.data.length > 0 ? [...resLightUpper.data, ...resLightLower.data] : [...DEFAULT_LIGHT_DATA]);
-                
-                setEastTripDataRaw(resEast.data.length > 0 ? resEast.data : [...DEFAULT_TRIP_DATA]);
-                setFujianTripDataRaw(resFujian.data.length > 0 ? resFujian.data : [...DEFAULT_TRIP_DATA]);
-                setDonationDataRaw(resDonation.data.length > 0 ? resDonation.data : [...DEFAULT_DONATION_DATA]);
-                
-                setIsLoading(false);
-                setIsRefreshing(false);
-            }, []);
+  const handleAns=(isOk)=>{
+    if(!isOk&&testMode==='speaking')setTimeout(()=>speakW(words[idx].en,true),150);
+    if(isOk&&isFirstPass) setFpCorrect(p=>p+1);
+    if(!isOk&&isFirstPass&&activeDI&&testMode!=='comprehensive'){
+      const ds=activeDI.date;
+      setRecords(prev=>{
+        const nr={...prev};if(!nr[ds])nr[ds]={};if(!nr[ds].wrongWords)nr[ds].wrongWords=[];
+        const cw=words[idx];if(!nr[ds].wrongWords.some(x=>x.en===cw.en))nr[ds].wrongWords.push(cw);
+        localStorage.setItem('wm_rec',JSON.stringify(nr));return nr;
+      });
+    }
+    setFeedback(isOk?'correct':'incorrect'); AudioEngine.play(isOk?'correct':'incorrect');
+    if(!isOk){
+       const cw=words[idx]; 
+       setWrongW(prev => { if(!prev.some(x=>x.en===cw.en)) return [...prev, cw]; return prev; });
+       // 若答錯，不再使用 setTimeout，改由使用者點擊畫面上的按鈕才繼續
+    } else {
+       tmRef.current = setTimeout(proceedNext, 1200); // 答對仍可自動前進
+    }
+  };
 
-            useEffect(() => { fetchGoogleSheetsData(); }, [fetchGoogleSheetsData]);
+  // ★ 手動推進下一題邏輯 (句型測驗)
+  const proceedSqNext = () => {
+    if (tmRef.current) clearTimeout(tmRef.current);
+    setSqFb(null); setFillInp('');
+    if (sqIdx < sqList.length - 1) {
+      const ni = sqIdx + 1; setSqIdx(ni);
+      if (sqList[ni]?.type === 'arrange') { setArrWords([...sqList[ni].words].sort(()=>Math.random()-0.5)); setArrAns([]); }
+    } else {
+      if (wrongSq.length > 0) {
+        AudioEngine.play('fail'); setNotif(`還有 ${wrongSq.length} 題需要複習喔！💪`);
+        const nextSq = [...wrongSq].sort(()=>Math.random()-0.5);
+        setSqList(nextSq); setSqIdx(0); setWrongSq([]); setIsSqFirstPass(false);
+        if(nextSq[0]?.type==='arrange'){setArrWords([...nextSq[0].words].sort(()=>Math.random()-0.5));setArrAns([]);}
+      } else {
+        setRecords(prev=>{
+          const nr={...prev};if(!nr[activeDI.date])nr[activeDI.date]={};
+          nr[activeDI.date]['sentence']={correct:fpSqCorrect,total:sqInitCount};
+          localStorage.setItem('wm_rec',JSON.stringify(nr));return nr;
+        });
+        showCharReward('sentence'); setTimeout(()=>setSt('result'),100);
+      }
+    }
+  };
 
-            // 過濾後真正被渲染出來的 Tabs
-            const visibleTabsConfig = useMemo(() => {
-                return TABS_CONFIG.filter(tab => visibleTabs[tab.id]);
-            }, [visibleTabs]);
+  const sqNext=(isOk)=>{
+    AudioEngine.play(isOk?'correct':'incorrect'); setSqFb(isOk?'correct':'incorrect');
+    if(isOk&&isSqFirstPass) setFpSqCorrect(p=>p+1);
+    if(!isOk) {
+       const q = sqList[sqIdx];
+       setWrongSq(p => { if(!p.some(x => x.sentence === q.sentence)) return [...p, q]; return p; });
+       // 若答錯，不再使用 setTimeout，改由使用者點擊畫面上的按鈕才繼續
+    } else {
+       tmRef.current = setTimeout(proceedSqNext, 1200); // 答對自動前進
+    }
+  };
 
-            // 若原本選擇的 Tab 變成了隱藏狀態，自動導向到第一個可見的頁面
-            useEffect(() => {
-                if (!isLoading && !visibleTabs[activeTab]) {
-                    if (visibleTabsConfig.length > 0) {
-                        setActiveTab(visibleTabsConfig[0].id);
-                    } else {
-                        setActiveTab(""); // 處理所有活動皆被隱藏的情境
-                    }
-                }
-            }, [visibleTabs, activeTab, isLoading, visibleTabsConfig]);
+  const handleSpeak=()=>{
+    if(isRec){if(recRef.current)recRef.current.stop();setIsRec(false);return;}
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){setNotif('❌ 不支援語音輸入！');return;}
+    const r=new SR();recRef.current=r;r.lang='en-US';r.interimResults=true;
+    let done=false;heardRef.current='';setRtText('🎙️ 聆聽中...');
+    r.onstart=()=>{setIsRec(true);tmRef.current=setTimeout(()=>{if(!done){done=true;r.stop();setIsRec(false);handleAns(isFuzzy(heardRef.current,words[idx]?.en||''));}},8000);};
+    r.onresult=(ev)=>{
+      if(done)return;let lt='';const ans=words[idx]?.en||'';
+      for(let i=0;i<ev.results.length;i++){for(let j=0;j<ev.results[i].length;j++){lt=ev.results[i][j].transcript;if(isFuzzy(lt,ans)){done=true;r.stop();handleAns(true);return;}}}
+      setRtText(lt);heardRef.current=lt;
+    };
+    r.onerror=()=>{if(!done){done=true;r.stop();handleAns(false);setIsRec(false);}};
+    r.onend=()=>{if(!done){done=true;handleAns(isFuzzy(heardRef.current,words[idx]?.en||''));}setIsRec(false);};
+    try{r.start();}catch(e){setIsRec(false);}
+  };
 
-            const TaiSuiData = useMemo(() => [...TaiSuiDataRaw].sort(sortById), [TaiSuiDataRaw]);
-            const LightData = useMemo(() => [...LightDataRaw].sort(sortById), [LightDataRaw]);
+  // ────────── 渲染區 (極簡手機優化) ──────────
+  const rGameHdr=(title,bgGrad,textColor)=>(
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%',marginBottom:16}}>
+      <button className="candy-btn" onClick={()=>setSt('menu')} style={{padding:'6px 12px',background:bgGrad,color:textColor,fontSize:'0.85rem'}}>← 返回</button>
+      <div style={{background:bgGrad,padding:'6px 16px',borderRadius:99,color:textColor,fontWeight:900,fontSize:'1rem'}}>{title}</div>
+      <div style={{background:bgGrad,padding:'6px 12px',borderRadius:99,color:textColor,fontWeight:900,fontSize:'0.85rem'}}>✨ {testMode==='sentence'?fpSqCorrect:fpCorrect} 分</div>
+    </div>
+  );
 
-            const handleLogin = (e) => {
-                e.preventDefault();
-                if (inputPassword === "296296") {
-                    setIsLoggedIn(true); setLoginError(false);
-                } else {
-                    setLoginError(true); setTimeout(() => setLoginError(false), 500);
-                }
-            };
-            
-            const recordFiltered = useMemo(() => {
-                if (!searchTerm) return RecordData;
-                return RecordData.filter(item => item.name.includes(searchTerm) || item.group.includes(searchTerm));
-            }, [searchTerm, RecordData]);
-            const recordStats = useMemo(() => ({
-                all: recordFiltered.length, committee: recordFiltered.filter(i => i.role === '委員').length, student: recordFiltered.filter(i => i.role === '宮生').length
-            }), [recordFiltered]);
-            const recordDisplay = useMemo(() => {
-                if (filterRole === 'ALL') return recordFiltered; return recordFiltered.filter(i => i.role === filterRole);
-            }, [recordFiltered, filterRole]);
+  // ★ 更新一般測驗的回饋畫面：加入「關閉」按鈕與明顯的正確答案顯示
+  const rFb=()=>{if(!feedback)return null;const ok=feedback==='correct';const cw=words[idx];
+    return(<div style={{position:'absolute',inset:0,borderRadius:18,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',background:ok?'rgba(200,230,201,0.95)':'rgba(244,143,177,0.98)',zIndex:20}}>
+      <div className={ok?'animate-bounce-in':'animate-shake'} style={{textAlign:'center',marginBottom:16}}>
+        <div style={{fontSize:'4rem'}}>{ok?'🎉':'😿'}</div>
+        <div style={{fontSize:'1.5rem',fontWeight:900,color:ok?'#2e7d32':'#880e4f',marginTop:8}}>{ok?'魔法成功！':'再試一次！'}</div>
+        {!ok&&<div style={{marginTop:12,fontWeight:700,color:'#fff',fontSize:'0.95rem',background:'rgba(0,0,0,0.15)',padding:'12px 20px',borderRadius:16}}>正確解答：<span style={{fontWeight:900,fontSize:'1.4rem',display:'block',margin:'4px 0'}}>{cw?.en}</span><span>{cw?.zh}</span></div>}
+      </div>
+      {!ok && <button onClick={proceedNext} className="candy-btn animate-pulse-gentle" style={{background:'#fff',color:'#880e4f',padding:'8px 24px',fontSize:'1rem'}}>關閉解析 / 下一題 ➔</button>}
+      {ok && <button onClick={proceedNext} className="candy-btn" style={{background:'#fff',color:'#2e7d32',padding:'8px 24px',fontSize:'0.9rem',opacity:0.8}}>繼續 ➔</button>}
+    </div>);
+  };
 
-            const taiSuiFiltered = useMemo(() => {
-                if (!searchTerm) return TaiSuiData;
-                return TaiSuiData.filter(item => item.n.includes(searchTerm) || (item.id && item.id.includes(searchTerm.toUpperCase())));
-            }, [searchTerm, TaiSuiData]);
-            const taiSuiStats = useMemo(() => ({
-                reg: taiSuiFiltered.filter(i => i.r === 1).length, paid: taiSuiFiltered.filter(i => i.p === 1).length, unpaid: taiSuiFiltered.filter(i => i.p === 0).length
-            }), [taiSuiFiltered]);
-            const taiSuiDisplay = useMemo(() => {
-                if (taiSuiFilterType === 'UNPAID') return taiSuiFiltered.filter(i => i.p === 0);
-                if (taiSuiFilterType === 'PAID') return taiSuiFiltered.filter(i => i.p === 1);
-                return taiSuiFiltered;
-            }, [taiSuiFiltered, taiSuiFilterType]);
+  const rSetup=()=>(
+    <div className="kawaii-card animate-slide-up" style={{textAlign:'center', maxWidth:400, margin:'0 auto'}}>
+      <div className="animate-float">{Characters.kuromi(100)}</div>
+      <h1 style={{fontSize:'1.8rem',fontWeight:900,color:'#2d2b36',margin:'12px 0 4px'}}>魔法單字達人</h1>
+      <p style={{color:'#8e78a6',fontWeight:800,marginBottom:20,fontSize:'0.9rem'}}>三麗鷗 & 彩虹小馬陪你學！</p>
+      <input type="date" value={sDate} onChange={e=>setSDate(e.target.value)} className="kawaii-input" style={{marginBottom:16}}/>
+      <button className="candy-btn" onClick={handleSetup} style={{width:'100%',background:'#2d2b36',color:'#fff',fontSize:'1.1rem'}}>開始魔法！🌸</button>
+    </div>
+  );
 
-            const lightFiltered = useMemo(() => {
-                if (!searchTerm) return LightData;
-                return LightData.filter(item => item.n.includes(searchTerm) || (item.id && item.id.includes(searchTerm.toUpperCase())));
-            }, [searchTerm, LightData]);
-            const lightStats = useMemo(() => ({
-                totalReg: lightFiltered.filter(i => i.r === 1).length, upperReg: lightFiltered.filter(i => i.t === 1 && i.r === 1).length,
-                lowerReg: lightFiltered.filter(i => i.t === 2 && i.r === 1).length, paid: lightFiltered.filter(i => i.p === 1).length, unpaid: lightFiltered.filter(i => i.p === 0).length
-            }), [lightFiltered]);
-            const lightDisplay = useMemo(() => {
-                let data = lightFiltered;
-                if (lightFilterType === 'UPPER') data = data.filter(i => i.t === 1);
-                else if (lightFilterType === 'LOWER') data = data.filter(i => i.t === 2);
-                else if (lightFilterType === 'UNPAID') data = data.filter(i => i.p === 0);
-                else if (lightFilterType === 'PAID') data = data.filter(i => i.p === 1);
-                return data;
-            }, [lightFiltered, lightFilterType]);
-
-            const eastTripFiltered = useMemo(() => {
-                let list = EastTripDataRaw;
-                if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
-                if(eastTripFilter === 'PAID') return list.filter(i => i.isPaid);
-                if(eastTripFilter === 'UNPAID') return list.filter(i => !i.isPaid);
-                return list;
-            }, [EastTripDataRaw, searchTerm, eastTripFilter]);
-            const eastTripStats = useMemo(() => ({
-                reg: EastTripDataRaw.filter(i => !searchTerm || i.name.includes(searchTerm)).length,
-                paid: EastTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm)) && i.isPaid).length,
-                unpaid: EastTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm)) && !i.isPaid).length
-            }), [EastTripDataRaw, searchTerm]);
-
-            const fujianTripFiltered = useMemo(() => {
-                let list = FujianTripDataRaw;
-                if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
-                if(fujianTripFilter === 'PAID') return list.filter(i => i.isPaid);
-                if(fujianTripFilter === 'UNPAID') return list.filter(i => !i.isPaid);
-                return list;
-            }, [FujianTripDataRaw, searchTerm, fujianTripFilter]);
-            const fujianTripStats = useMemo(() => ({
-                reg: FujianTripDataRaw.filter(i => !searchTerm || i.name.includes(searchTerm)).length,
-                paid: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm)) && i.isPaid).length,
-                unpaid: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm)) && !i.isPaid).length
-            }), [FujianTripDataRaw, searchTerm]);
-
-            const donationItemsList = useMemo(() => {
-                const items = DonationDataRaw.map(i => i.item).filter(Boolean);
-                return [...new Set(items)];
-            }, [DonationDataRaw]);
-            
-            const donationFiltered = useMemo(() => {
-                let list = DonationDataRaw;
-                if(searchTerm) list = list.filter(i => i.name.includes(searchTerm) || i.item.includes(searchTerm));
-                if(donationFilterItem !== 'ALL') list = list.filter(i => i.item === donationFilterItem);
-                return list;
-            }, [DonationDataRaw, searchTerm, donationFilterItem]);
-
-            const suggestions = useMemo(() => {
-                if (!searchTerm) return [];
-                const allNames = [
-                    ...RecordData.map(i => i.name), ...TaiSuiData.map(i => i.n), ...LightData.map(i => i.n),
-                    ...EastTripDataRaw.map(i => i.name), ...FujianTripDataRaw.map(i => i.name), ...DonationDataRaw.map(i => i.name)
-                ];
-                const matches = allNames.filter(name => name.includes(searchTerm) && name !== searchTerm);
-                return [...new Set(matches)].slice(0, 8);
-            }, [searchTerm, RecordData, TaiSuiData, LightData, EastTripDataRaw, FujianTripDataRaw, DonationDataRaw]);
-
-            const handleSelectSuggestion = (name) => { setSearchTerm(name); setShowSuggestions(false); };
-            const handleClear = () => { setSearchTerm(""); setShowSuggestions(false); };
-            useEffect(() => {
-                const handleClickOutside = () => setShowSuggestions(false);
-                document.addEventListener('click', handleClickOutside);
-                return () => document.removeEventListener('click', handleClickOutside);
-            }, []);
-            
-            const resetFilters = () => {
-                setSearchTerm(""); setTaiSuiFilterType("ALL"); setLightFilterType("ALL"); setFilterRole("ALL");
-                setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL");
-            };
-
-            if (isLoading) {
-                return (
-                    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
-                        <div className="spinner mb-4"></div>
-                        <h2 className="text-xl font-bold text-slate-600 tracking-wider">正在同步最新資料...</h2>
-                    </div>
-                );
-            }
-
-            const TabUpdateDate = ({ tabKey }) => (
-                <div className="flex justify-end mb-2 fade-in">
-                    <span className="text-xs text-slate-500 font-bold bg-white border border-slate-200 px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm">
-                        <Icons.Refresh className="w-3 h-3 text-blue-500" />
-                        更新日：{updateDates[tabKey] || "未標示 / 讀取中"}
-                    </span>
-                </div>
+  const rCal=()=>{
+    const today=fmtDate(new Date());const todayObj=new Date(today);todayObj.setHours(0,0,0,0);
+    const startObj=new Date(sDate);startObj.setHours(0,0,0,0);
+    const days=Array.from({length:30},(_,i)=>{const d=new Date(startObj);d.setDate(d.getDate()+i);return fmtDate(d);});
+    return(
+      <div style={{width:'100%',maxWidth:800}}>
+        <div style={{textAlign:'center',marginBottom:20}}>
+          <h1 style={{fontSize:'1.8rem',fontWeight:900,color:'#2d2b36',margin:0}}>📅 30天魔法地圖</h1>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(110px,1fr))',gap:10}}>
+          {days.map((ds)=>{
+            const dObj=new Date(ds);dObj.setHours(0,0,0,0);
+            const isToday=ds===today;const isPast=dObj<todayObj;
+            const rec=records[ds]||{};
+            const allDone=MODES.every(m=>getRec(rec,m)!==null);
+            const full=allDone&&!(rec.wrongWords?.length>0&&!rec.comprehensiveDone);
+            return(
+              <div key={ds} onClick={()=>{if(!full||isToday||dObj>todayObj)selectDay(ds);}}
+                style={{borderRadius:16,background:full?'#c8e6c9':isToday?'#2d2b36':'#fff',border:isToday?'2px solid #f48fb1':'2px solid #e1bee7',padding:'12px 8px',textAlign:'center',cursor:'pointer'}}>
+                <div style={{fontSize:'0.75rem',fontWeight:800,color:isToday?'#fff':'#888',marginBottom:4}}>{ds.slice(5)}</div>
+                {full?<><div className="animate-wiggle">{Characters.cinnamoroll(40)}</div><div style={{color:'#2e7d32',fontWeight:900,fontSize:'0.75rem'}}>完美</div></>
+                  :isToday?<><div className="animate-float">{Characters.kuromi(40)}</div><div style={{color:'#f48fb1',fontWeight:900,fontSize:'0.75rem'}}>今日</div></>
+                  :isPast?<><div style={{opacity:0.5}}>{Characters.twilight(40)}</div><div style={{color:'#e91e63',fontWeight:900,fontSize:'0.75rem'}}>補測</div></>
+                  :<div style={{opacity:0.3,color:'#ccc',fontWeight:900,marginTop:12,fontSize:'0.75rem'}}>未解鎖</div>}
+              </div>
             );
+          })}
+        </div>
+      </div>
+    );
+  };
 
-            const ErrorBanner = ({ show }) => {
-                if(!show) return null;
-                return (
-                    <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded-r-xl shadow-sm flex items-start gap-3">
-                        <div className="text-red-500 mt-0.5"><Icons.Alert /></div>
-                        <div>
-                            <h3 className="text-red-800 font-bold text-sm">資料讀取失敗</h3>
-                            <p className="text-red-600 text-xs mt-1 font-medium leading-relaxed">
-                                目前顯示為預設測試資料。系統無法連線至您的試算表，請至 Google 試算表點擊 <span className="font-bold underline">「共用」</span>，將一般存取權設為<span className="font-bold">「知道連結的任何人皆可檢視」</span>，或使用「發布到網路」功能。
-                            </p>
-                        </div>
-                    </div>
-                );
-            };
+  const rReview=()=>(
+    <div className="kawaii-card animate-slide-up" style={{display:'flex',flexDirection:'column', height:'90vh', padding:16}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+        <button onClick={()=>setSt('calendar')} style={{background:'none',border:'none',color:'#8e78a6',fontWeight:900,fontSize:'1rem'}}>← 返回地圖</button>
+        <h2 style={{fontSize:'1.3rem',fontWeight:900,color:'#2d2b36',margin:0}}>先複習單字！</h2>
+        <div className="animate-float">{Characters.melody(40)}</div>
+      </div>
+      <div style={{flex:1, overflowY:'auto', background:'#f3e5f5', borderRadius:16, padding:8, marginBottom:12}}>
+        {wordsPool.map((w,i)=>(
+          <div key={i} style={{background:'white',borderRadius:12,padding:'10px 12px',display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,boxShadow:'0 2px 4px rgba(0,0,0,0.05)'}}>
+            <div><div style={{fontWeight:900,color:'#2d2b36',fontSize:'1.1rem'}}>{w.en}</div><div style={{color:'#888',fontSize:'0.85rem'}}>{w.zh}</div></div>
+            <button onClick={()=>speakW(w.en)} style={{background:'#e1bee7',borderRadius:10,padding:'6px 10px',border:'none',color:'#4a1c40',fontWeight:900}}>🔊</button>
+          </div>
+        ))}
+      </div>
+      <button className="candy-btn" onClick={()=>setSt('menu')} style={{width:'100%',background:'#2d2b36',color:'white',fontSize:'1.1rem'}}>進入測驗 →</button>
+    </div>
+  );
 
-            const renderTripList = (dataList) => (
-                <div className="space-y-2 fade-in">
-                    {dataList.length > 0 ? dataList.map((item, idx) => (
-                        <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between group">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-sky-100 text-sky-700 font-bold px-3 py-1 rounded-md text-sm min-w-[3rem] text-center shadow-sm border border-sky-200">
-                                    {item.id}
-                                </div>
-                                <span className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</span>
-                            </div>
-                            <div className={`px-4 py-1.5 rounded-lg flex items-center gap-2 border shadow-sm ${item.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
-                                {item.isPaid ? <Icons.Check /> : <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
-                                <span className="font-bold">{item.isPaid ? '已繳費' : '未繳費'}</span>
-                            </div>
-                        </div>
-                    )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
-                </div>
+  const rMenu=()=>{
+    const r=activeDI?(records[activeDI.date]||{}):{};
+    const modeInfo=[
+      {k:'listening',icon:'🎵',title:'聽力魔法',bg:'#b3e5fc',tc:'#01579b',c:Characters.twilight},
+      {k:'dictation',icon:'✏️',title:'黑魔法拼字',bg:'#2d2b36',tc:'#ffffff',c:Characters.kuromi},
+      {k:'speaking',icon:'🎤',title:'音波攻擊',bg:'#81d4fa',tc:'#01579b',c:Characters.rainbow},
+      {k:'dictation-en',icon:'🎧',title:'派對聽寫',bg:'#f8bbd0',tc:'#880e4f',c:Characters.pinkie},
+      {k:'sentence',icon:'📚',title:'語感之泉',bg:'#e1bee7',tc:'#4a1c40',c:Characters.melody},
+    ];
+    return(
+      <div style={{width:'100%',maxWidth:600}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+           <button onClick={()=>setSt('review')} style={{background:'#2d2b36',border:'none',borderRadius:99,padding:'6px 16px',color:'white',fontWeight:800,fontSize:'0.85rem'}}>← 複習單字</button>
+           <h2 style={{fontSize:'1.4rem',fontWeight:900,color:'#2d2b36',margin:0}}>選擇試煉</h2>
+        </div>
+        
+        <div style={{background:'linear-gradient(90deg, #b3e5fc, #e1bee7)', borderRadius:16, padding:'12px 16px', marginBottom:16, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+          <div>
+            <h3 style={{margin:0, color:'#3a1c4a', fontWeight:900, fontSize:'1.1rem'}}>📖 故事時間</h3>
+            <p style={{margin:0, color:'#5c2b4a', fontWeight:700, fontSize:'0.75rem'}}>聽讀今日單字小故事</p>
+          </div>
+          <button className="candy-btn" onClick={()=>setSt('story')} style={{padding:'8px 16px', background:'#fff', color:'#3a1c4a', fontSize:'0.85rem'}}>進入 →</button>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))',gap:10}}>
+          {modeInfo.map(({k,icon,title,bg,tc,c:CC})=>{
+            const done=getRec(r,k)!==null;
+            return(
+              <button key={k} onClick={()=>startGame(k)} className="candy-btn" style={{background:bg,color:tc,padding:'12px 8px',textAlign:'center',border:`2px solid ${done?'#fff':'transparent'}`,opacity:done?0.75:1}}>
+                {done&&<div style={{position:'absolute',top:4,right:4,background:'#fff',color:tc,borderRadius:99,padding:'2px 6px',fontSize:'0.6rem',fontWeight:900}}>✅</div>}
+                <div className="animate-float" style={{marginBottom:4}}><CC size={40}/></div>
+                <div style={{fontSize:'1.1rem'}}>{icon}</div>
+                <div style={{fontWeight:900,fontSize:'0.9rem',marginTop:2}}>{title}</div>
+              </button>
             );
+          })}
+        </div>
+      </div>
+    );
+  };
 
-            const LightCard = ({ item }) => (
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between relative overflow-hidden">
-                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${item.t === 1 ? 'bg-amber-400' : 'bg-indigo-400'}`}></div>
-                    <div className="flex items-center gap-3 pl-2">
-                        <div className={`px-2 py-1 rounded font-bold text-sm min-w-[3rem] text-center ${item.t === 1 ? 'bg-amber-50 text-amber-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                            {item.id}
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xl font-bold text-slate-800">{item.n}</span>
-                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${item.t === 1 ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}`}>
-                                {item.t === 1 ? '(上層)' : '(下層)'}
-                            </span>
-                        </div>
-                    </div>
-                    <div className="flex gap-2 text-sm">
-                        <div className={`px-2 py-1 rounded flex items-center gap-1 ${item.r ? 'text-green-700 font-bold' : 'text-slate-300'}`}>{item.r ? '已登記' : '未登記'}</div>
-                        <div className={`px-2 py-1 rounded flex items-center gap-1 border ${item.p ? 'bg-green-100 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>{item.p ? '已繳費' : '未繳費'}</div>
-                    </div>
-                </div>
-            );
+  const rListening=()=>(
+    <div className="kawaii-card animate-slide-up" style={{background:'#e1bee7', padding:20}}>
+      {rFb()}
+      <div style={{textAlign:'center',marginBottom:12}}><span style={{background:'#fff',color:'#4a1c40',padding:'4px 16px',borderRadius:99,fontWeight:900,fontSize:'0.85rem'}}>題 {idx+1} / {words.length}</span></div>
+      <div style={{textAlign:'center',marginBottom:20}}>
+        <button onClick={()=>speakW(words[idx].en)} className="candy-btn" style={{background:'#fff',color:'#7e57c2',width:80,height:80,fontSize:'2.5rem',borderRadius:'50%'}}>🔊</button>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+        {opts.map((o,i)=>(
+          <button key={i} onClick={()=>{if(!feedback)handleAns(o.en===words[idx].en);}} disabled={!!feedback} className="candy-btn" style={{background:'#fff',color:'#3a1c4a',padding:'12px 6px',fontSize:'1rem'}}>
+            {o.zh}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
-            return (
-                <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-10">
-                    
-                    <div className="bg-blue-600 sticky top-0 z-50 shadow-md">
-                        <div className="p-4 text-center border-b border-blue-500 relative flex flex-col items-center justify-center">
-                            <h1 className="text-xl font-bold text-white flex items-center justify-center gap-2">
-                                <Icons.Calendar /> 帳務查詢系統
-                            </h1>
-                            <button 
-                                onClick={fetchGoogleSheetsData} disabled={isRefreshing}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-blue-700 hover:bg-blue-800 active:bg-blue-900 text-white text-xs px-3 py-2 rounded-lg flex items-center gap-1 transition-all shadow-sm disabled:opacity-50 border border-blue-500"
-                            >
-                                <Icons.Refresh className={isRefreshing ? "animate-spin" : ""} />
-                                {isRefreshing ? '同步中' : '重新整理'}
-                            </button>
-                        </div>
-                        
-                        {/* 頁籤選單 (僅渲染被設定為 visible 的選項) */}
-                        <div className="flex bg-blue-700 overflow-x-auto no-scrollbar snap-x scroll-smooth">
-                            {visibleTabsConfig.map(tab => (
-                                <button key={tab.id} onClick={() => { setActiveTab(tab.id); resetFilters(); }} 
-                                    className={`flex-none px-5 py-4 text-lg font-bold transition-colors whitespace-nowrap snap-start border-b-4 ${activeTab === tab.id ? 'bg-white text-blue-800 border-blue-800' : 'text-blue-100 hover:bg-blue-600 border-transparent'}`}>
-                                    {tab.name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+  const rDict=()=>(
+    <div className="kawaii-card animate-slide-up" style={{background:testMode==='dictation'?'#2d2b36':'#f8bbd0', padding:20}}>
+      {rFb()}
+      <div style={{textAlign:'center',marginBottom:12}}><span style={{background:'#fff',color:testMode==='dictation'?'#2d2b36':'#880e4f',padding:'4px 16px',borderRadius:99,fontWeight:900,fontSize:'0.85rem'}}>題 {idx+1} / {words.length}</span></div>
+      <div style={{textAlign:'center',margin:'16px 0'}}>
+        {testMode==='dictation-en' 
+          ? <button onClick={()=>speakW(words[idx].en)} className="candy-btn" style={{background:'#fff',color:'#e91e63',width:70,height:70,fontSize:'2rem',borderRadius:'50%',marginBottom:12}}>🎧</button>
+          : <div style={{fontSize:'2.2rem',fontWeight:900,color:'#fff'}}>{words[idx]?.zh}</div>}
+      </div>
+      <form onSubmit={e=>{e.preventDefault();if(!feedback&&inp.trim())handleAns(words[idx].en.toLowerCase()===inp.trim().toLowerCase());}} style={{display:'flex',flexDirection:'column',gap:10}}>
+        <input value={inp} onChange={e=>setInp(e.target.value)} disabled={!!feedback} placeholder="輸入英文單字..." className="kawaii-input" autoFocus/>
+        <button type="submit" disabled={!!feedback||!inp} className="candy-btn" style={{background:'#fff',color:testMode==='dictation'?'#2d2b36':'#e91e63',fontSize:'1.05rem'}}>發送魔法 ✓</button>
+      </form>
+    </div>
+  );
 
-                    <div className="max-w-md mx-auto px-4 mt-4">
-                        
-                        {/* 搜尋區塊 */}
-                        <div className="relative mb-4 z-30" onClick={(e) => e.stopPropagation()}>
-                            <div className="relative">
-                                <input 
-                                    type="text"
-                                    className="w-full p-4 pl-12 pr-10 rounded-xl border-2 border-slate-200 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-xl font-medium"
-                                    placeholder="輸入姓名..."
-                                    value={searchTerm}
-                                    onChange={(e) => {
-                                        setSearchTerm(e.target.value); setShowSuggestions(true);
-                                        setFilterRole("ALL"); setLightFilterType("ALL"); setTaiSuiFilterType("ALL");
-                                        setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL");
-                                    }}
-                                    onFocus={() => { if(searchTerm) setShowSuggestions(true); }}
-                                />
-                                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"><Icons.Search /></div>
-                                {searchTerm && (
-                                    <button onClick={handleClear} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"><Icons.XCircle /></button>
-                                )}
-                            </div>
-                            {showSuggestions && suggestions.length > 0 && (
-                                <div className="absolute w-full bg-white mt-2 rounded-xl shadow-xl border border-slate-100 overflow-hidden z-40">
-                                    <div className="bg-slate-50 px-4 py-2 text-sm text-slate-500 font-bold">相關建議</div>
-                                    {suggestions.map((name, index) => (
-                                        <button key={index} className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-slate-50 last:border-0 text-lg font-medium text-slate-700" onClick={() => handleSelectSuggestion(name)}>{name}</button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+  const rSpeaking=()=>(
+    <div className="kawaii-card animate-slide-up" style={{textAlign:'center',background:'#81d4fa', padding:20}}>
+      {rFb()}
+      <div style={{marginBottom:12}}><span style={{background:'#fff',color:'#01579b',padding:'4px 16px',borderRadius:99,fontWeight:900,fontSize:'0.85rem'}}>題 {idx+1} / {words.length}</span></div>
+      <div style={{fontSize:'2.5rem',fontWeight:900,color:'#01579b',marginBottom:4}}>{words[idx]?.en}</div>
+      <div style={{fontSize:'1.1rem',color:'#fff',fontWeight:800,marginBottom:16}}>{words[idx]?.zh}</div>
+      <div style={{minHeight:40,marginBottom:16}}>
+        {rtText?<span style={{background:'#fff',color:'#0288d1',padding:'6px 20px',borderRadius:99,fontWeight:900,fontSize:'0.9rem'}}>"{rtText}"</span>:<span style={{color:'rgba(255,255,255,0.7)',fontSize:'0.85rem'}}>點擊麥克風發音...</span>}
+      </div>
+      <button onClick={handleSpeak} disabled={!!feedback} className="candy-btn" style={{width:90,height:90,borderRadius:'50%',background:isRec?'#f44336':'#fff',color:isRec?'#fff':'#0288d1',fontSize:'2.5rem',border:'none'}}>🎤</button>
+    </div>
+  );
 
-                        {/* 如果全部活動都標示隱藏時的狀態顯示 */}
-                        {visibleTabsConfig.length === 0 && (
-                            <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-                                <Icons.Alert />
-                                <p className="mt-2 text-lg font-bold">目前無開放中的活動項目</p>
-                            </div>
-                        )}
-                        
-                        {/* 功能：東部參香 */}
-                        {activeTab === 'east' && visibleTabs.east && (
-                            <div className="fade-in">
-                                <TabUpdateDate tabKey="east" />
-                                <ErrorBanner show={fetchErrors.east} />
-                                <div className="bg-sky-50 rounded-xl p-3 shadow-inner border border-sky-100 mb-4 flex justify-between gap-2 overflow-x-auto">
-                                    <button onClick={() => setEastTripFilter('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${eastTripFilter === 'ALL' ? 'bg-sky-600 text-white border-sky-600 shadow-md' : 'bg-white text-sky-600 border-sky-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">總人數</span><span className="text-3xl font-black">{eastTripStats.reg}</span>
-                                    </button>
-                                    <button onClick={() => setEastTripFilter('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${eastTripFilter === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-3xl font-black">{eastTripStats.paid}</span>
-                                    </button>
-                                    <button onClick={() => setEastTripFilter('UNPAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${eastTripFilter === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-3xl font-black">{eastTripStats.unpaid}</span>
-                                    </button>
-                                </div>
-                                {renderTripList(eastTripFiltered)}
-                            </div>
-                        )}
+  const rSentence=()=>{
+    const q=sqList[sqIdx]; if(!q)return null;
+    const prog=sqIdx+1,total=sqList.length;
+    return(
+      <div className="kawaii-card animate-slide-up" style={{background:'#e1bee7', padding:20}}>
+        {/* ★ 更新句型測驗的回饋畫面：加入「關閉」按鈕與明顯的提示 */}
+        {sqFb&&(<div style={{position:'absolute',inset:0,background:sqFb==='correct'?'rgba(200,230,201,0.95)':'rgba(244,143,177,0.98)',zIndex:20,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',borderRadius:18}}>
+          <div className={sqFb==='correct'?'animate-bounce-in':'animate-shake'} style={{textAlign:'center',marginBottom:16,width:'100%'}}>
+            <div style={{fontSize:'3.5rem'}}>{sqFb==='correct'?'🎉':'😿'}</div>
+            <div style={{fontSize:'1.3rem',fontWeight:900,color:sqFb==='correct'?'#2e7d32':'#880e4f'}}>{sqFb==='correct'?'答對了！':'再試試看！'}</div>
+            {sqFb === 'incorrect' && (
+               <div style={{marginTop:12,fontWeight:700,color:'#fff',fontSize:'0.95rem',background:'rgba(0,0,0,0.15)',padding:'12px',borderRadius:16,width:'85%',margin:'12px auto 0'}}>
+                  <div style={{marginBottom:4, color:'#f8bbd0'}}>正確答案：</div>
+                  <div style={{fontWeight:900,fontSize:'1.3rem',color:'#fff',marginBottom:4}}>
+                      {q.type==='fill_blank'?q.blank_word:q.answer}
+                  </div>
+                  <div style={{fontSize:'0.85rem',color:'rgba(255,255,255,0.9)'}}>💡 {q.grammar_tip}</div>
+               </div>
+            )}
+          </div>
+          {sqFb === 'incorrect' && <button onClick={proceedSqNext} className="candy-btn animate-pulse-gentle" style={{background:'#fff',color:'#880e4f',padding:'8px 24px',fontSize:'1rem'}}>關閉解析 / 下一題 ➔</button>}
+          {sqFb === 'correct' && <button onClick={proceedSqNext} className="candy-btn" style={{background:'#fff',color:'#2e7d32',padding:'8px 24px',fontSize:'0.9rem',opacity:0.8}}>繼續 ➔</button>}
+        </div>)}
+        
+        <div style={{textAlign:'center',marginBottom:12}}>
+          <span style={{background:'#fff',borderRadius:99,padding:'4px 16px',color:'#673ab7',fontWeight:900,fontSize:'0.85rem'}}>第 {prog} / {total} 題</span>
+        </div>
+        <div style={{background:'#fff',borderRadius:16,padding:'12px',marginBottom:16,textAlign:'center'}}>
+          <div style={{fontSize:'1.05rem',fontWeight:900,color:'#311b92'}}>{q.translation}</div>
+        </div>
+        
+        {q.type==='fill_blank'&&(
+          <form onSubmit={e=>{e.preventDefault();if(!sqFb&&fillInp.trim())sqNext(fillInp.trim().toLowerCase()===q.blank_word.toLowerCase());}}>
+            <div style={{fontSize:'1.2rem',fontWeight:900,color:'#311b92',textAlign:'center',marginBottom:12}}>{q.sentence}</div>
+            <input value={fillInp} onChange={e=>setFillInp(e.target.value)} disabled={!!sqFb} placeholder="填入單字..." className="kawaii-input" autoFocus style={{marginBottom:10}}/>
+            <button type="submit" disabled={!!sqFb||!fillInp} className="candy-btn" style={{width:'100%',background:'#311b92',color:'#fff',fontSize:'1.05rem'}}>送出 ✓</button>
+          </form>
+        )}
+        
+        {q.type==='choice'&&(
+          <div>
+            <div style={{fontSize:'1.2rem',fontWeight:900,color:'#311b92',textAlign:'center',marginBottom:16}}>{q.sentence}</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              {q.options_template.map((o,i)=>(
+                <button key={i} onClick={()=>{if(!sqFb)sqNext(o===q.answer);}} disabled={!!sqFb} className="candy-btn" style={{background:'#fff',color:'#311b92',padding:'12px 6px',fontSize:'1rem'}}>{o}</button>
+              ))}
+            </div>
+          </div>
+        )}
 
-                        {/* 功能：參香捐獻 */}
-                        {activeTab === 'donation' && visibleTabs.donation && (
-                            <div className="fade-in">
-                                <TabUpdateDate tabKey="donation" />
-                                <ErrorBanner show={fetchErrors.donation} />
-                                <div className="bg-purple-50 rounded-xl p-4 shadow-inner border border-purple-100 mb-4 flex items-center justify-between gap-4">
-                                    <div className="flex-1 relative">
-                                        <select 
-                                            value={donationFilterItem} 
-                                            onChange={e => setDonationFilterItem(e.target.value)} 
-                                            className="w-full p-3 rounded-lg border-2 border-purple-200 bg-white text-purple-800 font-bold focus:outline-none focus:border-purple-500 appearance-none shadow-sm"
-                                        >
-                                            <option value="ALL">全部捐獻項目</option>
-                                            {donationItemsList.map((name, i) => <option key={i} value={name}>{name}</option>)}
-                                        </select>
-                                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-purple-400">▼</div>
-                                    </div>
-                                    <div className="bg-purple-600 text-white px-4 py-3 rounded-lg shadow-md flex flex-col items-center justify-center">
-                                        <span className="text-xs font-bold opacity-80 whitespace-nowrap">總筆數</span>
-                                        <span className="text-2xl font-black leading-none">{donationFiltered.length}</span>
-                                    </div>
-                                </div>
-                                <div className="space-y-3 fade-in">
-                                    {donationFiltered.length > 0 ? donationFiltered.map((item, idx) => (
-                                        <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center group relative overflow-hidden">
-                                            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-purple-400"></div>
-                                            <div className="pl-2">
-                                                <div className="inline-flex items-center gap-1 text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded mb-1 border border-purple-100">
-                                                    <Icons.Gift /> {item.item}
-                                                </div>
-                                                <div className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-xs text-slate-400 font-bold mb-0.5">捐獻金額</div>
-                                                <div className="text-2xl font-black text-emerald-600">${item.amount}</div>
-                                            </div>
-                                        </div>
-                                    )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
-                                </div>
-                            </div>
-                        )}
+        {q.type==='arrange'&&(
+          <div>
+            <div onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();if(window.dragW) { setArrWords(p=>p.filter(x=>x!==window.dragW)); setArrAns(p=>[...p,window.dragW]); }}}
+              style={{minHeight:50,background:'#fff',borderRadius:12,padding:'10px',marginBottom:10,display:'flex',flexWrap:'wrap',gap:6}}>
+              {arrAns.map((w,i)=><span key={i} onClick={()=>{setArrAns(p=>p.filter(x=>x!==w));setArrWords(p=>[...p,w]);}} style={{background:'#311b92',color:'#fff',padding:'6px 12px',borderRadius:10,fontWeight:900,cursor:'pointer',fontSize:'0.9rem'}}>{w}</span>)}
+            </div>
+            <div style={{minHeight:50,background:'rgba(255,255,255,0.5)',borderRadius:12,padding:'10px',marginBottom:12,display:'flex',flexWrap:'wrap',gap:6}}>
+              {arrWords.map((w,i)=><span key={i} draggable onDragStart={()=>window.dragW=w} onClick={()=>{setArrWords(p=>p.filter(x=>x!==w));setArrAns(p=>[...p,w]);}} style={{background:'#fff',color:'#311b92',padding:'6px 12px',borderRadius:10,fontWeight:900,cursor:'pointer',boxShadow:'0 2px 0 rgba(0,0,0,0.1)',fontSize:'0.9rem'}}>{w}</span>)}
+            </div>
+            <button onClick={()=>{if(!sqFb&&arrAns.length)sqNext(arrAns.join(' ').trim().toLowerCase()===q.answer.trim().toLowerCase());}} disabled={!!sqFb||!arrAns.length} className="candy-btn" style={{width:'100%',background:'#311b92',color:'#fff',fontSize:'1.05rem'}}>確認順序 ✓</button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
-                        {/* 功能：福建五日行 */}
-                        {activeTab === 'fujian' && visibleTabs.fujian && (
-                            <div className="fade-in">
-                                <TabUpdateDate tabKey="fujian" />
-                                <ErrorBanner show={fetchErrors.fujian} />
-                                <div className="bg-teal-50 rounded-xl p-3 shadow-inner border border-teal-100 mb-4 flex justify-between gap-2 overflow-x-auto">
-                                    <button onClick={() => setFujianTripFilter('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${fujianTripFilter === 'ALL' ? 'bg-teal-600 text-white border-teal-600 shadow-md' : 'bg-white text-teal-600 border-teal-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">總人數</span><span className="text-3xl font-black">{fujianTripStats.reg}</span>
-                                    </button>
-                                    <button onClick={() => setFujianTripFilter('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${fujianTripFilter === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-3xl font-black">{fujianTripStats.paid}</span>
-                                    </button>
-                                    <button onClick={() => setFujianTripFilter('UNPAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${fujianTripFilter === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-3xl font-black">{fujianTripStats.unpaid}</span>
-                                    </button>
-                                </div>
-                                {renderTripList(fujianTripFiltered)}
-                            </div>
-                        )}
+  const rResult=()=>(
+    <div className="kawaii-card animate-bounce-in" style={{textAlign:'center',background:'#fff9c4', padding:28}}>
+      <div className="animate-float" style={{marginBottom:12}}>{Characters.pinkie(100)}</div>
+      <h2 style={{fontSize:'2rem',fontWeight:900,color:'#f57f17',marginBottom:8}}>測驗完成！</h2>
+      <p style={{fontSize:'1.2rem',fontWeight:900,color:'#ffb300',marginBottom:20}}>答對 <span style={{fontSize:'2.2rem',color:'#e65100'}}>{testMode==='sentence'?fpSqCorrect:fpCorrect}</span> / {testMode==='sentence'?sqInitCount:initCount}</p>
+      <button className="candy-btn" onClick={()=>setSt('menu')} style={{width:'100%',background:'#f57f17',color:'#fff',fontSize:'1.1rem'}}>← 返回選單</button>
+    </div>
+  );
 
-                        {/* 功能：委員/宮生 */}
-                        {activeTab === 'records' && visibleTabs.records && (
-                            <div className="fade-in">
-                                <TabUpdateDate tabKey="records" />
-                                {!isLoggedIn ? (
-                                    <div className="flex flex-col items-center justify-center py-8 px-4">
-                                        <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-sm border border-slate-200 text-center">
-                                            <div className="bg-blue-50 p-4 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 text-blue-600"><Icons.Lock /></div>
-                                            <h3 className="text-xl font-bold text-slate-800 mb-2">請輸入密碼</h3>
-                                            <p className="text-slate-500 text-sm mb-6">此頁面內容僅供授權人員查看</p>
-                                            <form onSubmit={handleLogin} className="space-y-4">
-                                                <input 
-                                                    type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)}
-                                                    className={`w-full p-3 rounded-lg border-2 text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all ${loginError ? 'border-red-500 shake' : 'border-slate-200 focus:border-blue-500'}`}
-                                                    placeholder="密碼" autoFocus
-                                                />
-                                                {loginError && <p className="text-red-500 text-sm font-bold">密碼錯誤，請重試</p>}
-                                                <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-md">解鎖查看</button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 mb-4 flex justify-between gap-2 overflow-x-auto">
-                                            <button onClick={() => setFilterRole('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${filterRole === 'ALL' ? 'bg-slate-600 text-white border-slate-600 shadow-md' : 'bg-slate-50 text-slate-500 border-transparent'}`}>
-                                                <span className="text-base font-bold opacity-90 mb-1">全部</span><span className="text-3xl font-bold">{recordStats.all}</span>
-                                            </button>
-                                            <button onClick={() => setFilterRole('委員')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${filterRole === '委員' ? 'bg-amber-500 text-white border-amber-500 shadow-md' : 'bg-amber-50 text-amber-700 border-transparent'}`}>
-                                                <span className="text-base font-bold opacity-90 mb-1">委員</span><span className="text-3xl font-bold">{recordStats.committee}</span>
-                                            </button>
-                                            <button onClick={() => setFilterRole('宮生')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${filterRole === '宮生' ? 'bg-indigo-500 text-white border-indigo-500 shadow-md' : 'bg-indigo-50 text-indigo-700 border-transparent'}`}>
-                                                <span className="text-base font-bold opacity-90 mb-1">宮生</span><span className="text-3xl font-bold">{recordStats.student}</span>
-                                            </button>
-                                        </div>
-                                        <div className="space-y-2">
-                                            {recordDisplay.length > 0 ? recordDisplay.map((item, index) => (
-                                                <div key={index} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-1 relative overflow-hidden group">
-                                                    <div className={`absolute left-0 top-0 bottom-0 w-2 ${item.date === "未繳交" || item.date === "未繳費" ? 'bg-red-500' : item.role === '委員' ? 'bg-amber-400' : 'bg-blue-500'}`}></div>
-                                                    <div className="flex justify-between items-center pl-2">
-                                                        <div className="flex items-center gap-3">
-                                                            <div>
-                                                                <h3 className="text-2xl font-bold text-slate-800 tracking-wide">{item.name}</h3>
-                                                                <div className="flex gap-2 mt-1">
-                                                                    <span className="inline-flex items-center text-sm font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">第 {item.group} 組</span>
-                                                                    <span className={`inline-flex items-center text-sm font-bold px-2 py-0.5 rounded ${item.role === '委員' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-50 text-indigo-700'}`}>{item.role}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <div className="text-sm text-slate-400 font-medium mb-0.5">繳費至</div>
-                                                            <div className={`text-xl font-bold flex items-center justify-end gap-1 ${item.date === '未繳交' || item.date === '未繳費' ? 'text-red-600' : item.date.includes('113') ? 'text-orange-600' : 'text-emerald-600'}`}>
-                                                                {item.date}
-                                                                {(item.date === '未繳交' || item.date === '未繳費') && <span className="flex h-3 w-3 relative ml-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )) : <div className="text-center py-12 text-slate-500 text-xl font-bold">查無資料</div>}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        )}
+  return(
+    <div style={{minHeight:'100vh',padding:'12px 8px',display:'flex',flexDirection:'column',alignItems:'center',position:'relative',overflow:'hidden',background:'var(--bg-light)'}}>
+      {['⭐','🎀','✨','🦄','💖'].map((s,i)=>(<div key={i} style={{position:'absolute',top:`${10+i*18}%`,left:i%2===0?'2%':'92%',fontSize:`${1.2+i*0.2}rem`,opacity:0.3,animation:`float ${3+i}s ease-in-out infinite`}}>{s}</div>))}
+      
+      {showConfetti&&<Confetti/>}
+      {charPopup&&<CharacterPopup mode={charPopup} onClose={()=>setCharPopup(null)}/>}
+      {notif && <div style={{position:'fixed',top:16,background:'#2d2b36',color:'#fff',padding:'10px 20px',borderRadius:99,fontWeight:900,zIndex:100,fontSize:'0.9rem',boxShadow:'0 4px 10px rgba(0,0,0,0.2)'}}>{notif}</div>}
 
-                        {/* 功能：安太歲 */}
-                        {activeTab === 'taisui' && visibleTabs.taisui && (
-                            <div className="fade-in">
-                                <TabUpdateDate tabKey="taisui" />
-                                <div className="bg-rose-50 rounded-xl p-3 shadow-inner border border-rose-100 mb-4 flex justify-between gap-2 overflow-x-auto">
-                                    <button onClick={() => setTaiSuiFilterType('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'ALL' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-white text-rose-500 border-rose-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">登記總數</span><span className="text-3xl font-black">{taiSuiStats.reg}</span>
-                                    </button>
-                                    <button onClick={() => setTaiSuiFilterType('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-3xl font-black">{taiSuiStats.paid}</span>
-                                    </button>
-                                    <button onClick={() => setTaiSuiFilterType('UNPAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-3xl font-black">{taiSuiStats.unpaid}</span>
-                                    </button>
-                                </div>
-                                <div className="space-y-2 fade-in">
-                                    {taiSuiDisplay.length > 0 ? taiSuiDisplay.map((item, idx) => (
-                                        <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                {item.id ? <div className="bg-rose-100 px-2 py-1 rounded text-rose-600 font-bold text-sm min-w-[3rem] text-center">{item.id}</div> : <div className="bg-rose-100 p-2 rounded-full text-rose-600"><Icons.Scroll /></div>}
-                                                <span className="text-xl font-bold text-slate-800">{item.n}</span>
-                                            </div>
-                                            <div className="flex gap-2 text-sm">
-                                                <div className={`px-3 py-1 rounded-md flex items-center gap-1 border ${item.r ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
-                                                    {item.r ? <Icons.Check /> : <span className="w-4 h-4 block border border-slate-300 rounded-sm"></span>}<span className="font-bold">登記</span>
-                                                </div>
-                                                <div className={`px-3 py-1 rounded-md flex items-center gap-1 border ${item.p ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
-                                                    {item.p ? <Icons.Check /> : <span className="w-4 h-4 block border border-slate-300 rounded-sm"></span>}<span className="font-bold">繳費</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
-                                </div>
-                            </div>
-                        )}
+      <div style={{width:'100%',maxWidth:800,flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:10}}>
+        {['listening','dictation','dictation-en','speaking','sentence'].includes(st)&&rGameHdr('魔法測驗', '#fff', '#2d2b36')}
+        {st==='setup'&&rSetup()}
+        {st==='calendar'&&rCal()}
+        {st==='review'&&rReview()}
+        {st==='menu'&&rMenu()}
+        {st==='story'&&<StoryReader wordsPool={wordsPool} onBack={()=>setSt('menu')} setNotif={setNotif}/>}
+        {st==='listening'&&rListening()}
+        {(st==='dictation'||st==='dictation-en')&&rDict()}
+        {st==='speaking'&&rSpeaking()}
+        {st==='sentence'&&rSentence()}
+        {st==='result'&&rResult()}
+      </div>
+    </div>
+  );
+}
 
-                        {/* 功能：光明燈 */}
-                        {activeTab === 'light' && visibleTabs.light && (
-                            <div className="fade-in">
-                                <TabUpdateDate tabKey="light" />
-                                <div className="bg-amber-50 rounded-xl p-3 shadow-inner border border-amber-100 mb-4 flex justify-between gap-2 overflow-x-auto min-w-full no-scrollbar">
-                                    <button onClick={() => setLightFilterType('ALL')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'ALL' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-white text-slate-500 border-amber-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">登記總數</span><span className="text-2xl font-black">{lightStats.totalReg}</span>
-                                    </button>
-                                    <button onClick={() => setLightFilterType('UPPER')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'UPPER' ? 'bg-amber-500 text-white border-amber-500 shadow-md' : 'bg-white text-amber-700 border-amber-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">上層登記</span><span className="text-2xl font-black">{lightStats.upperReg}</span>
-                                    </button>
-                                    <button onClick={() => setLightFilterType('LOWER')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'LOWER' ? 'bg-indigo-500 text-white border-indigo-500 shadow-md' : 'bg-white text-indigo-700 border-indigo-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">下層登記</span><span className="text-2xl font-black">{lightStats.lowerReg}</span>
-                                    </button>
-                                    <button onClick={() => setLightFilterType('PAID')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-2xl font-black">{lightStats.paid}</span>
-                                    </button>
-                                    <button onClick={() => setLightFilterType('UNPAID')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-2xl font-black">{lightStats.unpaid}</span>
-                                    </button>
-                                </div>
-                                <div className="space-y-2 fade-in">
-                                    {lightDisplay.length > 0 ? lightDisplay.map((item, idx) => <LightCard key={idx} item={item} />) : <div className="text-center py-8 text-slate-500">查無資料</div>}
-                                </div>
-                            </div>
-                        )}
-
-                    </div>
-                </div>
-            );
-        }
-
-        if (typeof ReactDOM === 'undefined') {
-            document.getElementById('root').innerHTML = '<div style="text-align:center; padding:2rem; color:red; font-weight:bold;">無法載入 React 函式庫，請檢查網路狀態。</div>';
-        } else {
-            const root = ReactDOM.createRoot(document.getElementById('root'));
-            root.render(<App />);
-        }
-    </script>
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
 </body>
 </html>
