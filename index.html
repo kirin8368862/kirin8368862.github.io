@@ -36,6 +36,7 @@
         // [正式啟動] Google Sheets CSV 自動抓取網址區
         // =========================================================================
         const GOOGLE_SHEETS_URLS = {
+            puzhuo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=385503720&single=true&output=csv",
             taiSui: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1409111845&single=true&output=csv",        
             lightUpper: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1353370878&single=true&output=csv",    
             lightLower: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1743080288&single=true&output=csv",    
@@ -58,6 +59,37 @@
                 else row[i] += char;
             }
             return row.map(v => v.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+        };
+
+        // 新增：提取中元普桌資料
+        const extractPuzhuo = (parsed) => {
+            if(!parsed || parsed.length === 0) return [];
+            
+            const paidSet = new Set();
+            // 先掃描 E 欄位建立繳費名單 (index 4)
+            parsed.forEach(row => {
+                const payer = row['_col_4'];
+                if(payer && payer.trim() !== '' && !payer.includes('姓名')) {
+                    paidSet.add(payer.trim());
+                }
+            });
+
+            // 第 2 列開始是普桌(索引 0)，第 151 列開始是亡者普桌(索引 149)
+            return parsed.map((row, i) => {
+                const id = (row['_col_0'] || '').trim();
+                const name1 = (row['_col_1'] || '').trim();
+                const name2 = (row['_col_2'] || '').trim();
+                const memo = (row['_col_3'] || '').trim();
+
+                // 只要這組有任何一個名字出現在繳費名單，就算整組已繳費
+                const isPaid = (name1 && paidSet.has(name1)) || (name2 && paidSet.has(name2));
+                const isDeceased = i >= 149; 
+
+                return {
+                    id, name1, name2, memo, isPaid, isDeceased,
+                    valid: (id !== '' || name1 !== '' || name2 !== '')
+                };
+            }).filter(r => r.valid && (r.name1 || r.name2));
         };
 
         const extractTripData = (parsed) => {
@@ -104,7 +136,7 @@
             const keys = Object.keys(parsed[0]);
             let nameKey = keys.find(k => k.includes('姓名') || k.includes('名單')) || keys[1];
             return parsed.map((row, i) => ({
-                id: i + 1,
+                id: (row[keys[0]] || i + 1).toString().trim(),
                 name: (row[nameKey] || '').trim()
             })).filter(r => r.name);
         };
@@ -141,11 +173,12 @@
         };
 
         // 預設測試資料區塊
+        const DEFAULT_PUZHUO_DATA = [{ id: "1", name1: "測試資料", name2: "", memo: "", isPaid: false, isDeceased: false }];
         const DEFAULT_RECORD_DATA = [ { group: "1", role: "宮生", name: "傅沛柔", date: "114年12月" } ];
         const DEFAULT_TAISUI_DATA = [{id:"1A1",n:"黃淑霞",r:1,p:1}];
         const DEFAULT_LIGHT_DATA = [{id:"1B10",n:"游宇閎",t:1,r:1,p:1}];
-        const DEFAULT_TRIP_DATA = [ { id: 1, name: "測試資料 (尚未連線)", isPaid: true } ];
-        const DEFAULT_DONATION_DATA = [{ id: 1, item: "白米", name: "張善人 (測試)", amount: 500 }];
+        const DEFAULT_TRIP_DATA = [ { id: 1, name: "測試資料", isPaid: true } ];
+        const DEFAULT_DONATION_DATA = [{ id: 1, item: "白米", name: "測試善人", amount: 500 }];
         const DEFAULT_MEMBER_DATA = [{ id: 1, name: "測試會員" }];
         const DEFAULT_BIRTHDAY_DATA = [{ id: 1, name: "測試信眾", type: "大組", amount: 1200 }];
 
@@ -165,6 +198,7 @@
         };
 
         const TABS_CONFIG = [
+            { id: 'puzhuo', name: '中元普桌' },
             { id: 'donation', name: '宮慶捐獻' },
             { id: 'guansheng', name: '關聖帝君祝壽' },
             { id: 'wangmu', name: '王母娘娘祝壽' },
@@ -182,15 +216,16 @@
             
             // 狀態：管理各分頁的隱藏/顯示
             const [visibleTabs, setVisibleTabs] = useState({
-                records: true, taisui: true, light: true, east: true, fujian: true, donation: true,
-                member: true, guansheng: true, wangmu: true
+                puzhuo: true, records: true, taisui: true, light: true, east: true, 
+                fujian: true, donation: true, member: true, guansheng: true, wangmu: true
             });
 
             const [updateDates, setUpdateDates] = useState({
-                records: "", taisui: "", light: "", east: "", fujian: "", donation: "",
-                member: "", guansheng: "", wangmu: ""
+                puzhuo: "", records: "", taisui: "", light: "", east: "", fujian: "", 
+                donation: "", member: "", guansheng: "", wangmu: ""
             });
             
+            const [PuzhuoDataRaw, setPuzhuoDataRaw] = useState([]);
             const [RecordData, setRecordData] = useState([]);
             const [TaiSuiDataRaw, setTaiSuiDataRaw] = useState([]);
             const [LightDataRaw, setLightDataRaw] = useState([]);
@@ -202,21 +237,22 @@
             const [WangmuDataRaw, setWangmuDataRaw] = useState([]);
 
             const [fetchErrors, setFetchErrors] = useState({ 
-                east: false, fujian: false, donation: false, member: false, guansheng: false, wangmu: false 
+                puzhuo: false, east: false, fujian: false, donation: false, member: false, guansheng: false, wangmu: false 
             });
 
-            const [activeTab, setActiveTab] = useState("donation"); 
+            const [activeTab, setActiveTab] = useState("puzhuo"); 
             const [searchTerm, setSearchTerm] = useState("");
             const [showSuggestions, setShowSuggestions] = useState(false);
             
             // 各頁面 Filter States
+            const [puzhuoFilter, setPuzhuoFilter] = useState("ALL");
             const [filterRole, setFilterRole] = useState("ALL"); 
             const [lightFilterType, setLightFilterType] = useState("ALL");
             const [taiSuiFilterType, setTaiSuiFilterType] = useState("ALL");
             const [eastTripFilter, setEastTripFilter] = useState("ALL");
             const [fujianTripFilter, setFujianTripFilter] = useState("ALL");
             const [donationFilterItem, setDonationFilterItem] = useState("ALL");
-            const [donationViewMode, setDonationViewMode] = useState("ITEM"); // 'ITEM' | 'NAME'
+            const [donationViewMode, setDonationViewMode] = useState("ITEM"); 
             
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [inputPassword, setInputPassword] = useState("");
@@ -278,6 +314,7 @@
                             return headersRaw.reduce((obj, header, i) => {
                                 const cleanHeader = header.replace(/["'\s]+/g, '');
                                 obj[cleanHeader] = values[i] || '';
+                                obj[`_col_${i}`] = values[i] || ''; // 確保可依欄位索引取值
                                 return obj;
                             }, {});
                         });
@@ -287,6 +324,8 @@
                         return { data: [], date: "", error: true, isHidden: false };
                     }
                 };
+
+                const resPuzhuo = await fetchData(GOOGLE_SHEETS_URLS.puzhuo, extractPuzhuo);
 
                 const resRecord = await fetchData(GOOGLE_SHEETS_URLS.records, parsed => parsed.map(row => ({
                     group: row['組別'] || '', role: row['身份'] || '', name: row['姓名'] || '', date: row['繳交至'] || ''
@@ -318,6 +357,7 @@
                 const resWangmu = await fetchData(GOOGLE_SHEETS_URLS.wangmu, extractBirthday);
 
                 setUpdateDates({
+                    puzhuo: resPuzhuo.date,
                     records: resRecord.date,
                     taisui: resTaiSui.date,
                     light: resLightUpper.date || resLightLower.date,
@@ -330,6 +370,7 @@
                 });
 
                 setVisibleTabs({
+                    puzhuo: !resPuzhuo.isHidden,
                     records: !resRecord.isHidden,
                     taisui: !resTaiSui.isHidden,
                     light: !(resLightUpper.isHidden || resLightLower.isHidden), 
@@ -342,6 +383,7 @@
                 });
 
                 setFetchErrors({
+                    puzhuo: resPuzhuo.error || resPuzhuo.data.length === 0,
                     east: resEast.error || resEast.data.length === 0,
                     fujian: resFujian.error || resFujian.data.length === 0,
                     donation: resDonation.error || resDonation.data.length === 0,
@@ -350,14 +392,13 @@
                     wangmu: resWangmu.error || resWangmu.data.length === 0
                 });
 
+                setPuzhuoDataRaw(resPuzhuo.data.length > 0 ? resPuzhuo.data : [...DEFAULT_PUZHUO_DATA]);
                 setRecordData(resRecord.data.length > 0 ? resRecord.data : [...DEFAULT_RECORD_DATA]);
                 setTaiSuiDataRaw(resTaiSui.data.length > 0 ? resTaiSui.data : [...DEFAULT_TAISUI_DATA]);
                 setLightDataRaw(resLightUpper.data.length > 0 || resLightLower.data.length > 0 ? [...resLightUpper.data, ...resLightLower.data] : [...DEFAULT_LIGHT_DATA]);
-                
                 setEastTripDataRaw(resEast.data.length > 0 ? resEast.data : [...DEFAULT_TRIP_DATA]);
                 setFujianTripDataRaw(resFujian.data.length > 0 ? resFujian.data : [...DEFAULT_TRIP_DATA]);
                 setDonationDataRaw(resDonation.data.length > 0 ? resDonation.data : [...DEFAULT_DONATION_DATA]);
-                
                 setMemberDataRaw(resMember.data.length > 0 ? resMember.data : [...DEFAULT_MEMBER_DATA]);
                 setGuanshengDataRaw(resGuansheng.data.length > 0 ? resGuansheng.data : [...DEFAULT_BIRTHDAY_DATA]);
                 setWangmuDataRaw(resWangmu.data.length > 0 ? resWangmu.data : [...DEFAULT_BIRTHDAY_DATA]);
@@ -392,6 +433,28 @@
             };
             
             // --- 篩選計算區 ---
+            
+            // [新增] 普桌篩選與統計
+            const puzhuoFiltered = useMemo(() => {
+                let list = PuzhuoDataRaw;
+                if(searchTerm) list = list.filter(i => i.name1.includes(searchTerm) || i.name2.includes(searchTerm));
+                if(puzhuoFilter === 'PAID') return list.filter(i => i.isPaid);
+                if(puzhuoFilter === 'UNPAID') return list.filter(i => !i.isPaid);
+                return list;
+            }, [PuzhuoDataRaw, searchTerm, puzhuoFilter]);
+
+            const puzhuoStats = useMemo(() => {
+                let baseList = PuzhuoDataRaw;
+                if(searchTerm) baseList = baseList.filter(i => i.name1.includes(searchTerm) || i.name2.includes(searchTerm));
+                return {
+                    normalTotal: baseList.filter(i => !i.isDeceased).length,
+                    deceasedTotal: baseList.filter(i => i.isDeceased).length,
+                    allTotal: baseList.length,
+                    paidTotal: baseList.filter(i => i.isPaid).length,
+                    unpaidTotal: baseList.filter(i => !i.isPaid).length
+                };
+            }, [PuzhuoDataRaw, searchTerm]);
+
             const recordFiltered = useMemo(() => {
                 if (!searchTerm) return RecordData;
                 return RecordData.filter(item => item.name.includes(searchTerm) || item.group.includes(searchTerm));
@@ -459,7 +522,6 @@
                 unpaid: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm)) && !i.isPaid).length
             }), [FujianTripDataRaw, searchTerm]);
 
-            // --- 新增：會員與祝壽資料篩選 ---
             const memberFiltered = useMemo(() => {
                 let list = MemberDataRaw;
                 if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
@@ -494,7 +556,6 @@
                 };
             }, [wangmuFiltered]);
 
-            // --- 捐獻資料篩選與轉換 ---
             const donationItemsList = useMemo(() => {
                 const items = DonationDataRaw.map(i => i.item).filter(Boolean);
                 return [...new Set(items)];
@@ -507,7 +568,6 @@
                 return list;
             }, [DonationDataRaw, searchTerm, donationFilterItem]);
 
-            // 依姓名合併統計 (新增功能)
             const donationByName = useMemo(() => {
                 const map = new Map();
                 donationFiltered.forEach(item => {
@@ -525,13 +585,14 @@
             const suggestions = useMemo(() => {
                 if (!searchTerm) return [];
                 const allNames = [
+                    ...PuzhuoDataRaw.map(i => i.name1), ...PuzhuoDataRaw.map(i => i.name2),
                     ...RecordData.map(i => i.name), ...TaiSuiData.map(i => i.n), ...LightData.map(i => i.n),
                     ...EastTripDataRaw.map(i => i.name), ...FujianTripDataRaw.map(i => i.name), ...DonationDataRaw.map(i => i.name),
                     ...MemberDataRaw.map(i => i.name), ...GuanshengDataRaw.map(i => i.name), ...WangmuDataRaw.map(i => i.name)
-                ];
+                ].filter(Boolean);
                 const matches = allNames.filter(name => name.includes(searchTerm) && name !== searchTerm);
                 return [...new Set(matches)].slice(0, 8);
-            }, [searchTerm, RecordData, TaiSuiData, LightData, EastTripDataRaw, FujianTripDataRaw, DonationDataRaw, MemberDataRaw, GuanshengDataRaw, WangmuDataRaw]);
+            }, [searchTerm, PuzhuoDataRaw, RecordData, TaiSuiData, LightData, EastTripDataRaw, FujianTripDataRaw, DonationDataRaw, MemberDataRaw, GuanshengDataRaw, WangmuDataRaw]);
 
             const handleSelectSuggestion = (name) => { setSearchTerm(name); setShowSuggestions(false); };
             const handleClear = () => { setSearchTerm(""); setShowSuggestions(false); };
@@ -544,6 +605,7 @@
             const resetFilters = () => {
                 setSearchTerm(""); setTaiSuiFilterType("ALL"); setLightFilterType("ALL"); setFilterRole("ALL");
                 setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL"); setDonationViewMode("ITEM");
+                setPuzhuoFilter("ALL");
             };
 
             if (isLoading) {
@@ -702,6 +764,7 @@
                                         setSearchTerm(e.target.value); setShowSuggestions(true);
                                         setFilterRole("ALL"); setLightFilterType("ALL"); setTaiSuiFilterType("ALL");
                                         setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL");
+                                        setPuzhuoFilter("ALL");
                                     }}
                                     onFocus={() => { if(searchTerm) setShowSuggestions(true); }}
                                 />
@@ -726,6 +789,69 @@
                                 <p className="mt-2 text-lg font-bold">目前無開放中的活動項目</p>
                             </div>
                         )}
+
+                        {/* 新增功能：中元普桌 */}
+                        {activeTab === 'puzhuo' && visibleTabs.puzhuo && (
+                            <div className="fade-in">
+                                <TabUpdateDate tabKey="puzhuo" />
+                                <ErrorBanner show={fetchErrors.puzhuo} />
+
+                                <div className="grid grid-cols-3 gap-2 mb-2">
+                                    <div className="bg-white rounded-xl p-2 border border-slate-200 shadow-sm text-center flex flex-col justify-center items-center">
+                                        <div className="text-xs text-slate-500 font-bold mb-1">普桌總數</div>
+                                        <div className="text-2xl font-black text-slate-700">{puzhuoStats.normalTotal}</div>
+                                    </div>
+                                    <div className="bg-white rounded-xl p-2 border border-slate-200 shadow-sm text-center flex flex-col justify-center items-center">
+                                        <div className="text-xs text-slate-500 font-bold mb-1">亡者普桌</div>
+                                        <div className="text-2xl font-black text-slate-700">{puzhuoStats.deceasedTotal}</div>
+                                    </div>
+                                    <button onClick={() => setPuzhuoFilter('ALL')} className={`rounded-xl p-2 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'ALL' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200'}`}>
+                                        <div className={`text-xs font-bold mb-1 ${puzhuoFilter === 'ALL' ? 'text-indigo-100' : 'text-indigo-500'}`}>合計總數</div>
+                                        <div className="text-2xl font-black">{puzhuoStats.allTotal}</div>
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 mb-4">
+                                    <button onClick={() => setPuzhuoFilter('PAID')} className={`rounded-xl p-3 border shadow-sm flex justify-between items-center transition-colors ${puzhuoFilter === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                        <span className="font-bold text-sm">已繳費桌數</span>
+                                        <span className="text-2xl font-black">{puzhuoStats.paidTotal}</span>
+                                    </button>
+                                    <button onClick={() => setPuzhuoFilter('UNPAID')} className={`rounded-xl p-3 border shadow-sm flex justify-between items-center transition-colors ${puzhuoFilter === 'UNPAID' ? 'bg-red-600 text-white border-red-600' : 'bg-red-50 text-red-600 border-red-200'}`}>
+                                        <span className="font-bold text-sm">未繳費桌數</span>
+                                        <span className="text-2xl font-black">{puzhuoStats.unpaidTotal}</span>
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3 fade-in">
+                                    {puzhuoFiltered.length > 0 ? puzhuoFiltered.map((item, idx) => (
+                                        <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-2 relative overflow-hidden group">
+                                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${item.isDeceased ? 'bg-slate-400' : 'bg-indigo-400'}`}></div>
+                                            <div className="flex justify-between items-start pl-2">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    {item.id && <div className="bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded text-sm min-w-[2rem] text-center">{item.id}</div>}
+                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${item.isDeceased ? 'bg-slate-100 text-slate-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                                        {item.isDeceased ? '亡者普桌' : '普桌'}
+                                                    </span>
+                                                </div>
+                                                <div className={`px-2 py-1 rounded-md text-sm font-bold flex items-center gap-1 border ${item.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                                                    {item.isPaid ? <Icons.Check /> : <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
+                                                    {item.isPaid ? '已繳費' : '未繳費'}
+                                                </div>
+                                            </div>
+                                            <div className="pl-2 flex items-baseline gap-3 flex-wrap mt-1">
+                                                {item.name1 && <span className="text-xl font-bold text-slate-800 tracking-wide">{item.name1}</span>}
+                                                {item.name2 && <span className="text-xl font-bold text-slate-800 tracking-wide">{item.name2}</span>}
+                                            </div>
+                                            {item.memo && (
+                                                <div className="pl-2 mt-1">
+                                                    <span className="text-sm font-medium text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded">備註: {item.memo}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )) : <div className="text-center py-8 text-slate-500 font-bold">查無資料</div>}
+                                </div>
+                            </div>
+                        )}
                         
                         {/* 功能：東部參香 */}
                         {activeTab === 'east' && visibleTabs.east && (
@@ -747,7 +873,7 @@
                             </div>
                         )}
 
-                        {/* 功能：參香捐獻 (已修改：新增姓名統計) */}
+                        {/* 功能：參香捐獻 */}
                         {activeTab === 'donation' && visibleTabs.donation && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="donation" />
