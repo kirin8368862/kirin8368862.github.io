@@ -61,12 +61,10 @@
             return row.map(v => v.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
         };
 
-        // 新增：提取中元普桌資料
         const extractPuzhuo = (parsed) => {
             if(!parsed || parsed.length === 0) return [];
             
             const paidSet = new Set();
-            // 先掃描 E 欄位建立繳費名單 (index 4)
             parsed.forEach(row => {
                 const payer = row['_col_4'];
                 if(payer && payer.trim() !== '' && !payer.includes('姓名')) {
@@ -74,14 +72,12 @@
                 }
             });
 
-            // 第 2 列開始是普桌(索引 0)，第 151 列開始是亡者普桌(索引 149)
             return parsed.map((row, i) => {
                 const id = (row['_col_0'] || '').trim();
                 const name1 = (row['_col_1'] || '').trim();
                 const name2 = (row['_col_2'] || '').trim();
                 const memo = (row['_col_3'] || '').trim();
 
-                // 只要這組有任何一個名字出現在繳費名單，就算整組已繳費
                 const isPaid = (name1 && paidSet.has(name1)) || (name2 && paidSet.has(name2));
                 const isDeceased = i >= 149; 
 
@@ -253,6 +249,7 @@
             const [fujianTripFilter, setFujianTripFilter] = useState("ALL");
             const [donationFilterItem, setDonationFilterItem] = useState("ALL");
             const [donationViewMode, setDonationViewMode] = useState("ITEM"); 
+            const [birthdayFilter, setBirthdayFilter] = useState("ALL"); // 新增祝壽頁面篩選狀態
             
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [inputPassword, setInputPassword] = useState("");
@@ -434,7 +431,6 @@
             
             // --- 篩選計算區 ---
             
-            // [新增] 普桌篩選與統計
             const puzhuoFiltered = useMemo(() => {
                 let list = PuzhuoDataRaw;
                 if(searchTerm) list = list.filter(i => i.name1.includes(searchTerm) || i.name2.includes(searchTerm));
@@ -459,9 +455,11 @@
                 if (!searchTerm) return RecordData;
                 return RecordData.filter(item => item.name.includes(searchTerm) || item.group.includes(searchTerm));
             }, [searchTerm, RecordData]);
+            
             const recordStats = useMemo(() => ({
                 all: recordFiltered.length, committee: recordFiltered.filter(i => i.role === '委員').length, student: recordFiltered.filter(i => i.role === '宮生').length
             }), [recordFiltered]);
+            
             const recordDisplay = useMemo(() => {
                 if (filterRole === 'ALL') return recordFiltered; return recordFiltered.filter(i => i.role === filterRole);
             }, [recordFiltered, filterRole]);
@@ -528,21 +526,39 @@
                 return list;
             }, [MemberDataRaw, searchTerm]);
 
-            const guanshengFiltered = useMemo(() => {
+            // ================= 關聖帝君與王母娘娘祝壽資料處理邏輯 =================
+            // 獨立出 BaseFiltered 讓總計數字不受大/小組篩選按鈕影響
+            const guanshengBaseFiltered = useMemo(() => {
                 let list = GuanshengDataRaw;
                 if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
                 return list;
             }, [GuanshengDataRaw, searchTerm]);
-            
+
             const guanshengStats = useMemo(() => {
                 return {
-                    big: guanshengFiltered.filter(i => i.type.includes('大')).length,
-                    small: guanshengFiltered.filter(i => i.type.includes('小')).length,
-                    totalAmount: guanshengFiltered.reduce((sum, i) => sum + i.amount, 0)
+                    big: guanshengBaseFiltered.filter(i => i.type.includes('大')).length,
+                    small: guanshengBaseFiltered.filter(i => i.type.includes('小')).length,
+                    totalAmount: guanshengBaseFiltered.reduce((sum, i) => sum + i.amount, 0)
                 };
-            }, [guanshengFiltered]);
+            }, [guanshengBaseFiltered]);
 
-            const wangmuFiltered = useMemo(() => {
+            const guanshengFiltered = useMemo(() => {
+                let list = guanshengBaseFiltered;
+                if (birthdayFilter === 'BIG') list = list.filter(i => i.type.includes('大'));
+                if (birthdayFilter === 'SMALL') list = list.filter(i => i.type.includes('小'));
+                
+                // 排序邏輯：大組優先，小組在後
+                return [...list].sort((a, b) => {
+                    const aIsBig = a.type.includes('大');
+                    const bIsBig = b.type.includes('大');
+                    if (aIsBig && !bIsBig) return -1;
+                    if (!aIsBig && bIsBig) return 1;
+                    return 0; // 同組內維持原始順序
+                });
+            }, [guanshengBaseFiltered, birthdayFilter]);
+
+            // 同理套用於王母娘娘
+            const wangmuBaseFiltered = useMemo(() => {
                 let list = WangmuDataRaw;
                 if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
                 return list;
@@ -550,11 +566,27 @@
 
             const wangmuStats = useMemo(() => {
                 return {
-                    big: wangmuFiltered.filter(i => i.type.includes('大')).length,
-                    small: wangmuFiltered.filter(i => i.type.includes('小')).length,
-                    totalAmount: wangmuFiltered.reduce((sum, i) => sum + i.amount, 0)
+                    big: wangmuBaseFiltered.filter(i => i.type.includes('大')).length,
+                    small: wangmuBaseFiltered.filter(i => i.type.includes('小')).length,
+                    totalAmount: wangmuBaseFiltered.reduce((sum, i) => sum + i.amount, 0)
                 };
-            }, [wangmuFiltered]);
+            }, [wangmuBaseFiltered]);
+            
+            const wangmuFiltered = useMemo(() => {
+                let list = wangmuBaseFiltered;
+                if (birthdayFilter === 'BIG') list = list.filter(i => i.type.includes('大'));
+                if (birthdayFilter === 'SMALL') list = list.filter(i => i.type.includes('小'));
+                
+                // 排序邏輯：大組優先，小組在後
+                return [...list].sort((a, b) => {
+                    const aIsBig = a.type.includes('大');
+                    const bIsBig = b.type.includes('大');
+                    if (aIsBig && !bIsBig) return -1;
+                    if (!aIsBig && bIsBig) return 1;
+                    return 0;
+                });
+            }, [wangmuBaseFiltered, birthdayFilter]);
+            // =========================================================================
 
             const donationItemsList = useMemo(() => {
                 const items = DonationDataRaw.map(i => i.item).filter(Boolean);
@@ -605,7 +637,7 @@
             const resetFilters = () => {
                 setSearchTerm(""); setTaiSuiFilterType("ALL"); setLightFilterType("ALL"); setFilterRole("ALL");
                 setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL"); setDonationViewMode("ITEM");
-                setPuzhuoFilter("ALL");
+                setPuzhuoFilter("ALL"); setBirthdayFilter("ALL"); // 切換頁籤時重置祝壽過濾
             };
 
             if (isLoading) {
@@ -617,9 +649,11 @@
                 );
             }
 
-            const TabUpdateDate = ({ tabKey }) => (
-                <div className="flex justify-end mb-2 fade-in">
-                    <span className="text-xs text-slate-500 font-bold bg-white border border-slate-200 px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm">
+            // 更新 `TabUpdateDate` 支援接收左側內容 (leftContent)
+            const TabUpdateDate = ({ tabKey, leftContent }) => (
+                <div className="flex justify-between items-center mb-2 fade-in min-h-[36px]">
+                    <div>{leftContent}</div>
+                    <span className="text-xs text-slate-500 font-bold bg-white border border-slate-200 px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm ml-auto">
                         <Icons.Refresh className="w-3 h-3 text-blue-500" />
                         更新日：{updateDates[tabKey] || "未標示 / 讀取中"}
                     </span>
@@ -660,21 +694,44 @@
                 </div>
             );
 
+            // ================= 新版祝壽頁籤渲染邏輯 =================
             const renderBirthdayTab = (tabKey, titleColor, dataFiltered, dataStats) => {
+                
+                // 定義顯示全部按鈕
+                const showAllButton = (
+                    <button
+                        onClick={() => setBirthdayFilter('ALL')}
+                        className={`text-xs font-bold px-4 py-1.5 rounded-full flex items-center gap-1 shadow-sm transition-all border ${birthdayFilter === 'ALL' ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'}`}
+                    >
+                        顯示全部
+                    </button>
+                );
+
                 return (
                     <div className="fade-in">
-                        <TabUpdateDate tabKey={tabKey} />
+                        {/* 帶入左側顯示全部按鈕 */}
+                        <TabUpdateDate tabKey={tabKey} leftContent={showAllButton} />
                         <ErrorBanner show={fetchErrors[tabKey]} />
                         
                         <div className={`bg-${titleColor}-50 rounded-xl p-3 shadow-inner border border-${titleColor}-100 mb-4 flex justify-between gap-2 overflow-x-auto`}>
-                            <div className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border bg-white text-${titleColor}-600 border-${titleColor}-100 shadow-sm`}>
+                            {/* 將大組數字改為可篩選按鈕 (使用原有的紅/玫瑰紅色系) */}
+                            <button 
+                                onClick={() => setBirthdayFilter('BIG')}
+                                className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border shadow-sm transition-all ${birthdayFilter === 'BIG' ? `bg-${titleColor}-600 text-white border-${titleColor}-600` : `bg-white text-${titleColor}-600 border-${titleColor}-100 hover:bg-${titleColor}-50`}`}
+                            >
                                 <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">大組組數</span>
                                 <span className="text-3xl font-black">{dataStats.big}</span>
-                            </div>
-                            <div className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border bg-white text-${titleColor}-600 border-${titleColor}-100 shadow-sm`}>
+                            </button>
+                            
+                            {/* 將小組數字改為可篩選按鈕 (使用獨特藍色系達成視覺化區分) */}
+                            <button 
+                                onClick={() => setBirthdayFilter('SMALL')}
+                                className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border shadow-sm transition-all ${birthdayFilter === 'SMALL' ? `bg-blue-600 text-white border-blue-600` : `bg-white text-blue-600 border-blue-100 hover:bg-blue-50`}`}
+                            >
                                 <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">小組組數</span>
                                 <span className="text-3xl font-black">{dataStats.small}</span>
-                            </div>
+                            </button>
+                            
                             <div className={`flex-[1.5] flex flex-col items-center justify-center py-3 px-2 rounded-lg border bg-${titleColor}-600 text-white border-${titleColor}-600 shadow-md`}>
                                 <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">總金額</span>
                                 <span className="text-3xl font-black">${fmtMoney(dataStats.totalAmount)}</span>
@@ -682,20 +739,24 @@
                         </div>
 
                         <div className="space-y-3">
-                            {dataFiltered.length > 0 ? dataFiltered.map((item, idx) => (
-                                <div key={idx} className={`bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center relative overflow-hidden`}>
-                                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${item.type.includes('大') ? 'bg-red-500' : 'bg-pink-400'}`}></div>
-                                    <div className="pl-3">
-                                        <div className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded mb-1 border ${item.type.includes('大') ? 'text-red-700 bg-red-50 border-red-200' : 'text-pink-700 bg-pink-50 border-pink-200'}`}>
-                                            <Icons.Star /> {item.type}
+                            {dataFiltered.length > 0 ? dataFiltered.map((item, idx) => {
+                                const isBig = item.type.includes('大');
+                                return (
+                                    <div key={idx} className={`bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center relative overflow-hidden group`}>
+                                        {/* 視覺管理：大組用主視覺顏色(紅)，小組用專屬顏色(藍) */}
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isBig ? `bg-${titleColor}-500` : 'bg-blue-500'}`}></div>
+                                        <div className="pl-3">
+                                            <div className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded mb-1 border ${isBig ? `text-${titleColor}-700 bg-${titleColor}-50 border-${titleColor}-200` : 'text-blue-700 bg-blue-50 border-blue-200'}`}>
+                                                <Icons.Star /> {item.type}
+                                            </div>
+                                            <div className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</div>
                                         </div>
-                                        <div className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</div>
+                                        <div className="text-right">
+                                            <div className="text-2xl font-black text-emerald-600">${fmtMoney(item.amount)}</div>
+                                        </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className="text-2xl font-black text-emerald-600">${fmtMoney(item.amount)}</div>
-                                    </div>
-                                </div>
-                            )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
+                                );
+                            }) : <div className="text-center py-8 text-slate-500 font-bold">查無資料</div>}
                         </div>
                     </div>
                 );
@@ -764,7 +825,7 @@
                                         setSearchTerm(e.target.value); setShowSuggestions(true);
                                         setFilterRole("ALL"); setLightFilterType("ALL"); setTaiSuiFilterType("ALL");
                                         setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL");
-                                        setPuzhuoFilter("ALL");
+                                        setPuzhuoFilter("ALL"); setBirthdayFilter("ALL");
                                     }}
                                     onFocus={() => { if(searchTerm) setShowSuggestions(true); }}
                                 />
@@ -790,7 +851,7 @@
                             </div>
                         )}
 
-                        {/* 新增功能：中元普桌 */}
+                        {/* 功能：中元普桌 */}
                         {activeTab === 'puzhuo' && visibleTabs.puzhuo && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="puzhuo" />
@@ -1097,7 +1158,7 @@
                             </div>
                         )}
 
-                        {/* 新增：帝君會員 */}
+                        {/* 功能：帝君會員 */}
                         {activeTab === 'member' && visibleTabs.member && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="member" />
