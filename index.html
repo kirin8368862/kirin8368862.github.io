@@ -187,10 +187,12 @@
             Scroll: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>,
             Lock: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>,
             Refresh: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-4 h-4 ${className}`}><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.13-5.83L2 8"></path></svg>,
-            Gift: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M12 8v13"></path><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"></path></svg>,
+            Gift: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-5 h-5"}><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M12 8v13"></path><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"></path></svg>,
             Alert: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
             Users: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
-            Star: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            Star: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
+            ChevronDown: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-4 h-4"}><polyline points="6 9 12 15 18 9"></polyline></svg>,
+            ChevronUp: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-4 h-4"}><polyline points="18 15 12 9 6 15"></polyline></svg>
         };
 
         const TABS_CONFIG = [
@@ -247,9 +249,12 @@
             const [taiSuiFilterType, setTaiSuiFilterType] = useState("ALL");
             const [eastTripFilter, setEastTripFilter] = useState("ALL");
             const [fujianTripFilter, setFujianTripFilter] = useState("ALL");
+            // 修改捐獻頁面篩選狀態：支援 DONATION (捐獻), VOW (答願), NAME (姓名統計)
+            const [donationViewMode, setDonationViewMode] = useState("DONATION"); 
             const [donationFilterItem, setDonationFilterItem] = useState("ALL");
-            const [donationViewMode, setDonationViewMode] = useState("ITEM"); 
-            const [birthdayFilter, setBirthdayFilter] = useState("ALL"); // 新增祝壽頁面篩選狀態
+            const [expandedDonationNames, setExpandedDonationNames] = useState(new Set()); // 儲存展開姓名的 Set
+            
+            const [birthdayFilter, setBirthdayFilter] = useState("ALL"); // 祝壽頁面篩選狀態
             
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [inputPassword, setInputPassword] = useState("");
@@ -527,7 +532,6 @@
             }, [MemberDataRaw, searchTerm]);
 
             // ================= 關聖帝君與王母娘娘祝壽資料處理邏輯 =================
-            // 獨立出 BaseFiltered 讓總計數字不受大/小組篩選按鈕影響
             const guanshengBaseFiltered = useMemo(() => {
                 let list = GuanshengDataRaw;
                 if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
@@ -546,18 +550,15 @@
                 let list = guanshengBaseFiltered;
                 if (birthdayFilter === 'BIG') list = list.filter(i => i.type.includes('大'));
                 if (birthdayFilter === 'SMALL') list = list.filter(i => i.type.includes('小'));
-                
-                // 排序邏輯：大組優先，小組在後
                 return [...list].sort((a, b) => {
                     const aIsBig = a.type.includes('大');
                     const bIsBig = b.type.includes('大');
                     if (aIsBig && !bIsBig) return -1;
                     if (!aIsBig && bIsBig) return 1;
-                    return 0; // 同組內維持原始順序
+                    return 0; 
                 });
             }, [guanshengBaseFiltered, birthdayFilter]);
 
-            // 同理套用於王母娘娘
             const wangmuBaseFiltered = useMemo(() => {
                 let list = WangmuDataRaw;
                 if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
@@ -576,8 +577,6 @@
                 let list = wangmuBaseFiltered;
                 if (birthdayFilter === 'BIG') list = list.filter(i => i.type.includes('大'));
                 if (birthdayFilter === 'SMALL') list = list.filter(i => i.type.includes('小'));
-                
-                // 排序邏輯：大組優先，小組在後
                 return [...list].sort((a, b) => {
                     const aIsBig = a.type.includes('大');
                     const bIsBig = b.type.includes('大');
@@ -586,33 +585,69 @@
                     return 0;
                 });
             }, [wangmuBaseFiltered, birthdayFilter]);
-            // =========================================================================
 
-            const donationItemsList = useMemo(() => {
-                const items = DonationDataRaw.map(i => i.item).filter(Boolean);
-                return [...new Set(items)];
-            }, [DonationDataRaw]);
-            
-            const donationFiltered = useMemo(() => {
+            // ================= 新版捐獻頁面邏輯 =================
+            // 基礎過濾清單 (僅受搜尋列影響)
+            const donationBaseFiltered = useMemo(() => {
                 let list = DonationDataRaw;
                 if(searchTerm) list = list.filter(i => i.name.includes(searchTerm) || i.item.includes(searchTerm));
-                if(donationFilterItem !== 'ALL') list = list.filter(i => i.item === donationFilterItem);
                 return list;
-            }, [DonationDataRaw, searchTerm, donationFilterItem]);
+            }, [DonationDataRaw, searchTerm]);
 
+            // 自動篩選相對應分類的下拉選單選項
+            const currentDonationItemsList = useMemo(() => {
+                let list = donationBaseFiltered;
+                if (donationViewMode === 'DONATION') {
+                    list = list.filter(i => !i.item.includes('答願'));
+                } else if (donationViewMode === 'VOW') {
+                    list = list.filter(i => i.item.includes('答願'));
+                }
+                const items = list.map(i => i.item).filter(Boolean);
+                return [...new Set(items)];
+            }, [donationBaseFiltered, donationViewMode]);
+            
+            // 捐獻/答願 列表顯示的過濾資料
+            const donationFiltered = useMemo(() => {
+                let list = donationBaseFiltered;
+                // 區分捐獻或答願
+                if (donationViewMode === 'DONATION') {
+                    list = list.filter(i => !i.item.includes('答願'));
+                } else if (donationViewMode === 'VOW') {
+                    list = list.filter(i => i.item.includes('答願'));
+                }
+                // 下拉選單指定項目過濾
+                if(donationFilterItem !== 'ALL') {
+                    list = list.filter(i => i.item === donationFilterItem);
+                }
+                return list;
+            }, [donationBaseFiltered, donationViewMode, donationFilterItem]);
+
+            // 依姓名統計，包含展開明細的計算
             const donationByName = useMemo(() => {
                 const map = new Map();
-                donationFiltered.forEach(item => {
+                donationBaseFiltered.forEach(item => {
                     if (map.has(item.name)) {
                         const existing = map.get(item.name);
                         existing.count += 1;
                         existing.amount += item.amount;
+                        existing.details.push(item); // 記錄明細項目
                     } else {
-                        map.set(item.name, { name: item.name, count: 1, amount: item.amount });
+                        map.set(item.name, { name: item.name, count: 1, amount: item.amount, details: [item] });
                     }
                 });
                 return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
-            }, [donationFiltered]);
+            }, [donationBaseFiltered]);
+
+            // 切換信眾明細展開狀態
+            const toggleExpandName = useCallback((name) => {
+                setExpandedDonationNames(prev => {
+                    const next = new Set(prev);
+                    if (next.has(name)) next.delete(name);
+                    else next.add(name);
+                    return next;
+                });
+            }, []);
+            // =========================================================================
 
             const suggestions = useMemo(() => {
                 if (!searchTerm) return [];
@@ -636,8 +671,8 @@
             
             const resetFilters = () => {
                 setSearchTerm(""); setTaiSuiFilterType("ALL"); setLightFilterType("ALL"); setFilterRole("ALL");
-                setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL"); setDonationViewMode("ITEM");
-                setPuzhuoFilter("ALL"); setBirthdayFilter("ALL"); // 切換頁籤時重置祝壽過濾
+                setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL"); setDonationViewMode("DONATION");
+                setPuzhuoFilter("ALL"); setBirthdayFilter("ALL"); setExpandedDonationNames(new Set());
             };
 
             if (isLoading) {
@@ -649,7 +684,6 @@
                 );
             }
 
-            // 更新 `TabUpdateDate` 支援接收左側內容 (leftContent)
             const TabUpdateDate = ({ tabKey, leftContent }) => (
                 <div className="flex justify-between items-center mb-2 fade-in min-h-[36px]">
                     <div>{leftContent}</div>
@@ -694,10 +728,7 @@
                 </div>
             );
 
-            // ================= 新版祝壽頁籤渲染邏輯 =================
             const renderBirthdayTab = (tabKey, titleColor, dataFiltered, dataStats) => {
-                
-                // 定義顯示全部按鈕
                 const showAllButton = (
                     <button
                         onClick={() => setBirthdayFilter('ALL')}
@@ -709,12 +740,10 @@
 
                 return (
                     <div className="fade-in">
-                        {/* 帶入左側顯示全部按鈕 */}
                         <TabUpdateDate tabKey={tabKey} leftContent={showAllButton} />
                         <ErrorBanner show={fetchErrors[tabKey]} />
                         
                         <div className={`bg-${titleColor}-50 rounded-xl p-3 shadow-inner border border-${titleColor}-100 mb-4 flex justify-between gap-2 overflow-x-auto`}>
-                            {/* 將大組數字改為可篩選按鈕 (使用原有的紅/玫瑰紅色系) */}
                             <button 
                                 onClick={() => setBirthdayFilter('BIG')}
                                 className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border shadow-sm transition-all ${birthdayFilter === 'BIG' ? `bg-${titleColor}-600 text-white border-${titleColor}-600` : `bg-white text-${titleColor}-600 border-${titleColor}-100 hover:bg-${titleColor}-50`}`}
@@ -723,7 +752,6 @@
                                 <span className="text-3xl font-black">{dataStats.big}</span>
                             </button>
                             
-                            {/* 將小組數字改為可篩選按鈕 (使用獨特藍色系達成視覺化區分) */}
                             <button 
                                 onClick={() => setBirthdayFilter('SMALL')}
                                 className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border shadow-sm transition-all ${birthdayFilter === 'SMALL' ? `bg-blue-600 text-white border-blue-600` : `bg-white text-blue-600 border-blue-100 hover:bg-blue-50`}`}
@@ -743,7 +771,6 @@
                                 const isBig = item.type.includes('大');
                                 return (
                                     <div key={idx} className={`bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center relative overflow-hidden group`}>
-                                        {/* 視覺管理：大組用主視覺顏色(紅)，小組用專屬顏色(藍) */}
                                         <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isBig ? `bg-${titleColor}-500` : 'bg-blue-500'}`}></div>
                                         <div className="pl-3">
                                             <div className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded mb-1 border ${isBig ? `text-${titleColor}-700 bg-${titleColor}-50 border-${titleColor}-200` : 'text-blue-700 bg-blue-50 border-blue-200'}`}>
@@ -825,7 +852,7 @@
                                         setSearchTerm(e.target.value); setShowSuggestions(true);
                                         setFilterRole("ALL"); setLightFilterType("ALL"); setTaiSuiFilterType("ALL");
                                         setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL");
-                                        setPuzhuoFilter("ALL"); setBirthdayFilter("ALL");
+                                        setPuzhuoFilter("ALL"); setBirthdayFilter("ALL"); setExpandedDonationNames(new Set());
                                     }}
                                     onFocus={() => { if(searchTerm) setShowSuggestions(true); }}
                                 />
@@ -934,23 +961,26 @@
                             </div>
                         )}
 
-                        {/* 功能：參香捐獻 */}
+                        {/* 功能：參香/宮慶捐獻 */}
                         {activeTab === 'donation' && visibleTabs.donation && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="donation" />
                                 <ErrorBanner show={fetchErrors.donation} />
                                 
-                                {/* 檢視模式切換 */}
+                                {/* 檢視模式切換：捐獻 / 答願 / 依姓名統計 */}
                                 <div className="flex bg-slate-200 p-1 rounded-xl mb-4 shadow-inner">
-                                    <button onClick={() => setDonationViewMode('ITEM')} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${donationViewMode === 'ITEM' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                        依項目檢視
+                                    <button onClick={() => { setDonationViewMode('DONATION'); setDonationFilterItem('ALL'); }} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${donationViewMode === 'DONATION' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                        捐獻
+                                    </button>
+                                    <button onClick={() => { setDonationViewMode('VOW'); setDonationFilterItem('ALL'); }} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${donationViewMode === 'VOW' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                        答願
                                     </button>
                                     <button onClick={() => setDonationViewMode('NAME')} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${donationViewMode === 'NAME' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                         依姓名統計
                                     </button>
                                 </div>
 
-                                {donationViewMode === 'ITEM' ? (
+                                {donationViewMode === 'DONATION' || donationViewMode === 'VOW' ? (
                                     <>
                                         <div className="bg-purple-50 rounded-xl p-4 shadow-inner border border-purple-100 mb-4 flex items-center justify-between gap-4">
                                             <div className="flex-1 relative">
@@ -959,8 +989,8 @@
                                                     onChange={e => setDonationFilterItem(e.target.value)} 
                                                     className="w-full p-3 rounded-lg border-2 border-purple-200 bg-white text-purple-800 font-bold focus:outline-none focus:border-purple-500 appearance-none shadow-sm"
                                                 >
-                                                    <option value="ALL">全部捐獻項目</option>
-                                                    {donationItemsList.map((name, i) => <option key={i} value={name}>{name}</option>)}
+                                                    <option value="ALL">全部{donationViewMode === 'VOW' ? '答願' : '捐獻'}項目</option>
+                                                    {currentDonationItemsList.map((name, i) => <option key={i} value={name}>{name}</option>)}
                                                 </select>
                                                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-purple-400">▼</div>
                                             </div>
@@ -993,18 +1023,45 @@
                                             <div className="text-3xl font-black">${fmtMoney(donationByName.reduce((acc, curr) => acc + curr.amount, 0))}</div>
                                         </div>
                                         <div className="space-y-3 fade-in">
-                                            {donationByName.length > 0 ? donationByName.map((item, idx) => (
-                                                <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center relative overflow-hidden">
-                                                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-400"></div>
-                                                    <div className="pl-2">
-                                                        <div className="text-xl font-bold text-slate-800 tracking-wide mb-1">{item.name}</div>
-                                                        <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded inline-block">共 {item.count} 筆記錄</div>
+                                            {donationByName.length > 0 ? donationByName.map((item, idx) => {
+                                                const isExpanded = expandedDonationNames.has(item.name);
+                                                return (
+                                                    <div key={idx} 
+                                                         onClick={() => toggleExpandName(item.name)} 
+                                                         className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col relative overflow-hidden cursor-pointer transition-colors hover:bg-slate-50">
+                                                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-400"></div>
+                                                        <div className="flex justify-between items-center w-full pl-2">
+                                                            <div>
+                                                                <div className="text-xl font-bold text-slate-800 tracking-wide mb-1 flex items-center gap-2">
+                                                                    {item.name}
+                                                                    {isExpanded ? <Icons.ChevronUp className="text-indigo-400"/> : <Icons.ChevronDown className="text-slate-400"/>}
+                                                                </div>
+                                                                <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded inline-block">共 {item.count} 筆記錄</div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <div className="text-2xl font-black text-indigo-600">${fmtMoney(item.amount)}</div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* 展開明細區域 */}
+                                                        {isExpanded && (
+                                                            <div className="mt-4 pt-3 border-t border-slate-100 pl-2 space-y-2 fade-in">
+                                                                {item.details.map((detail, dIdx) => (
+                                                                    <div key={dIdx} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                                                                                <Icons.Gift className="w-3 h-3" />
+                                                                            </span>
+                                                                            <span className="text-sm font-bold text-slate-700">{detail.item}</span>
+                                                                        </div>
+                                                                        <div className="text-sm font-black text-emerald-600">${fmtMoney(detail.amount)}</div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <div className="text-right">
-                                                        <div className="text-2xl font-black text-indigo-600">${fmtMoney(item.amount)}</div>
-                                                    </div>
-                                                </div>
-                                            )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
+                                                );
+                                            }) : <div className="text-center py-8 text-slate-500">查無資料</div>}
                                         </div>
                                     </>
                                 )}
