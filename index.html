@@ -934,7 +934,7 @@
                             </div>
                         )}
 
-                        {/* 功能：參香捐獻 */}
+  {/* 功能：參香捐獻 */}
                         {activeTab === 'donation' && visibleTabs.donation && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="donation" />
@@ -942,15 +942,18 @@
                                 
                                 {/* 檢視模式切換 */}
                                 <div className="flex bg-slate-200 p-1 rounded-xl mb-4 shadow-inner">
-                                    <button onClick={() => setDonationViewMode('ITEM')} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${donationViewMode === 'ITEM' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                        依項目檢視
+                                    <button onClick={() => { setDonationViewMode('DONATION'); setDonationFilterItem('ALL'); setExpandedDonationName(null); }} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${donationViewMode === 'DONATION' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                        一般捐獻
                                     </button>
-                                    <button onClick={() => setDonationViewMode('NAME')} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${donationViewMode === 'NAME' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                    <button onClick={() => { setDonationViewMode('VOW'); setDonationFilterItem('ALL'); setExpandedDonationName(null); }} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${donationViewMode === 'VOW' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                        答願
+                                    </button>
+                                    <button onClick={() => { setDonationViewMode('NAME'); setExpandedDonationName(null); }} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${donationViewMode === 'NAME' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                         依姓名統計
                                     </button>
                                 </div>
 
-                                {donationViewMode === 'ITEM' ? (
+                                {(donationViewMode === 'DONATION' || donationViewMode === 'VOW') ? (
                                     <>
                                         <div className="bg-purple-50 rounded-xl p-4 shadow-inner border border-purple-100 mb-4 flex items-center justify-between gap-4">
                                             <div className="flex-1 relative">
@@ -959,7 +962,7 @@
                                                     onChange={e => setDonationFilterItem(e.target.value)} 
                                                     className="w-full p-3 rounded-lg border-2 border-purple-200 bg-white text-purple-800 font-bold focus:outline-none focus:border-purple-500 appearance-none shadow-sm"
                                                 >
-                                                    <option value="ALL">全部捐獻項目</option>
+                                                    <option value="ALL">全部{donationViewMode === 'DONATION' ? '捐獻' : '答願'}項目</option>
                                                     {donationItemsList.map((name, i) => <option key={i} value={name}>{name}</option>)}
                                                 </select>
                                                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-purple-400">▼</div>
@@ -994,15 +997,37 @@
                                         </div>
                                         <div className="space-y-3 fade-in">
                                             {donationByName.length > 0 ? donationByName.map((item, idx) => (
-                                                <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center relative overflow-hidden">
+                                                <div key={idx} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative">
                                                     <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-400"></div>
-                                                    <div className="pl-2">
-                                                        <div className="text-xl font-bold text-slate-800 tracking-wide mb-1">{item.name}</div>
-                                                        <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded inline-block">共 {item.count} 筆記錄</div>
+                                                    <div 
+                                                        className="p-4 flex justify-between items-center relative cursor-pointer hover:bg-slate-50 transition-colors"
+                                                        onClick={() => setExpandedDonationName(expandedDonationName === item.name ? null : item.name)}
+                                                    >
+                                                        <div className="pl-2">
+                                                            <div className="text-xl font-bold text-slate-800 tracking-wide mb-1 flex items-center gap-2">
+                                                                {item.name}
+                                                                <svg className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${expandedDonationName === item.name ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                                                            </div>
+                                                            <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded inline-block">共 {item.count} 筆記錄</div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="text-2xl font-black text-indigo-600">${fmtMoney(item.amount)}</div>
+                                                        </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <div className="text-2xl font-black text-indigo-600">${fmtMoney(item.amount)}</div>
-                                                    </div>
+                                                    
+                                                    {expandedDonationName === item.name && (
+                                                        <div className="bg-slate-50 border-t border-slate-100 p-3 space-y-2 fade-in">
+                                                            {item.records.map((rec, rIdx) => (
+                                                                <div key={rIdx} className="flex justify-between items-center text-sm px-3 py-2 bg-white rounded border border-slate-100 shadow-sm">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                                                                        <span className="font-bold text-slate-700">{rec.item}</span>
+                                                                    </div>
+                                                                    <span className="font-black text-emerald-600">${fmtMoney(rec.amount)}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
                                         </div>
@@ -1010,7 +1035,6 @@
                                 )}
                             </div>
                         )}
-
                         {/* 功能：小琉球二日行 */}
                         {activeTab === 'fujian' && visibleTabs.fujian && (
                             <div className="fade-in">
