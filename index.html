@@ -46,7 +46,8 @@
             donation: "https://docs.google.com/spreadsheets/d/1tyVkgPvtkvnFIoj2Y16a-Z85EXMojL8BUM7KntPzCzU/gviz/tq?tqx=out:csv&gid=935792502",
             member: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1548605444&single=true&output=csv", 
             guansheng: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1292456593&single=true&output=csv",
-            wangmu: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1713222138&single=true&output=csv"
+            wangmu: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1713222138&single=true&output=csv",
+            buyinku: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1149465647&single=true&output=csv"
         };
 
         const fmtMoney = (num) => new Intl.NumberFormat('zh-TW').format(num);
@@ -134,6 +135,7 @@
             let itemKey = keys.find(k => k.includes('項目')) || keys[0];
             let nameKey = keys.find(k => k.includes('姓名') || k.includes('名單')) || keys[1];
             let amountKey = keys.find(k => k.includes('金額') || k.includes('元')) || keys[2];
+            let dateKey = keys.find(k => k.includes('日期')) || keys[3]; // 新增日期擷取
 
             return parsed.map((row, i) => {
                 const cleanAmount = parseInt((row[amountKey] || '0').replace(/,/g, '').replace(/\$/g, ''), 10) || 0;
@@ -141,7 +143,8 @@
                     id: i,
                     item: (row[itemKey] || '').trim(),
                     name: (row[nameKey] || '').trim(),
-                    amount: cleanAmount
+                    amount: cleanAmount,
+                    date: (row[dateKey] || row['_col_3'] || '').trim() // 支援備用欄位取值
                 };
             }).filter(r => r.name || r.amount > 0);
         };
@@ -174,6 +177,74 @@
             }).filter(r => r.name);
         };
 
+        const extractBuyinku = (parsed) => {
+            if(!parsed || parsed.length === 0) return [];
+            
+            const regMap = new Map();
+            const paidMap = new Map();
+
+            parsed.forEach((row, index) => {
+                // 登記名單：A欄(_col_0), B欄(_col_1), C欄(_col_2) 
+                // index >= 0 表示 A2(排除表頭後的第一筆)開始
+                const id = (row['_col_0'] || '').trim();
+                const name = (row['_col_1'] || '').trim();
+                const qtyStr = (row['_col_2'] || '').replace(/\D/g, '');
+                const qty = qtyStr ? parseInt(qtyStr, 10) : 0;
+                
+                if (name && !name.includes('姓名')) {
+                    regMap.set(name, { id, qty });
+                }
+
+                // 已繳費名單：E欄(_col_4), F欄(_col_5)
+                // index >= 1 表示 E3 開始
+                if (index >= 1) {
+                    const paidName = (row['_col_4'] || '').trim();
+                    const paidQtyStr = (row['_col_5'] || '').replace(/\D/g, '');
+                    const paidQty = paidQtyStr ? parseInt(paidQtyStr, 10) : 0;
+                    
+                    if (paidName && !paidName.includes('姓名')) {
+                        paidMap.set(paidName, paidQty);
+                    }
+                }
+            });
+
+            const finalData = [];
+
+            // 比對登記名單與繳費名單
+            regMap.forEach((data, name) => {
+                const hasPaid = paidMap.has(name);
+                const paidQty = hasPaid ? paidMap.get(name) : 0;
+                const isQtyMismatch = hasPaid && (paidQty !== data.qty); // 金紙份數不同
+
+                finalData.push({
+                    id: data.id,
+                    name: name,
+                    regQty: data.qty,
+                    paidQty: paidQty,
+                    isPaid: hasPaid,
+                    isUnregistered: false,
+                    isAnomaly: isQtyMismatch
+                });
+            });
+
+            // 尋找已繳費但未登記名單
+            paidMap.forEach((paidQty, name) => {
+                if (!regMap.has(name)) {
+                    finalData.push({
+                        id: '-',
+                        name: name,
+                        regQty: 0,
+                        paidQty: paidQty,
+                        isPaid: true,
+                        isUnregistered: true,
+                        isAnomaly: true
+                    });
+                }
+            });
+
+            return finalData;
+        };
+
         const sortById = (a, b) => {
             if (!a.id || !b.id) return 0;
             const firstA = String(a.id)[0];
@@ -193,9 +264,10 @@
         const DEFAULT_TAISUI_DATA = [{id:"1A1",n:"黃淑霞",r:1,p:1}];
         const DEFAULT_LIGHT_DATA = [{id:"1B10",n:"游宇閎",t:1,r:1,p:1}];
         const DEFAULT_TRIP_DATA = [ { id: 1, name: "測試資料", isPaid: true } ];
-        const DEFAULT_DONATION_DATA = [{ id: 1, item: "白米", name: "測試善人", amount: 500 }];
+        const DEFAULT_DONATION_DATA = [{ id: 1, item: "白米", name: "測試善人", amount: 500, date: "2023/10/01" }];
         const DEFAULT_MEMBER_DATA = [{ id: 1, name: "測試會員" }];
         const DEFAULT_BIRTHDAY_DATA = [{ id: 1, name: "測試信眾", type: "大組", amount: 1200 }];
+        const DEFAULT_BUYINKU_DATA = [{ id: "1", name: "測試資料", regQty: 1, paidQty: 1, isPaid: true, isUnregistered: false, isAnomaly: false }];
 
         const Icons = {
             Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
@@ -211,11 +283,13 @@
             Users: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
             Star: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
             ChevronDown: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-4 h-4"}><polyline points="6 9 12 15 18 9"></polyline></svg>,
-            ChevronUp: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-4 h-4"}><polyline points="18 15 12 9 6 15"></polyline></svg>
+            ChevronUp: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-4 h-4"}><polyline points="18 15 12 9 6 15"></polyline></svg>,
+            Archive: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
         };
 
         const TABS_CONFIG = [
             { id: 'puzhuo', name: '中元普桌' },
+            { id: 'buyinku', name: '補陰庫' }, // 新增補陰庫頁籤
             { id: 'donation', name: '宮慶捐獻' },
             { id: 'guansheng', name: '關聖帝君祝壽' },
             { id: 'wangmu', name: '王母娘娘祝壽' },
@@ -234,12 +308,12 @@
             // 狀態：管理各分頁的隱藏/顯示
             const [visibleTabs, setVisibleTabs] = useState({
                 puzhuo: true, records: true, taisui: true, light: true, east: true, 
-                fujian: true, donation: true, member: true, guansheng: true, wangmu: true
+                fujian: true, donation: true, member: true, guansheng: true, wangmu: true, buyinku: true
             });
 
             const [updateDates, setUpdateDates] = useState({
                 puzhuo: "", records: "", taisui: "", light: "", east: "", fujian: "", 
-                donation: "", member: "", guansheng: "", wangmu: ""
+                donation: "", member: "", guansheng: "", wangmu: "", buyinku: ""
             });
             
             const [PuzhuoDataRaw, setPuzhuoDataRaw] = useState([]);
@@ -252,9 +326,10 @@
             const [MemberDataRaw, setMemberDataRaw] = useState([]);
             const [GuanshengDataRaw, setGuanshengDataRaw] = useState([]);
             const [WangmuDataRaw, setWangmuDataRaw] = useState([]);
+            const [BuyinkuDataRaw, setBuyinkuDataRaw] = useState([]); // 新增補陰庫資料
 
             const [fetchErrors, setFetchErrors] = useState({ 
-                puzhuo: false, east: false, fujian: false, donation: false, member: false, guansheng: false, wangmu: false 
+                puzhuo: false, east: false, fujian: false, donation: false, member: false, guansheng: false, wangmu: false, buyinku: false 
             });
 
             const [activeTab, setActiveTab] = useState("puzhuo"); 
@@ -268,12 +343,13 @@
             const [taiSuiFilterType, setTaiSuiFilterType] = useState("ALL");
             const [eastTripFilter, setEastTripFilter] = useState("ALL");
             const [fujianTripFilter, setFujianTripFilter] = useState("ALL");
-            // 修改捐獻頁面篩選狀態：支援 DONATION (捐獻), VOW (答願), NAME (姓名統計)
+            const [buyinkuFilter, setBuyinkuFilter] = useState("ALL"); // 新增補陰庫過濾
+            
             const [donationViewMode, setDonationViewMode] = useState("DONATION"); 
             const [donationFilterItem, setDonationFilterItem] = useState("ALL");
-            const [expandedDonationNames, setExpandedDonationNames] = useState(new Set()); // 儲存展開姓名的 Set
+            const [expandedDonationNames, setExpandedDonationNames] = useState(new Set()); 
             
-            const [birthdayFilter, setBirthdayFilter] = useState("ALL"); // 祝壽頁面篩選狀態
+            const [birthdayFilter, setBirthdayFilter] = useState("ALL"); 
             
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [inputPassword, setInputPassword] = useState("");
@@ -376,6 +452,7 @@
                 const resMember = await fetchData(GOOGLE_SHEETS_URLS.member, extractMember);
                 const resGuansheng = await fetchData(GOOGLE_SHEETS_URLS.guansheng, extractBirthday);
                 const resWangmu = await fetchData(GOOGLE_SHEETS_URLS.wangmu, extractBirthday);
+                const resBuyinku = await fetchData(GOOGLE_SHEETS_URLS.buyinku, extractBuyinku); // 獲取補陰庫
 
                 setUpdateDates({
                     puzhuo: resPuzhuo.date,
@@ -387,7 +464,8 @@
                     donation: resDonation.date,
                     member: resMember.date,
                     guansheng: resGuansheng.date,
-                    wangmu: resWangmu.date
+                    wangmu: resWangmu.date,
+                    buyinku: resBuyinku.date
                 });
 
                 setVisibleTabs({
@@ -400,7 +478,8 @@
                     donation: !resDonation.isHidden,
                     member: !resMember.isHidden,
                     guansheng: !resGuansheng.isHidden,
-                    wangmu: !resWangmu.isHidden
+                    wangmu: !resWangmu.isHidden,
+                    buyinku: !resBuyinku.isHidden
                 });
 
                 setFetchErrors({
@@ -410,7 +489,8 @@
                     donation: resDonation.error || resDonation.data.length === 0,
                     member: resMember.error || resMember.data.length === 0,
                     guansheng: resGuansheng.error || resGuansheng.data.length === 0,
-                    wangmu: resWangmu.error || resWangmu.data.length === 0
+                    wangmu: resWangmu.error || resWangmu.data.length === 0,
+                    buyinku: resBuyinku.error || resBuyinku.data.length === 0
                 });
 
                 setPuzhuoDataRaw(resPuzhuo.data.length > 0 ? resPuzhuo.data : [...DEFAULT_PUZHUO_DATA]);
@@ -423,6 +503,7 @@
                 setMemberDataRaw(resMember.data.length > 0 ? resMember.data : [...DEFAULT_MEMBER_DATA]);
                 setGuanshengDataRaw(resGuansheng.data.length > 0 ? resGuansheng.data : [...DEFAULT_BIRTHDAY_DATA]);
                 setWangmuDataRaw(resWangmu.data.length > 0 ? resWangmu.data : [...DEFAULT_BIRTHDAY_DATA]);
+                setBuyinkuDataRaw(resBuyinku.data.length > 0 ? resBuyinku.data : [...DEFAULT_BUYINKU_DATA]); // 設定補陰庫資料
                 
                 setIsLoading(false);
                 setIsRefreshing(false);
@@ -488,6 +569,56 @@
                 };
             }, [PuzhuoDataRaw, searchTerm]);
 
+            // ================= 新版補陰庫過濾與統計 =================
+            const buyinkuBaseFiltered = useMemo(() => {
+                let list = BuyinkuDataRaw;
+                if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
+                return list;
+            }, [BuyinkuDataRaw, searchTerm]);
+
+            const buyinkuStats = useMemo(() => {
+                let regTotal = 0, regQtyTotal = 0;
+                let paidTotal = 0, paidQtyTotal = 0;
+                let unpaidTotal = 0, unpaidQtyTotal = 0;
+                let anomalyTotal = 0;
+
+                buyinkuBaseFiltered.forEach(i => {
+                    // 登記總數計算
+                    if (!i.isUnregistered) {
+                        regTotal += 1;
+                        regQtyTotal += i.regQty;
+                        
+                        // 計算未繳費 (有登記且未繳費)
+                        if (!i.isPaid) {
+                            unpaidTotal += 1;
+                            unpaidQtyTotal += i.regQty;
+                        }
+                    }
+
+                    // 繳費總數計算
+                    if (i.isPaid) {
+                        paidTotal += 1;
+                        paidQtyTotal += i.paidQty;
+                    }
+
+                    // 異常總數 (未登記或份數不符)
+                    if (i.isAnomaly) {
+                        anomalyTotal += 1;
+                    }
+                });
+
+                return { regTotal, regQtyTotal, paidTotal, paidQtyTotal, unpaidTotal, unpaidQtyTotal, anomalyTotal };
+            }, [buyinkuBaseFiltered]);
+
+            const buyinkuFiltered = useMemo(() => {
+                let list = buyinkuBaseFiltered;
+                if (buyinkuFilter === 'UNPAID') return list.filter(i => !i.isPaid && !i.isUnregistered);
+                if (buyinkuFilter === 'PAID') return list.filter(i => i.isPaid);
+                if (buyinkuFilter === 'ANOMALY') return list.filter(i => i.isAnomaly);
+                return list; // ALL
+            }, [buyinkuBaseFiltered, buyinkuFilter]);
+            // ========================================================
+
             const recordFiltered = useMemo(() => {
                 if (!searchTerm) return RecordData;
                 return RecordData.filter(item => item.name.includes(searchTerm) || item.group.includes(searchTerm));
@@ -505,9 +636,11 @@
                 if (!searchTerm) return TaiSuiData;
                 return TaiSuiData.filter(item => item.n.includes(searchTerm) || (item.id && item.id.includes(searchTerm.toUpperCase())));
             }, [searchTerm, TaiSuiData]);
+            
             const taiSuiStats = useMemo(() => ({
                 reg: taiSuiFiltered.filter(i => i.r === 1).length, paid: taiSuiFiltered.filter(i => i.p === 1).length, unpaid: taiSuiFiltered.filter(i => i.p === 0).length
             }), [taiSuiFiltered]);
+            
             const taiSuiDisplay = useMemo(() => {
                 if (taiSuiFilterType === 'UNPAID') return taiSuiFiltered.filter(i => i.p === 0);
                 if (taiSuiFilterType === 'PAID') return taiSuiFiltered.filter(i => i.p === 1);
@@ -687,11 +820,12 @@
                     ...PuzhuoDataRaw.map(i => i.name1), ...PuzhuoDataRaw.map(i => i.name2),
                     ...RecordData.map(i => i.name), ...TaiSuiData.map(i => i.n), ...LightData.map(i => i.n),
                     ...EastTripDataRaw.map(i => i.name), ...FujianTripDataRaw.map(i => i.name), ...DonationDataRaw.map(i => i.name),
-                    ...MemberDataRaw.map(i => i.name), ...GuanshengDataRaw.map(i => i.name), ...WangmuDataRaw.map(i => i.name)
+                    ...MemberDataRaw.map(i => i.name), ...GuanshengDataRaw.map(i => i.name), ...WangmuDataRaw.map(i => i.name),
+                    ...BuyinkuDataRaw.map(i => i.name)
                 ].filter(Boolean);
                 const matches = allNames.filter(name => name.includes(searchTerm) && name !== searchTerm);
                 return [...new Set(matches)].slice(0, 8);
-            }, [searchTerm, PuzhuoDataRaw, RecordData, TaiSuiData, LightData, EastTripDataRaw, FujianTripDataRaw, DonationDataRaw, MemberDataRaw, GuanshengDataRaw, WangmuDataRaw]);
+            }, [searchTerm, PuzhuoDataRaw, RecordData, TaiSuiData, LightData, EastTripDataRaw, FujianTripDataRaw, DonationDataRaw, MemberDataRaw, GuanshengDataRaw, WangmuDataRaw, BuyinkuDataRaw]);
 
             const handleSelectSuggestion = (name) => { setSearchTerm(name); setShowSuggestions(false); };
             const handleClear = () => { setSearchTerm(""); setShowSuggestions(false); };
@@ -705,6 +839,7 @@
                 setSearchTerm(""); setTaiSuiFilterType("ALL"); setLightFilterType("ALL"); setFilterRole("ALL");
                 setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL"); setDonationViewMode("DONATION");
                 setPuzhuoFilter("ALL"); setBirthdayFilter("ALL"); setExpandedDonationNames(new Set());
+                setBuyinkuFilter("ALL"); // 重置補陰庫過濾
             };
 
             if (isLoading) {
@@ -885,6 +1020,7 @@
                                         setFilterRole("ALL"); setLightFilterType("ALL"); setTaiSuiFilterType("ALL");
                                         setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL");
                                         setPuzhuoFilter("ALL"); setBirthdayFilter("ALL"); setExpandedDonationNames(new Set());
+                                        setBuyinkuFilter("ALL");
                                     }}
                                     onFocus={() => { if(searchTerm) setShowSuggestions(true); }}
                                 />
@@ -977,6 +1113,86 @@
                             </div>
                         )}
                         
+                        {/* 新增功能：補陰庫 */}
+                        {activeTab === 'buyinku' && visibleTabs.buyinku && (
+                            <div className="fade-in">
+                                <TabUpdateDate tabKey="buyinku" />
+                                <ErrorBanner show={fetchErrors.buyinku} />
+
+                                <div className="grid grid-cols-2 gap-3 mb-3">
+                                    <button onClick={() => setBuyinkuFilter('ALL')} className={`rounded-xl p-3 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${buyinkuFilter === 'ALL' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50'}`}>
+                                        <div className="flex items-center gap-1 mb-1">
+                                            <Icons.Archive />
+                                            <span className={`text-sm font-bold ${buyinkuFilter === 'ALL' ? 'text-indigo-100' : 'text-indigo-500'}`}>登記總計</span>
+                                        </div>
+                                        <div className="text-2xl font-black">{buyinkuStats.regTotal} <span className="text-base font-bold opacity-70">人</span></div>
+                                        <div className="text-sm font-bold opacity-80 mt-1">共 {buyinkuStats.regQtyTotal} 份</div>
+                                    </button>
+                                    
+                                    <button onClick={() => setBuyinkuFilter('PAID')} className={`rounded-xl p-3 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${buyinkuFilter === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}>
+                                        <div className={`text-sm font-bold mb-1 flex items-center gap-1 ${buyinkuFilter === 'PAID' ? 'text-emerald-100' : 'text-emerald-600'}`}>已繳費</div>
+                                        <div className="text-2xl font-black">{buyinkuStats.paidTotal} <span className="text-base font-bold opacity-70">人</span></div>
+                                        <div className="text-sm font-bold opacity-80 mt-1">共 {buyinkuStats.paidQtyTotal} 份</div>
+                                    </button>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-3 mb-4">
+                                    <button onClick={() => setBuyinkuFilter('UNPAID')} className={`rounded-xl p-3 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${buyinkuFilter === 'UNPAID' ? 'bg-red-600 text-white border-red-600' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'}`}>
+                                        <div className={`text-sm font-bold mb-1 flex items-center gap-1 ${buyinkuFilter === 'UNPAID' ? 'text-red-100' : 'text-red-600'}`}>未繳費</div>
+                                        <div className="text-2xl font-black">{buyinkuStats.unpaidTotal} <span className="text-base font-bold opacity-70">人</span></div>
+                                        <div className="text-sm font-bold opacity-80 mt-1">共 {buyinkuStats.unpaidQtyTotal} 份</div>
+                                    </button>
+
+                                    <button onClick={() => setBuyinkuFilter('ANOMALY')} className={`rounded-xl p-3 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${buyinkuFilter === 'ANOMALY' ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'}`}>
+                                        <div className={`text-sm font-bold mb-1 flex items-center gap-1 ${buyinkuFilter === 'ANOMALY' ? 'text-amber-100' : 'text-amber-600'}`}>異常偵測</div>
+                                        <div className="text-2xl font-black flex items-center gap-1">
+                                            {buyinkuStats.anomalyTotal > 0 && buyinkuFilter !== 'ANOMALY' && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
+                                            {buyinkuStats.anomalyTotal} <span className="text-base font-bold opacity-70">筆</span>
+                                        </div>
+                                        <div className="text-sm font-bold opacity-80 mt-1">未登記/份數不符</div>
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3 fade-in">
+                                    {buyinkuFiltered.length > 0 ? buyinkuFiltered.map((item, idx) => (
+                                        <div key={idx} className={`bg-white p-4 rounded-xl shadow-sm border flex flex-col gap-2 relative overflow-hidden group ${item.isAnomaly ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'}`}>
+                                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${item.isUnregistered ? 'bg-amber-400' : item.isAnomaly ? 'bg-orange-500' : 'bg-indigo-400'}`}></div>
+                                            
+                                            <div className="flex justify-between items-start pl-2">
+                                                <div className="flex items-center gap-2">
+                                                    {item.id !== '-' && <div className="bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded text-sm min-w-[2rem] text-center">{item.id}</div>}
+                                                    <span className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</span>
+                                                </div>
+                                                <div className={`px-2 py-1 rounded-md text-sm font-bold flex items-center gap-1 border ${item.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                                                    {item.isPaid ? <Icons.Check /> : <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
+                                                    {item.isPaid ? '已繳費' : '未繳費'}
+                                                </div>
+                                            </div>
+
+                                            <div className="pl-2 mt-1">
+                                                {!item.isUnregistered && (
+                                                    <div className="text-sm font-bold text-slate-600 flex items-center gap-2">
+                                                        登記份數：<span className="text-lg text-indigo-600">{item.regQty}</span> 份
+                                                    </div>
+                                                )}
+                                                
+                                                {/* 異常警告標語 */}
+                                                {item.isAnomaly && (
+                                                    <div className="mt-2 text-sm font-bold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg flex flex-col gap-1">
+                                                        {item.isUnregistered ? (
+                                                            <div className="flex items-center gap-1"><Icons.Alert /> 已繳費，但未在登記名單中！(繳費 {item.paidQty} 份)</div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-1"><Icons.Alert /> 份數不符！(登記 {item.regQty} 份，實際繳費 {item.paidQty} 份)</div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )) : <div className="text-center py-8 text-slate-500 font-bold">查無資料</div>}
+                                </div>
+                            </div>
+                        )}
+
                         {/* 功能：東部參香 */}
                         {activeTab === 'east' && visibleTabs.east && (
                             <div className="fade-in">
@@ -1040,8 +1256,12 @@
                                                 <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center group relative overflow-hidden">
                                                     <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-purple-400"></div>
                                                     <div className="pl-2">
-                                                        <div className="inline-flex items-center gap-1 text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded mb-1 border border-purple-100">
-                                                            <Icons.Gift /> {item.item}
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <div className="inline-flex items-center gap-1 text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                                                                <Icons.Gift /> {item.item}
+                                                            </div>
+                                                            {/* 顯示日期 */}
+                                                            {item.date && <span className="text-xs font-medium text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">{item.date}</span>}
                                                         </div>
                                                         <div className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</div>
                                                     </div>
@@ -1083,14 +1303,18 @@
                                                         {isExpanded && (
                                                             <div className="mt-4 pt-3 border-t border-slate-100 pl-2 space-y-2 fade-in">
                                                                 {item.details.map((detail, dIdx) => (
-                                                                    <div key={dIdx} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded font-bold flex items-center gap-1">
-                                                                                <Icons.Gift className="w-3 h-3" />
-                                                                            </span>
-                                                                            <span className="text-sm font-bold text-slate-700">{detail.item}</span>
+                                                                    <div key={dIdx} className="flex flex-col bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                                                        <div className="flex justify-between items-center mb-1">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                                                                                    <Icons.Gift className="w-3 h-3" />
+                                                                                </span>
+                                                                                <span className="text-sm font-bold text-slate-700">{detail.item}</span>
+                                                                            </div>
+                                                                            <div className="text-sm font-black text-emerald-600">${fmtMoney(detail.amount)}</div>
                                                                         </div>
-                                                                        <div className="text-sm font-black text-emerald-600">${fmtMoney(detail.amount)}</div>
+                                                                        {/* 顯示明細日期 */}
+                                                                        {detail.date && <div className="text-xs text-slate-400 ml-8">{detail.date}</div>}
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -1273,10 +1497,10 @@
                             </div>
                         )}
 
-                        {/* 新增：關聖帝君祝壽 */}
+                        {/* 關聖帝君祝壽 */}
                         {activeTab === 'guansheng' && visibleTabs.guansheng && renderBirthdayTab('guansheng', 'red', guanshengFiltered, guanshengStats)}
 
-                        {/* 新增：王母娘娘祝壽 */}
+                        {/* 王母娘娘祝壽 */}
                         {activeTab === 'wangmu' && visibleTabs.wangmu && renderBirthdayTab('wangmu', 'rose', wangmuFiltered, wangmuStats)}
 
                     </div>
