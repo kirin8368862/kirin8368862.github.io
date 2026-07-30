@@ -52,6 +52,63 @@
 
         const fmtMoney = (num) => new Intl.NumberFormat('zh-TW').format(num);
 
+        // 處理日期格式（涵蓋民國年轉西元年、各種分隔符）供比對與排序使用
+        const getSortableDate = (dateStr) => {
+            if (!dateStr) return Number.MAX_SAFE_INTEGER;
+            
+            // 替換全形數字為半形 (如果有)
+            let str = String(dateStr).trim().replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0) - 65248));
+            
+            // 統一轉換各種常見分隔符與中文字為 '/'
+            str = str.replace(/[.、\-年月]/g, '/').replace(/[日號]/g, '').replace(/\/+$/, '');
+            
+            let parts = str.split('/').filter(p => p.trim() !== ''); 
+            if (parts.length === 0) return Number.MAX_SAFE_INTEGER;
+            
+            let y, m, d;
+            const currentYear = new Date().getFullYear();
+
+            if (parts.length >= 3) {
+                y = parseInt(parts[0], 10);
+                m = parseInt(parts[1], 10);
+                d = parseInt(parts[2], 10);
+            } else if (parts.length === 2) {
+                let p0 = parseInt(parts[0], 10);
+                let p1 = parseInt(parts[1], 10);
+                // 若第一個數字大於 31，通常是年份 (如 113/05 -> 113年5月)
+                if (p0 > 31) {
+                    y = p0; m = p1; d = 1;
+                } else {
+                    // 若小於等於 31，通常是省略年份的 月/日 (如 7月5日)
+                    y = currentYear; m = p0; d = p1;
+                }
+            } else if (parts.length === 1) {
+                let p0 = parseInt(parts[0], 10);
+                // 只有單一數字的防呆處理
+                if (p0 > 31) { 
+                    y = p0; m = 1; d = 1; 
+                } else { 
+                    y = currentYear; m = p0; d = 1; 
+                }
+            }
+
+            // 轉換民國年為西元年 (例如 113 + 1911 = 2024)
+            if (y < 1911) y += 1911;
+
+            // 確保資料為有效數字
+            if (isNaN(y) || isNaN(m) || isNaN(d)) return Number.MAX_SAFE_INTEGER;
+            
+            // 建立 Date 物件，月份從 0 開始所以 m-1
+            let dObj = new Date(y, m - 1, d);
+            return isNaN(dObj.getTime()) ? Number.MAX_SAFE_INTEGER : dObj.getTime();
+        };
+
+        const formatDateObj = (timestamp) => {
+            if (timestamp === Number.MAX_SAFE_INTEGER) return "無日期紀錄";
+            const d = new Date(timestamp);
+            return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+        };
+
         const splitCSVRow = (str) => {
             let row = [''], i = 0, inQuotes = false;
             for (let char of str) {
@@ -185,7 +242,6 @@
 
             parsed.forEach((row, index) => {
                 // 登記名單：A欄(_col_0), B欄(_col_1), C欄(_col_2) 
-                // index >= 0 表示 A2(排除表頭後的第一筆)開始
                 const id = (row['_col_0'] || '').trim();
                 const name = (row['_col_1'] || '').trim();
                 const qtyStr = (row['_col_2'] || '').replace(/\D/g, '');
@@ -196,7 +252,6 @@
                 }
 
                 // 已繳費名單：E欄(_col_4), F欄(_col_5)
-                // index >= 1 表示 E3 開始
                 if (index >= 1) {
                     const paidName = (row['_col_4'] || '').trim();
                     const paidQtyStr = (row['_col_5'] || '').replace(/\D/g, '');
@@ -270,7 +325,7 @@
         const DEFAULT_BUYINKU_DATA = [{ id: "1", name: "測試資料", regQty: 1, paidQty: 1, isPaid: true, isUnregistered: false, isAnomaly: false }];
 
         const Icons = {
-            Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
+            Calendar: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-5 h-5"}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
             Search: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
             XCircle: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>,
             Check: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-emerald-600"><polyline points="20 6 9 17 4 12"></polyline></svg>,
@@ -289,7 +344,7 @@
 
         const TABS_CONFIG = [
             { id: 'puzhuo', name: '中元普桌' },
-            { id: 'buyinku', name: '補陰庫' }, // 新增補陰庫頁籤
+            { id: 'buyinku', name: '補陰庫' },
             { id: 'donation', name: '宮慶捐獻' },
             { id: 'guansheng', name: '關聖帝君祝壽' },
             { id: 'wangmu', name: '王母娘娘祝壽' },
@@ -305,7 +360,6 @@
             const [isLoading, setIsLoading] = useState(true);
             const [isRefreshing, setIsRefreshing] = useState(false);
             
-            // 狀態：管理各分頁的隱藏/顯示
             const [visibleTabs, setVisibleTabs] = useState({
                 puzhuo: true, records: true, taisui: true, light: true, east: true, 
                 fujian: true, donation: true, member: true, guansheng: true, wangmu: true, buyinku: true
@@ -326,7 +380,7 @@
             const [MemberDataRaw, setMemberDataRaw] = useState([]);
             const [GuanshengDataRaw, setGuanshengDataRaw] = useState([]);
             const [WangmuDataRaw, setWangmuDataRaw] = useState([]);
-            const [BuyinkuDataRaw, setBuyinkuDataRaw] = useState([]); // 新增補陰庫資料
+            const [BuyinkuDataRaw, setBuyinkuDataRaw] = useState([]);
 
             const [fetchErrors, setFetchErrors] = useState({ 
                 puzhuo: false, east: false, fujian: false, donation: false, member: false, guansheng: false, wangmu: false, buyinku: false 
@@ -336,18 +390,20 @@
             const [searchTerm, setSearchTerm] = useState("");
             const [showSuggestions, setShowSuggestions] = useState(false);
             
-            // 各頁面 Filter States
             const [puzhuoFilter, setPuzhuoFilter] = useState("ALL");
             const [filterRole, setFilterRole] = useState("ALL"); 
             const [lightFilterType, setLightFilterType] = useState("ALL");
             const [taiSuiFilterType, setTaiSuiFilterType] = useState("ALL");
             const [eastTripFilter, setEastTripFilter] = useState("ALL");
             const [fujianTripFilter, setFujianTripFilter] = useState("ALL");
-            const [buyinkuFilter, setBuyinkuFilter] = useState("ALL"); // 新增補陰庫過濾
+            const [buyinkuFilter, setBuyinkuFilter] = useState("ALL");
             
             const [donationViewMode, setDonationViewMode] = useState("DONATION"); 
             const [donationFilterItem, setDonationFilterItem] = useState("ALL");
             const [expandedDonationNames, setExpandedDonationNames] = useState(new Set()); 
+            
+            // 新增: 捐獻紀錄的開始日期篩選狀態
+            const [donationStartDate, setDonationStartDate] = useState(""); 
             
             const [birthdayFilter, setBirthdayFilter] = useState("ALL"); 
             
@@ -411,7 +467,7 @@
                             return headersRaw.reduce((obj, header, i) => {
                                 const cleanHeader = header.replace(/["'\s]+/g, '');
                                 obj[cleanHeader] = values[i] || '';
-                                obj[`_col_${i}`] = values[i] || ''; // 確保可依欄位索引取值
+                                obj[`_col_${i}`] = values[i] || ''; 
                                 return obj;
                             }, {});
                         });
@@ -423,63 +479,44 @@
                 };
 
                 const resPuzhuo = await fetchData(GOOGLE_SHEETS_URLS.puzhuo, extractPuzhuo);
-
                 const resRecord = await fetchData(GOOGLE_SHEETS_URLS.records, parsed => parsed.map(row => ({
                     group: row['組別'] || '', role: row['身份'] || '', name: row['姓名'] || '', date: row['繳交至'] || ''
                 })).filter(r => r.name));
-
                 const resTaiSui = await fetchData(GOOGLE_SHEETS_URLS.taiSui, parsed => parsed.map(row => ({
                     id: row['編號'] || '', n: row['姓名'] || '', 
                     r: checkStatus(row, '太歲登記', '登記', '安奉', '太歲'), 
                     p: checkStatus(row, '太歲繳費', '繳費', '付款', '金額')
                 })).filter(r => r.n));
-
                 const resLightUpper = await fetchData(GOOGLE_SHEETS_URLS.lightUpper, parsed => parsed.map(row => ({
                     id: row['編號'] || '', n: row['姓名'] || '', t: 1,
                     r: checkStatus(row, '光明燈上登記', '上層登記', '登記', '安奉', '光明燈'), 
                     p: checkStatus(row, '光明燈上繳費', '上層繳費', '繳費', '付款', '金額')
                 })).filter(r => r.n));
-                
                 const resLightLower = await fetchData(GOOGLE_SHEETS_URLS.lightLower, parsed => parsed.map(row => ({
                     id: row['編號'] || '', n: row['姓名'] || '', t: 2,
                     r: checkStatus(row, '光明燈下登記', '下層登記', '登記', '安奉', '光明燈'), 
                     p: checkStatus(row, '光明燈下繳費', '下層繳費', '繳費', '付款', '金額')
                 })).filter(r => r.n));
-
                 const resEast = await fetchData(GOOGLE_SHEETS_URLS.eastTrip, extractTripData);
                 const resFujian = await fetchData(GOOGLE_SHEETS_URLS.fujianTrip, extractTripData);
                 const resDonation = await fetchData(GOOGLE_SHEETS_URLS.donation, extractDonations);
                 const resMember = await fetchData(GOOGLE_SHEETS_URLS.member, extractMember);
                 const resGuansheng = await fetchData(GOOGLE_SHEETS_URLS.guansheng, extractBirthday);
                 const resWangmu = await fetchData(GOOGLE_SHEETS_URLS.wangmu, extractBirthday);
-                const resBuyinku = await fetchData(GOOGLE_SHEETS_URLS.buyinku, extractBuyinku); // 獲取補陰庫
+                const resBuyinku = await fetchData(GOOGLE_SHEETS_URLS.buyinku, extractBuyinku);
 
                 setUpdateDates({
-                    puzhuo: resPuzhuo.date,
-                    records: resRecord.date,
-                    taisui: resTaiSui.date,
-                    light: resLightUpper.date || resLightLower.date,
-                    east: resEast.date,
-                    fujian: resFujian.date,
-                    donation: resDonation.date,
-                    member: resMember.date,
-                    guansheng: resGuansheng.date,
-                    wangmu: resWangmu.date,
-                    buyinku: resBuyinku.date
+                    puzhuo: resPuzhuo.date, records: resRecord.date, taisui: resTaiSui.date,
+                    light: resLightUpper.date || resLightLower.date, east: resEast.date, fujian: resFujian.date,
+                    donation: resDonation.date, member: resMember.date, guansheng: resGuansheng.date,
+                    wangmu: resWangmu.date, buyinku: resBuyinku.date
                 });
 
                 setVisibleTabs({
-                    puzhuo: !resPuzhuo.isHidden,
-                    records: !resRecord.isHidden,
-                    taisui: !resTaiSui.isHidden,
-                    light: !(resLightUpper.isHidden || resLightLower.isHidden), 
-                    east: !resEast.isHidden,
-                    fujian: !resFujian.isHidden,
-                    donation: !resDonation.isHidden,
-                    member: !resMember.isHidden,
-                    guansheng: !resGuansheng.isHidden,
-                    wangmu: !resWangmu.isHidden,
-                    buyinku: !resBuyinku.isHidden
+                    puzhuo: !resPuzhuo.isHidden, records: !resRecord.isHidden, taisui: !resTaiSui.isHidden,
+                    light: !(resLightUpper.isHidden || resLightLower.isHidden), east: !resEast.isHidden,
+                    fujian: !resFujian.isHidden, donation: !resDonation.isHidden, member: !resMember.isHidden,
+                    guansheng: !resGuansheng.isHidden, wangmu: !resWangmu.isHidden, buyinku: !resBuyinku.isHidden
                 });
 
                 setFetchErrors({
@@ -503,7 +540,7 @@
                 setMemberDataRaw(resMember.data.length > 0 ? resMember.data : [...DEFAULT_MEMBER_DATA]);
                 setGuanshengDataRaw(resGuansheng.data.length > 0 ? resGuansheng.data : [...DEFAULT_BIRTHDAY_DATA]);
                 setWangmuDataRaw(resWangmu.data.length > 0 ? resWangmu.data : [...DEFAULT_BIRTHDAY_DATA]);
-                setBuyinkuDataRaw(resBuyinku.data.length > 0 ? resBuyinku.data : [...DEFAULT_BUYINKU_DATA]); // 設定補陰庫資料
+                setBuyinkuDataRaw(resBuyinku.data.length > 0 ? resBuyinku.data : [...DEFAULT_BUYINKU_DATA]);
                 
                 setIsLoading(false);
                 setIsRefreshing(false);
@@ -534,7 +571,6 @@
                 }
             };
             
-            // --- 篩選計算區 ---
             
             const puzhuoFiltered = useMemo(() => {
                 let list = PuzhuoDataRaw;
@@ -569,7 +605,6 @@
                 };
             }, [PuzhuoDataRaw, searchTerm]);
 
-            // ================= 新版補陰庫過濾與統計 =================
             const buyinkuBaseFiltered = useMemo(() => {
                 let list = BuyinkuDataRaw;
                 if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
@@ -583,28 +618,19 @@
                 let anomalyTotal = 0;
 
                 buyinkuBaseFiltered.forEach(i => {
-                    // 登記總數計算
                     if (!i.isUnregistered) {
                         regTotal += 1;
                         regQtyTotal += i.regQty;
-                        
-                        // 計算未繳費 (有登記且未繳費)
                         if (!i.isPaid) {
                             unpaidTotal += 1;
                             unpaidQtyTotal += i.regQty;
                         }
                     }
-
-                    // 繳費總數計算
                     if (i.isPaid) {
                         paidTotal += 1;
                         paidQtyTotal += i.paidQty;
                     }
-
-                    // 異常總數 (未登記或份數不符)
-                    if (i.isAnomaly) {
-                        anomalyTotal += 1;
-                    }
+                    if (i.isAnomaly) anomalyTotal += 1;
                 });
 
                 return { regTotal, regQtyTotal, paidTotal, paidQtyTotal, unpaidTotal, unpaidQtyTotal, anomalyTotal };
@@ -615,9 +641,8 @@
                 if (buyinkuFilter === 'UNPAID') return list.filter(i => !i.isPaid && !i.isUnregistered);
                 if (buyinkuFilter === 'PAID') return list.filter(i => i.isPaid);
                 if (buyinkuFilter === 'ANOMALY') return list.filter(i => i.isAnomaly);
-                return list; // ALL
+                return list;
             }, [buyinkuBaseFiltered, buyinkuFilter]);
-            // ========================================================
 
             const recordFiltered = useMemo(() => {
                 if (!searchTerm) return RecordData;
@@ -696,7 +721,6 @@
                 return list;
             }, [MemberDataRaw, searchTerm]);
 
-            // ================= 關聖帝君與王母娘娘祝壽資料處理邏輯 =================
             const guanshengBaseFiltered = useMemo(() => {
                 let list = GuanshengDataRaw;
                 if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
@@ -751,13 +775,26 @@
                 });
             }, [wangmuBaseFiltered, birthdayFilter]);
 
-            // ================= 新版捐獻頁面邏輯 =================
-            // 基礎過濾清單 (僅受搜尋列影響)
+            // ================= 捐獻/答願 邏輯更新 (含日期篩選與依姓名最早日期排序) =================
+            // 基礎過濾清單 (包含搜尋列與新增的日期過濾)
             const donationBaseFiltered = useMemo(() => {
                 let list = DonationDataRaw;
-                if(searchTerm) list = list.filter(i => i.name.includes(searchTerm) || i.item.includes(searchTerm));
+                if(searchTerm) {
+                    list = list.filter(i => i.name.includes(searchTerm) || i.item.includes(searchTerm));
+                }
+                
+                // 實作起始日期過濾
+                if(donationStartDate) {
+                    const filterTime = new Date(donationStartDate).getTime();
+                    list = list.filter(i => {
+                        const itemTime = getSortableDate(i.date);
+                        // 排除完全沒有日期或無效日期的資料
+                        if (itemTime === Number.MAX_SAFE_INTEGER) return false;
+                        return itemTime >= filterTime;
+                    });
+                }
                 return list;
-            }, [DonationDataRaw, searchTerm]);
+            }, [DonationDataRaw, searchTerm, donationStartDate]);
 
             // 自動篩選相對應分類的下拉選單選項
             const currentDonationItemsList = useMemo(() => {
@@ -787,20 +824,41 @@
                 return list;
             }, [donationBaseFiltered, donationViewMode, donationFilterItem]);
 
-            // 依姓名統計，包含展開明細的計算
+            // 依姓名統計，包含展開明細的計算與「最早日期」排序
             const donationByName = useMemo(() => {
                 const map = new Map();
                 donationBaseFiltered.forEach(item => {
+                    const itemTime = getSortableDate(item.date);
+                    
                     if (map.has(item.name)) {
                         const existing = map.get(item.name);
                         existing.count += 1;
                         existing.amount += item.amount;
-                        existing.details.push(item); // 記錄明細項目
+                        existing.details.push(item);
+                        // 記錄最早的日期時間戳記
+                        if (itemTime < existing.earliestDate) {
+                            existing.earliestDate = itemTime;
+                        }
                     } else {
-                        map.set(item.name, { name: item.name, count: 1, amount: item.amount, details: [item] });
+                        map.set(item.name, { 
+                            name: item.name, 
+                            count: 1, 
+                            amount: item.amount, 
+                            details: [item],
+                            earliestDate: itemTime // 初始寫入該筆日期
+                        });
                     }
                 });
-                return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+                
+                const result = Array.from(map.values());
+                
+                // 每個人的明細也依日期排序 (升冪：舊的在前，新的在後)
+                result.forEach(person => {
+                    person.details.sort((a, b) => getSortableDate(a.date) - getSortableDate(b.date));
+                });
+                
+                // 依照最早的那一筆日期進行升冪排序 (日期越早排越前面，沒日期的排最後面)
+                return result.sort((a, b) => a.earliestDate - b.earliestDate);
             }, [donationBaseFiltered]);
 
             // 切換信眾明細展開狀態
@@ -839,7 +897,7 @@
                 setSearchTerm(""); setTaiSuiFilterType("ALL"); setLightFilterType("ALL"); setFilterRole("ALL");
                 setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL"); setDonationViewMode("DONATION");
                 setPuzhuoFilter("ALL"); setBirthdayFilter("ALL"); setExpandedDonationNames(new Set());
-                setBuyinkuFilter("ALL"); // 重置補陰庫過濾
+                setBuyinkuFilter("ALL"); setDonationStartDate(""); // 重置所有過濾條件，包含日期篩選
             };
 
             if (isLoading) {
@@ -1220,7 +1278,7 @@
                                 <ErrorBanner show={fetchErrors.donation} />
                                 
                                 {/* 檢視模式切換：捐獻 / 答願 / 依姓名統計 */}
-                                <div className="flex bg-slate-200 p-1 rounded-xl mb-4 shadow-inner">
+                                <div className="flex bg-slate-200 p-1 rounded-xl mb-3 shadow-inner">
                                     <button onClick={() => { setDonationViewMode('DONATION'); setDonationFilterItem('ALL'); }} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${donationViewMode === 'DONATION' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                         捐獻
                                     </button>
@@ -1230,6 +1288,20 @@
                                     <button onClick={() => setDonationViewMode('NAME')} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${donationViewMode === 'NAME' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                         依姓名統計
                                     </button>
+                                </div>
+
+                                {/* 日期區間篩選 */}
+                                <div className="mb-4 bg-white px-4 py-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Icons.Calendar className="w-5 h-5 text-purple-600" />
+                                        <span className="text-sm font-bold text-slate-700">起始日期</span>
+                                    </div>
+                                    <input 
+                                        type="date"
+                                        value={donationStartDate}
+                                        onChange={(e) => setDonationStartDate(e.target.value)}
+                                        className="p-1.5 border-2 border-slate-200 rounded-lg text-sm text-slate-700 font-bold focus:outline-none focus:border-purple-500 transition-colors"
+                                    />
                                 </div>
 
                                 {donationViewMode === 'DONATION' || donationViewMode === 'VOW' ? (
@@ -1244,7 +1316,7 @@
                                                     <option value="ALL">全部{donationViewMode === 'VOW' ? '答願' : '捐獻'}項目</option>
                                                     {currentDonationItemsList.map((name, i) => <option key={i} value={name}>{name}</option>)}
                                                 </select>
-                                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-purple-400">▼</div>
+                                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-purple-400"><Icons.ChevronDown /></div>
                                             </div>
                                             <div className="bg-purple-600 text-white px-4 py-3 rounded-lg shadow-md flex flex-col items-center justify-center">
                                                 <span className="text-xs font-bold opacity-80 whitespace-nowrap">總筆數</span>
@@ -1292,7 +1364,9 @@
                                                                     {item.name}
                                                                     {isExpanded ? <Icons.ChevronUp className="text-indigo-400"/> : <Icons.ChevronDown className="text-slate-400"/>}
                                                                 </div>
-                                                                <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded inline-block">共 {item.count} 筆記錄</div>
+                                                                <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded inline-block">
+                                                                    共 {item.count} 筆記錄 (最早日期: {formatDateObj(item.earliestDate)})
+                                                                </div>
                                                             </div>
                                                             <div className="text-right">
                                                                 <div className="text-2xl font-black text-indigo-600">${fmtMoney(item.amount)}</div>
