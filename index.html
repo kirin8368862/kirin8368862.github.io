@@ -37,13 +37,14 @@
         // =========================================================================
         const GOOGLE_SHEETS_URLS = {
             puzhuo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=385503720&single=true&output=csv",
+            zhongyuan: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=568633814&single=true&output=csv",
             taiSui: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1409111845&single=true&output=csv",        
             lightUpper: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1353370878&single=true&output=csv",    
             lightLower: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1743080288&single=true&output=csv",    
             records: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=0&single=true&output=csv",
             eastTrip: "https://docs.google.com/spreadsheets/d/1tyVkgPvtkvnFIoj2Y16a-Z85EXMojL8BUM7KntPzCzU/gviz/tq?tqx=out:csv&gid=43391721", 
             fujianTrip: "https://docs.google.com/spreadsheets/d/1tyVkgPvtkvnFIoj2Y16a-Z85EXMojL8BUM7KntPzCzU/gviz/tq?tqx=out:csv&gid=691088006",
-            donation: "https://docs.google.com/spreadsheets/d/1tyVkgPvtkvnFIoj2Y16a-Z85EXMojL8BUM7KntPzCzU/gviz/tq?tqx=out:csv&gid=935792502",
+            donation: "https://docs.google.com/spreadsheets/d/1tyVkgPvtkvnFIoj2Y16a-Z85EXMojL8BUM7KntPzCzU/gviz/tq?tqx=out:csv&gid=935792502", 
             member: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1548605444&single=true&output=csv", 
             guansheng: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1292456593&single=true&output=csv",
             wangmu: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1713222138&single=true&output=csv",
@@ -75,16 +76,13 @@
             } else if (parts.length === 2) {
                 let p0 = parseInt(parts[0], 10);
                 let p1 = parseInt(parts[1], 10);
-                // 若第一個數字大於 31，通常是年份 (如 113/05 -> 113年5月)
                 if (p0 > 31) {
                     y = p0; m = p1; d = 1;
                 } else {
-                    // 若小於等於 31，通常是省略年份的 月/日 (如 7月5日)
                     y = currentYear; m = p0; d = p1;
                 }
             } else if (parts.length === 1) {
                 let p0 = parseInt(parts[0], 10);
-                // 只有單一數字的防呆處理
                 if (p0 > 31) { 
                     y = p0; m = 1; d = 1; 
                 } else { 
@@ -92,13 +90,10 @@
                 }
             }
 
-            // 轉換民國年為西元年 (例如 113 + 1911 = 2024)
             if (y < 1911) y += 1911;
 
-            // 確保資料為有效數字
             if (isNaN(y) || isNaN(m) || isNaN(d)) return Number.MAX_SAFE_INTEGER;
             
-            // 建立 Date 物件，月份從 0 開始所以 m-1
             let dObj = new Date(y, m - 1, d);
             return isNaN(dObj.getTime()) ? Number.MAX_SAFE_INTEGER : dObj.getTime();
         };
@@ -186,13 +181,14 @@
             }));
         };
 
+        // 共用的捐獻/答願資料擷取 (中元捐獻、宮慶捐獻皆可用)
         const extractDonations = (parsed) => {
             if(!parsed || parsed.length === 0) return [];
             const keys = Object.keys(parsed[0]);
             let itemKey = keys.find(k => k.includes('項目')) || keys[0];
             let nameKey = keys.find(k => k.includes('姓名') || k.includes('名單')) || keys[1];
             let amountKey = keys.find(k => k.includes('金額') || k.includes('元')) || keys[2];
-            let dateKey = keys.find(k => k.includes('日期')) || keys[3]; // 新增日期擷取
+            let dateKey = keys.find(k => k.includes('日期')) || keys[3]; 
 
             return parsed.map((row, i) => {
                 const cleanAmount = parseInt((row[amountKey] || '0').replace(/,/g, '').replace(/\$/g, ''), 10) || 0;
@@ -201,7 +197,7 @@
                     item: (row[itemKey] || '').trim(),
                     name: (row[nameKey] || '').trim(),
                     amount: cleanAmount,
-                    date: (row[dateKey] || row['_col_3'] || '').trim() // 支援備用欄位取值
+                    date: (row[dateKey] || row['_col_3'] || '').trim()
                 };
             }).filter(r => r.name || r.amount > 0);
         };
@@ -241,7 +237,6 @@
             const paidMap = new Map();
 
             parsed.forEach((row, index) => {
-                // 登記名單：A欄(_col_0), B欄(_col_1), C欄(_col_2) 
                 const id = (row['_col_0'] || '').trim();
                 const name = (row['_col_1'] || '').trim();
                 const qtyStr = (row['_col_2'] || '').replace(/\D/g, '');
@@ -251,7 +246,6 @@
                     regMap.set(name, { id, qty });
                 }
 
-                // 已繳費名單：E欄(_col_4), F欄(_col_5)
                 if (index >= 1) {
                     const paidName = (row['_col_4'] || '').trim();
                     const paidQtyStr = (row['_col_5'] || '').replace(/\D/g, '');
@@ -265,11 +259,10 @@
 
             const finalData = [];
 
-            // 比對登記名單與繳費名單
             regMap.forEach((data, name) => {
                 const hasPaid = paidMap.has(name);
                 const paidQty = hasPaid ? paidMap.get(name) : 0;
-                const isQtyMismatch = hasPaid && (paidQty !== data.qty); // 金紙份數不同
+                const isQtyMismatch = hasPaid && (paidQty !== data.qty);
 
                 finalData.push({
                     id: data.id,
@@ -282,7 +275,6 @@
                 });
             });
 
-            // 尋找已繳費但未登記名單
             paidMap.forEach((paidQty, name) => {
                 if (!regMap.has(name)) {
                     finalData.push({
@@ -313,7 +305,6 @@
             return restA - restB;
         };
 
-        // 預設測試資料區塊
         const DEFAULT_PUZHUO_DATA = [{ id: "1", name1: "測試資料", name2: "", memo: "", isPaid: false, isDeceased: false, isUnregistered: false }];
         const DEFAULT_RECORD_DATA = [ { group: "1", role: "宮生", name: "傅沛柔", date: "114年12月" } ];
         const DEFAULT_TAISUI_DATA = [{id:"1A1",n:"黃淑霞",r:1,p:1}];
@@ -345,6 +336,7 @@
         const TABS_CONFIG = [
             { id: 'puzhuo', name: '中元普桌' },
             { id: 'buyinku', name: '補陰庫' },
+            { id: 'zhongyuan', name: '中元捐獻' }, // 新增分頁
             { id: 'donation', name: '宮慶捐獻' },
             { id: 'guansheng', name: '關聖帝君祝壽' },
             { id: 'wangmu', name: '王母娘娘祝壽' },
@@ -362,12 +354,12 @@
             
             const [visibleTabs, setVisibleTabs] = useState({
                 puzhuo: true, records: true, taisui: true, light: true, east: true, 
-                fujian: true, donation: true, member: true, guansheng: true, wangmu: true, buyinku: true
+                fujian: true, donation: true, zhongyuan: true, member: true, guansheng: true, wangmu: true, buyinku: true
             });
 
             const [updateDates, setUpdateDates] = useState({
                 puzhuo: "", records: "", taisui: "", light: "", east: "", fujian: "", 
-                donation: "", member: "", guansheng: "", wangmu: "", buyinku: ""
+                donation: "", zhongyuan: "", member: "", guansheng: "", wangmu: "", buyinku: ""
             });
             
             const [PuzhuoDataRaw, setPuzhuoDataRaw] = useState([]);
@@ -377,13 +369,14 @@
             const [EastTripDataRaw, setEastTripDataRaw] = useState([]);
             const [FujianTripDataRaw, setFujianTripDataRaw] = useState([]);
             const [DonationDataRaw, setDonationDataRaw] = useState([]);
+            const [ZhongyuanDataRaw, setZhongyuanDataRaw] = useState([]); // 新增中元捐獻資料狀態
             const [MemberDataRaw, setMemberDataRaw] = useState([]);
             const [GuanshengDataRaw, setGuanshengDataRaw] = useState([]);
             const [WangmuDataRaw, setWangmuDataRaw] = useState([]);
             const [BuyinkuDataRaw, setBuyinkuDataRaw] = useState([]);
 
             const [fetchErrors, setFetchErrors] = useState({ 
-                puzhuo: false, east: false, fujian: false, donation: false, member: false, guansheng: false, wangmu: false, buyinku: false 
+                puzhuo: false, east: false, fujian: false, donation: false, zhongyuan: false, member: false, guansheng: false, wangmu: false, buyinku: false 
             });
 
             const [activeTab, setActiveTab] = useState("puzhuo"); 
@@ -398,12 +391,17 @@
             const [fujianTripFilter, setFujianTripFilter] = useState("ALL");
             const [buyinkuFilter, setBuyinkuFilter] = useState("ALL");
             
+            // 宮慶捐獻篩選
             const [donationViewMode, setDonationViewMode] = useState("DONATION"); 
             const [donationFilterItem, setDonationFilterItem] = useState("ALL");
             const [expandedDonationNames, setExpandedDonationNames] = useState(new Set()); 
-            
-            // 新增: 捐獻紀錄的開始日期篩選狀態
             const [donationStartDate, setDonationStartDate] = useState(""); 
+            
+            // 中元捐獻篩選
+            const [zhongyuanViewMode, setZhongyuanViewMode] = useState("DONATION"); 
+            const [zhongyuanFilterItem, setZhongyuanFilterItem] = useState("ALL");
+            const [expandedZhongyuanNames, setExpandedZhongyuanNames] = useState(new Set()); 
+            const [zhongyuanStartDate, setZhongyuanStartDate] = useState(""); 
             
             const [birthdayFilter, setBirthdayFilter] = useState("ALL"); 
             
@@ -500,6 +498,7 @@
                 const resEast = await fetchData(GOOGLE_SHEETS_URLS.eastTrip, extractTripData);
                 const resFujian = await fetchData(GOOGLE_SHEETS_URLS.fujianTrip, extractTripData);
                 const resDonation = await fetchData(GOOGLE_SHEETS_URLS.donation, extractDonations);
+                const resZhongyuan = await fetchData(GOOGLE_SHEETS_URLS.zhongyuan, extractDonations); // 抓取中元捐獻
                 const resMember = await fetchData(GOOGLE_SHEETS_URLS.member, extractMember);
                 const resGuansheng = await fetchData(GOOGLE_SHEETS_URLS.guansheng, extractBirthday);
                 const resWangmu = await fetchData(GOOGLE_SHEETS_URLS.wangmu, extractBirthday);
@@ -508,14 +507,14 @@
                 setUpdateDates({
                     puzhuo: resPuzhuo.date, records: resRecord.date, taisui: resTaiSui.date,
                     light: resLightUpper.date || resLightLower.date, east: resEast.date, fujian: resFujian.date,
-                    donation: resDonation.date, member: resMember.date, guansheng: resGuansheng.date,
+                    donation: resDonation.date, zhongyuan: resZhongyuan.date, member: resMember.date, guansheng: resGuansheng.date,
                     wangmu: resWangmu.date, buyinku: resBuyinku.date
                 });
 
                 setVisibleTabs({
                     puzhuo: !resPuzhuo.isHidden, records: !resRecord.isHidden, taisui: !resTaiSui.isHidden,
                     light: !(resLightUpper.isHidden || resLightLower.isHidden), east: !resEast.isHidden,
-                    fujian: !resFujian.isHidden, donation: !resDonation.isHidden, member: !resMember.isHidden,
+                    fujian: !resFujian.isHidden, donation: !resDonation.isHidden, zhongyuan: !resZhongyuan.isHidden, member: !resMember.isHidden,
                     guansheng: !resGuansheng.isHidden, wangmu: !resWangmu.isHidden, buyinku: !resBuyinku.isHidden
                 });
 
@@ -524,6 +523,7 @@
                     east: resEast.error || resEast.data.length === 0,
                     fujian: resFujian.error || resFujian.data.length === 0,
                     donation: resDonation.error || resDonation.data.length === 0,
+                    zhongyuan: resZhongyuan.error || resZhongyuan.data.length === 0,
                     member: resMember.error || resMember.data.length === 0,
                     guansheng: resGuansheng.error || resGuansheng.data.length === 0,
                     wangmu: resWangmu.error || resWangmu.data.length === 0,
@@ -537,6 +537,7 @@
                 setEastTripDataRaw(resEast.data.length > 0 ? resEast.data : [...DEFAULT_TRIP_DATA]);
                 setFujianTripDataRaw(resFujian.data.length > 0 ? resFujian.data : [...DEFAULT_TRIP_DATA]);
                 setDonationDataRaw(resDonation.data.length > 0 ? resDonation.data : [...DEFAULT_DONATION_DATA]);
+                setZhongyuanDataRaw(resZhongyuan.data.length > 0 ? resZhongyuan.data : [...DEFAULT_DONATION_DATA]);
                 setMemberDataRaw(resMember.data.length > 0 ? resMember.data : [...DEFAULT_MEMBER_DATA]);
                 setGuanshengDataRaw(resGuansheng.data.length > 0 ? resGuansheng.data : [...DEFAULT_BIRTHDAY_DATA]);
                 setWangmuDataRaw(resWangmu.data.length > 0 ? resWangmu.data : [...DEFAULT_BIRTHDAY_DATA]);
@@ -571,7 +572,7 @@
                 }
             };
             
-            
+            // --- 中元普桌邏輯 ---
             const puzhuoFiltered = useMemo(() => {
                 let list = PuzhuoDataRaw;
                 if(searchTerm) {
@@ -605,6 +606,7 @@
                 };
             }, [PuzhuoDataRaw, searchTerm]);
 
+            // --- 補陰庫邏輯 ---
             const buyinkuBaseFiltered = useMemo(() => {
                 let list = BuyinkuDataRaw;
                 if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
@@ -644,6 +646,7 @@
                 return list;
             }, [buyinkuBaseFiltered, buyinkuFilter]);
 
+            // --- 其他項目邏輯 ---
             const recordFiltered = useMemo(() => {
                 if (!searchTerm) return RecordData;
                 return RecordData.filter(item => item.name.includes(searchTerm) || item.group.includes(searchTerm));
@@ -726,7 +729,6 @@
                 if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
                 return list;
             }, [GuanshengDataRaw, searchTerm]);
-
             const guanshengStats = useMemo(() => {
                 return {
                     big: guanshengBaseFiltered.filter(i => i.type.includes('大')).length,
@@ -734,7 +736,6 @@
                     totalAmount: guanshengBaseFiltered.reduce((sum, i) => sum + i.amount, 0)
                 };
             }, [guanshengBaseFiltered]);
-
             const guanshengFiltered = useMemo(() => {
                 let list = guanshengBaseFiltered;
                 if (birthdayFilter === 'BIG') list = list.filter(i => i.type.includes('大'));
@@ -753,7 +754,6 @@
                 if(searchTerm) list = list.filter(i => i.name.includes(searchTerm));
                 return list;
             }, [WangmuDataRaw, searchTerm]);
-
             const wangmuStats = useMemo(() => {
                 return {
                     big: wangmuBaseFiltered.filter(i => i.type.includes('大')).length,
@@ -761,7 +761,6 @@
                     totalAmount: wangmuBaseFiltered.reduce((sum, i) => sum + i.amount, 0)
                 };
             }, [wangmuBaseFiltered]);
-            
             const wangmuFiltered = useMemo(() => {
                 let list = wangmuBaseFiltered;
                 if (birthdayFilter === 'BIG') list = list.filter(i => i.type.includes('大'));
@@ -775,20 +774,16 @@
                 });
             }, [wangmuBaseFiltered, birthdayFilter]);
 
-            // ================= 捐獻/答願 邏輯更新 (含日期篩選與依姓名最早日期排序) =================
-            // 基礎過濾清單 (包含搜尋列與新增的日期過濾)
+            // ================= 宮慶捐獻 邏輯 =================
             const donationBaseFiltered = useMemo(() => {
                 let list = DonationDataRaw;
                 if(searchTerm) {
                     list = list.filter(i => i.name.includes(searchTerm) || i.item.includes(searchTerm));
                 }
-                
-                // 實作起始日期過濾
                 if(donationStartDate) {
                     const filterTime = new Date(donationStartDate).getTime();
                     list = list.filter(i => {
                         const itemTime = getSortableDate(i.date);
-                        // 排除完全沒有日期或無效日期的資料
                         if (itemTime === Number.MAX_SAFE_INTEGER) return false;
                         return itemTime >= filterTime;
                     });
@@ -796,7 +791,6 @@
                 return list;
             }, [DonationDataRaw, searchTerm, donationStartDate]);
 
-            // 自動篩選相對應分類的下拉選單選項
             const currentDonationItemsList = useMemo(() => {
                 let list = donationBaseFiltered;
                 if (donationViewMode === 'DONATION') {
@@ -808,62 +802,117 @@
                 return [...new Set(items)];
             }, [donationBaseFiltered, donationViewMode]);
             
-            // 捐獻/答願 列表顯示的過濾資料
             const donationFiltered = useMemo(() => {
                 let list = donationBaseFiltered;
-                // 區分捐獻或答願
                 if (donationViewMode === 'DONATION') {
                     list = list.filter(i => !i.item.includes('答願'));
                 } else if (donationViewMode === 'VOW') {
                     list = list.filter(i => i.item.includes('答願'));
                 }
-                // 下拉選單指定項目過濾
                 if(donationFilterItem !== 'ALL') {
                     list = list.filter(i => i.item === donationFilterItem);
                 }
                 return list;
             }, [donationBaseFiltered, donationViewMode, donationFilterItem]);
 
-            // 依姓名統計，包含展開明細的計算與「最早日期」排序
             const donationByName = useMemo(() => {
                 const map = new Map();
                 donationBaseFiltered.forEach(item => {
                     const itemTime = getSortableDate(item.date);
-                    
                     if (map.has(item.name)) {
                         const existing = map.get(item.name);
                         existing.count += 1;
                         existing.amount += item.amount;
                         existing.details.push(item);
-                        // 記錄最早的日期時間戳記
                         if (itemTime < existing.earliestDate) {
                             existing.earliestDate = itemTime;
                         }
                     } else {
                         map.set(item.name, { 
-                            name: item.name, 
-                            count: 1, 
-                            amount: item.amount, 
-                            details: [item],
-                            earliestDate: itemTime // 初始寫入該筆日期
+                            name: item.name, count: 1, amount: item.amount, details: [item], earliestDate: itemTime
                         });
                     }
                 });
-                
                 const result = Array.from(map.values());
-                
-                // 每個人的明細也依日期排序 (升冪：舊的在前，新的在後)
                 result.forEach(person => {
                     person.details.sort((a, b) => getSortableDate(a.date) - getSortableDate(b.date));
                 });
-                
-                // 依照最早的那一筆日期進行升冪排序 (日期越早排越前面，沒日期的排最後面)
                 return result.sort((a, b) => a.earliestDate - b.earliestDate);
             }, [donationBaseFiltered]);
 
-            // 切換信眾明細展開狀態
             const toggleExpandName = useCallback((name) => {
                 setExpandedDonationNames(prev => {
+                    const next = new Set(prev);
+                    if (next.has(name)) next.delete(name);
+                    else next.add(name);
+                    return next;
+                });
+            }, []);
+
+            // ================= 中元捐獻 邏輯 =================
+            const zhongyuanBaseFiltered = useMemo(() => {
+                let list = ZhongyuanDataRaw;
+                if(searchTerm) {
+                    list = list.filter(i => i.name.includes(searchTerm) || i.item.includes(searchTerm));
+                }
+                if(zhongyuanStartDate) {
+                    const filterTime = new Date(zhongyuanStartDate).getTime();
+                    list = list.filter(i => {
+                        const itemTime = getSortableDate(i.date);
+                        if (itemTime === Number.MAX_SAFE_INTEGER) return false;
+                        return itemTime >= filterTime;
+                    });
+                }
+                return list;
+            }, [ZhongyuanDataRaw, searchTerm, zhongyuanStartDate]);
+
+            const currentZhongyuanItemsList = useMemo(() => {
+                // 中元捐獻沒有答願，過濾掉任何可能包含「答願」的項目以防萬一
+                const list = zhongyuanBaseFiltered.filter(i => !i.item.includes('答願'));
+                const items = list.map(i => i.item).filter(Boolean);
+                return [...new Set(items)];
+            }, [zhongyuanBaseFiltered]);
+            
+            const zhongyuanFiltered = useMemo(() => {
+                // 確保沒有答願項目
+                let list = zhongyuanBaseFiltered.filter(i => !i.item.includes('答願'));
+                
+                if(zhongyuanFilterItem !== 'ALL') {
+                    list = list.filter(i => i.item === zhongyuanFilterItem);
+                }
+                return list;
+            }, [zhongyuanBaseFiltered, zhongyuanFilterItem]);
+
+            const zhongyuanByName = useMemo(() => {
+                const map = new Map();
+                // 確保依姓名統計時也排除答願項目
+                const validItems = zhongyuanBaseFiltered.filter(i => !i.item.includes('答願'));
+
+                validItems.forEach(item => {
+                    const itemTime = getSortableDate(item.date);
+                    if (map.has(item.name)) {
+                        const existing = map.get(item.name);
+                        existing.count += 1;
+                        existing.amount += item.amount;
+                        existing.details.push(item);
+                        if (itemTime < existing.earliestDate) {
+                            existing.earliestDate = itemTime;
+                        }
+                    } else {
+                        map.set(item.name, { 
+                            name: item.name, count: 1, amount: item.amount, details: [item], earliestDate: itemTime
+                        });
+                    }
+                });
+                const result = Array.from(map.values());
+                result.forEach(person => {
+                    person.details.sort((a, b) => getSortableDate(a.date) - getSortableDate(b.date));
+                });
+                return result.sort((a, b) => a.earliestDate - b.earliestDate);
+            }, [zhongyuanBaseFiltered]);
+
+            const toggleExpandZhongyuanName = useCallback((name) => {
+                setExpandedZhongyuanNames(prev => {
                     const next = new Set(prev);
                     if (next.has(name)) next.delete(name);
                     else next.add(name);
@@ -877,13 +926,14 @@
                 const allNames = [
                     ...PuzhuoDataRaw.map(i => i.name1), ...PuzhuoDataRaw.map(i => i.name2),
                     ...RecordData.map(i => i.name), ...TaiSuiData.map(i => i.n), ...LightData.map(i => i.n),
-                    ...EastTripDataRaw.map(i => i.name), ...FujianTripDataRaw.map(i => i.name), ...DonationDataRaw.map(i => i.name),
+                    ...EastTripDataRaw.map(i => i.name), ...FujianTripDataRaw.map(i => i.name), 
+                    ...DonationDataRaw.map(i => i.name), ...ZhongyuanDataRaw.map(i => i.name), // 加入中元捐獻搜尋
                     ...MemberDataRaw.map(i => i.name), ...GuanshengDataRaw.map(i => i.name), ...WangmuDataRaw.map(i => i.name),
                     ...BuyinkuDataRaw.map(i => i.name)
                 ].filter(Boolean);
                 const matches = allNames.filter(name => name.includes(searchTerm) && name !== searchTerm);
                 return [...new Set(matches)].slice(0, 8);
-            }, [searchTerm, PuzhuoDataRaw, RecordData, TaiSuiData, LightData, EastTripDataRaw, FujianTripDataRaw, DonationDataRaw, MemberDataRaw, GuanshengDataRaw, WangmuDataRaw, BuyinkuDataRaw]);
+            }, [searchTerm, PuzhuoDataRaw, RecordData, TaiSuiData, LightData, EastTripDataRaw, FujianTripDataRaw, DonationDataRaw, ZhongyuanDataRaw, MemberDataRaw, GuanshengDataRaw, WangmuDataRaw, BuyinkuDataRaw]);
 
             const handleSelectSuggestion = (name) => { setSearchTerm(name); setShowSuggestions(false); };
             const handleClear = () => { setSearchTerm(""); setShowSuggestions(false); };
@@ -897,7 +947,10 @@
                 setSearchTerm(""); setTaiSuiFilterType("ALL"); setLightFilterType("ALL"); setFilterRole("ALL");
                 setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL"); setDonationViewMode("DONATION");
                 setPuzhuoFilter("ALL"); setBirthdayFilter("ALL"); setExpandedDonationNames(new Set());
-                setBuyinkuFilter("ALL"); setDonationStartDate(""); // 重置所有過濾條件，包含日期篩選
+                setBuyinkuFilter("ALL"); setDonationStartDate(""); 
+                // 重置中元捐獻過濾條件
+                setZhongyuanFilterItem("ALL"); setZhongyuanViewMode("DONATION"); 
+                setExpandedZhongyuanNames(new Set()); setZhongyuanStartDate("");
             };
 
             if (isLoading) {
@@ -1078,7 +1131,7 @@
                                         setFilterRole("ALL"); setLightFilterType("ALL"); setTaiSuiFilterType("ALL");
                                         setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL");
                                         setPuzhuoFilter("ALL"); setBirthdayFilter("ALL"); setExpandedDonationNames(new Set());
-                                        setBuyinkuFilter("ALL");
+                                        setBuyinkuFilter("ALL"); setZhongyuanFilterItem("ALL"); setExpandedZhongyuanNames(new Set());
                                     }}
                                     onFocus={() => { if(searchTerm) setShowSuggestions(true); }}
                                 />
@@ -1171,7 +1224,7 @@
                             </div>
                         )}
                         
-                        {/* 新增功能：補陰庫 */}
+                        {/* 功能：補陰庫 */}
                         {activeTab === 'buyinku' && visibleTabs.buyinku && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="buyinku" />
@@ -1251,23 +1304,131 @@
                             </div>
                         )}
 
-                        {/* 功能：東部參香 */}
-                        {activeTab === 'east' && visibleTabs.east && (
+                        {/* 新增功能：中元捐獻 */}
+                        {activeTab === 'zhongyuan' && visibleTabs.zhongyuan && (
                             <div className="fade-in">
-                                <TabUpdateDate tabKey="east" />
-                                <ErrorBanner show={fetchErrors.east} />
-                                <div className="bg-sky-50 rounded-xl p-3 shadow-inner border border-sky-100 mb-4 flex justify-between gap-2 overflow-x-auto">
-                                    <button onClick={() => setEastTripFilter('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${eastTripFilter === 'ALL' ? 'bg-sky-600 text-white border-sky-600 shadow-md' : 'bg-white text-sky-600 border-sky-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">總人數</span><span className="text-3xl font-black">{eastTripStats.reg}</span>
+                                <TabUpdateDate tabKey="zhongyuan" />
+                                <ErrorBanner show={fetchErrors.zhongyuan} />
+                                
+                                {/* 檢視模式切換：捐獻 / 依姓名統計 */}
+                                <div className="flex bg-slate-200 p-1 rounded-xl mb-3 shadow-inner">
+                                    <button onClick={() => { setZhongyuanViewMode('DONATION'); setZhongyuanFilterItem('ALL'); }} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${zhongyuanViewMode === 'DONATION' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                        捐獻明細
                                     </button>
-                                    <button onClick={() => setEastTripFilter('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${eastTripFilter === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-3xl font-black">{eastTripStats.paid}</span>
-                                    </button>
-                                    <button onClick={() => setEastTripFilter('UNPAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${eastTripFilter === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-3xl font-black">{eastTripStats.unpaid}</span>
+                                    <button onClick={() => setZhongyuanViewMode('NAME')} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${zhongyuanViewMode === 'NAME' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                        依姓名統計
                                     </button>
                                 </div>
-                                {renderTripList(eastTripFiltered)}
+
+                                {/* 日期區間篩選 */}
+                                <div className="mb-4 bg-white px-4 py-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Icons.Calendar className="w-5 h-5 text-indigo-600" />
+                                        <span className="text-sm font-bold text-slate-700">起始日期</span>
+                                    </div>
+                                    <input 
+                                        type="date"
+                                        value={zhongyuanStartDate}
+                                        onChange={(e) => setZhongyuanStartDate(e.target.value)}
+                                        className="p-1.5 border-2 border-slate-200 rounded-lg text-sm text-slate-700 font-bold focus:outline-none focus:border-indigo-500 transition-colors"
+                                    />
+                                </div>
+
+                                {zhongyuanViewMode === 'DONATION' ? (
+                                    <>
+                                        <div className="bg-indigo-50 rounded-xl p-4 shadow-inner border border-indigo-100 mb-4 flex items-center justify-between gap-4">
+                                            <div className="flex-1 relative">
+                                                <select 
+                                                    value={zhongyuanFilterItem} 
+                                                    onChange={e => setZhongyuanFilterItem(e.target.value)} 
+                                                    className="w-full p-3 rounded-lg border-2 border-indigo-200 bg-white text-indigo-800 font-bold focus:outline-none focus:border-indigo-500 appearance-none shadow-sm"
+                                                >
+                                                    <option value="ALL">全部捐獻項目</option>
+                                                    {currentZhongyuanItemsList.map((name, i) => <option key={i} value={name}>{name}</option>)}
+                                                </select>
+                                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-indigo-400"><Icons.ChevronDown /></div>
+                                            </div>
+                                            <div className="bg-indigo-600 text-white px-4 py-3 rounded-lg shadow-md flex flex-col items-center justify-center">
+                                                <span className="text-xs font-bold opacity-80 whitespace-nowrap">總筆數</span>
+                                                <span className="text-2xl font-black leading-none">{zhongyuanFiltered.length}</span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3 fade-in">
+                                            {zhongyuanFiltered.length > 0 ? zhongyuanFiltered.map((item, idx) => (
+                                                <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center group relative overflow-hidden">
+                                                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-400"></div>
+                                                    <div className="pl-2">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <div className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                                                                <Icons.Gift /> {item.item}
+                                                            </div>
+                                                            {/* 顯示日期 */}
+                                                            {item.date && <span className="text-xs font-medium text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">{item.date}</span>}
+                                                        </div>
+                                                        <div className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-2xl font-black text-emerald-600">${fmtMoney(item.amount)}</div>
+                                                    </div>
+                                                </div>
+                                            )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="bg-indigo-600 text-white rounded-xl p-4 shadow-md mb-4 flex justify-between items-center">
+                                            <div className="font-bold">統計總金額</div>
+                                            <div className="text-3xl font-black">${fmtMoney(zhongyuanByName.reduce((acc, curr) => acc + curr.amount, 0))}</div>
+                                        </div>
+                                        <div className="space-y-3 fade-in">
+                                            {zhongyuanByName.length > 0 ? zhongyuanByName.map((item, idx) => {
+                                                const isExpanded = expandedZhongyuanNames.has(item.name);
+                                                return (
+                                                    <div key={idx} 
+                                                         onClick={() => toggleExpandZhongyuanName(item.name)} 
+                                                         className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col relative overflow-hidden cursor-pointer transition-colors hover:bg-slate-50">
+                                                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-400"></div>
+                                                        <div className="flex justify-between items-center w-full pl-2">
+                                                            <div>
+                                                                <div className="text-xl font-bold text-slate-800 tracking-wide mb-1 flex items-center gap-2">
+                                                                    {item.name}
+                                                                    {isExpanded ? <Icons.ChevronUp className="text-indigo-400"/> : <Icons.ChevronDown className="text-slate-400"/>}
+                                                                </div>
+                                                                <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded inline-block">
+                                                                    共 {item.count} 筆記錄 (最早日期: {formatDateObj(item.earliestDate)})
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <div className="text-2xl font-black text-indigo-600">${fmtMoney(item.amount)}</div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* 展開明細區域 */}
+                                                        {isExpanded && (
+                                                            <div className="mt-4 pt-3 border-t border-slate-100 pl-2 space-y-2 fade-in">
+                                                                {item.details.map((detail, dIdx) => (
+                                                                    <div key={dIdx} className="flex flex-col bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                                                        <div className="flex justify-between items-center mb-1">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-xs text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                                                                                    <Icons.Gift className="w-3 h-3" />
+                                                                                </span>
+                                                                                <span className="text-sm font-bold text-slate-700">{detail.item}</span>
+                                                                            </div>
+                                                                            <div className="text-sm font-black text-emerald-600">${fmtMoney(detail.amount)}</div>
+                                                                        </div>
+                                                                        {/* 顯示明細日期 */}
+                                                                        {detail.date && <div className="text-xs text-slate-400 ml-8">{detail.date}</div>}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            }) : <div className="text-center py-8 text-slate-500">查無資料</div>}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
@@ -1399,6 +1560,26 @@
                                         </div>
                                     </>
                                 )}
+                            </div>
+                        )}
+
+                        {/* 功能：東部參香 */}
+                        {activeTab === 'east' && visibleTabs.east && (
+                            <div className="fade-in">
+                                <TabUpdateDate tabKey="east" />
+                                <ErrorBanner show={fetchErrors.east} />
+                                <div className="bg-sky-50 rounded-xl p-3 shadow-inner border border-sky-100 mb-4 flex justify-between gap-2 overflow-x-auto">
+                                    <button onClick={() => setEastTripFilter('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${eastTripFilter === 'ALL' ? 'bg-sky-600 text-white border-sky-600 shadow-md' : 'bg-white text-sky-600 border-sky-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">總人數</span><span className="text-3xl font-black">{eastTripStats.reg}</span>
+                                    </button>
+                                    <button onClick={() => setEastTripFilter('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${eastTripFilter === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-3xl font-black">{eastTripStats.paid}</span>
+                                    </button>
+                                    <button onClick={() => setEastTripFilter('UNPAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${eastTripFilter === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-3xl font-black">{eastTripStats.unpaid}</span>
+                                    </button>
+                                </div>
+                                {renderTripList(eastTripFiltered)}
                             </div>
                         )}
 
