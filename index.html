@@ -32,9 +32,6 @@
     <script type="text/babel">
         const { useState, useMemo, useEffect, useCallback } = React;
 
-        // =========================================================================
-        // [正式啟動] Google Sheets CSV 自動抓取網址區
-        // =========================================================================
         const GOOGLE_SHEETS_URLS = {
             puzhuo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=385503720&single=true&output=csv",
             zhongyuan: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=568633814&single=true&output=csv",
@@ -53,16 +50,10 @@
 
         const fmtMoney = (num) => new Intl.NumberFormat('zh-TW').format(num);
 
-        // 處理日期格式（涵蓋民國年轉西元年、各種分隔符）供比對與排序使用
         const getSortableDate = (dateStr) => {
             if (!dateStr) return Number.MAX_SAFE_INTEGER;
-            
-            // 替換全形數字為半形 (如果有)
             let str = String(dateStr).trim().replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0) - 65248));
-            
-            // 統一轉換各種常見分隔符與中文字為 '/'
             str = str.replace(/[.、\-年月]/g, '/').replace(/[日號]/g, '').replace(/\/+$/, '');
-            
             let parts = str.split('/').filter(p => p.trim() !== ''); 
             if (parts.length === 0) return Number.MAX_SAFE_INTEGER;
             
@@ -70,30 +61,16 @@
             const currentYear = new Date().getFullYear();
 
             if (parts.length >= 3) {
-                y = parseInt(parts[0], 10);
-                m = parseInt(parts[1], 10);
-                d = parseInt(parts[2], 10);
+                y = parseInt(parts[0], 10); m = parseInt(parts[1], 10); d = parseInt(parts[2], 10);
             } else if (parts.length === 2) {
-                let p0 = parseInt(parts[0], 10);
-                let p1 = parseInt(parts[1], 10);
-                if (p0 > 31) {
-                    y = p0; m = p1; d = 1;
-                } else {
-                    y = currentYear; m = p0; d = p1;
-                }
+                let p0 = parseInt(parts[0], 10); let p1 = parseInt(parts[1], 10);
+                if (p0 > 31) { y = p0; m = p1; d = 1; } else { y = currentYear; m = p0; d = p1; }
             } else if (parts.length === 1) {
                 let p0 = parseInt(parts[0], 10);
-                if (p0 > 31) { 
-                    y = p0; m = 1; d = 1; 
-                } else { 
-                    y = currentYear; m = p0; d = 1; 
-                }
+                if (p0 > 31) { y = p0; m = 1; d = 1; } else { y = currentYear; m = p0; d = 1; }
             }
-
             if (y < 1911) y += 1911;
-
             if (isNaN(y) || isNaN(m) || isNaN(d)) return Number.MAX_SAFE_INTEGER;
-            
             let dObj = new Date(y, m - 1, d);
             return isNaN(dObj.getTime()) ? Number.MAX_SAFE_INTEGER : dObj.getTime();
         };
@@ -138,23 +115,26 @@
 
                 const isPaid = (name1 && paidSet.has(name1)) || (name2 && paidSet.has(name2));
                 const isDeceased = i >= 149; 
+                
+                // 新增：細分判斷邏輯
+                const isGongZhuo = memo.includes('公桌');
+                const isZanZhuo = memo.includes('贊普');
+                const isBuShiFang = memo.includes('不施方');
+                // 空白就是施方(不含亡者普桌)，另外如果已經判定為公桌、贊桌、不施方也不算施方
+                const isShiFang = !isGongZhuo && !isZanZhuo && !isBuShiFang && !isDeceased;
 
                 return {
-                    id, name1, name2, memo, isPaid, isDeceased,
+                    id, name1, name2, memo, isPaid, 
+                    isDeceased, isGongZhuo, isZanZhuo, isBuShiFang, isShiFang,
                     valid: (id !== '' || name1 !== '' || name2 !== ''),
                     isUnregistered: false
                 };
             }).filter(r => r.valid && (r.name1 || r.name2));
 
             const unregisteredList = Array.from(paidSet).filter(name => !registeredNames.has(name)).map((name) => ({
-                id: '-',
-                name1: name,
-                name2: '',
-                memo: '有繳費但未登記',
-                isPaid: true,
-                isDeceased: false,
-                valid: true,
-                isUnregistered: true
+                id: '-', name1: name, name2: '', memo: '有繳費但未登記',
+                isPaid: true, isDeceased: false, isGongZhuo: false, isZanZhuo: false, isBuShiFang: false, isShiFang: false,
+                valid: true, isUnregistered: true
             }));
 
             return [...registeredList, ...unregisteredList];
@@ -181,7 +161,6 @@
             }));
         };
 
-        // 共用的捐獻/答願資料擷取 (中元捐獻、宮慶捐獻皆可用)
         const extractDonations = (parsed) => {
             if(!parsed || parsed.length === 0) return [];
             const keys = Object.keys(parsed[0]);
@@ -193,11 +172,8 @@
             return parsed.map((row, i) => {
                 const cleanAmount = parseInt((row[amountKey] || '0').replace(/,/g, '').replace(/\$/g, ''), 10) || 0;
                 return {
-                    id: i,
-                    item: (row[itemKey] || '').trim(),
-                    name: (row[nameKey] || '').trim(),
-                    amount: cleanAmount,
-                    date: (row[dateKey] || row['_col_3'] || '').trim()
+                    id: i, item: (row[itemKey] || '').trim(), name: (row[nameKey] || '').trim(),
+                    amount: cleanAmount, date: (row[dateKey] || row['_col_3'] || '').trim()
                 };
             }).filter(r => r.name || r.amount > 0);
         };
@@ -221,18 +197,12 @@
 
             return parsed.map((row, i) => {
                 const cleanAmount = parseInt((row[amountKey] || '0').replace(/,/g, '').replace(/\$/g, ''), 10) || 0;
-                return {
-                    id: i,
-                    name: (row[nameKey] || '').trim(),
-                    type: (row[sizeKey] || '').trim(),
-                    amount: cleanAmount
-                };
+                return { id: i, name: (row[nameKey] || '').trim(), type: (row[sizeKey] || '').trim(), amount: cleanAmount };
             }).filter(r => r.name);
         };
 
         const extractBuyinku = (parsed) => {
             if(!parsed || parsed.length === 0) return [];
-            
             const regMap = new Map();
             const paidMap = new Map();
 
@@ -242,70 +212,44 @@
                 const qtyStr = (row['_col_2'] || '').replace(/\D/g, '');
                 const qty = qtyStr ? parseInt(qtyStr, 10) : 0;
                 
-                if (name && !name.includes('姓名')) {
-                    regMap.set(name, { id, qty });
-                }
+                if (name && !name.includes('姓名')) { regMap.set(name, { id, qty }); }
 
                 if (index >= 1) {
                     const paidName = (row['_col_4'] || '').trim();
                     const paidQtyStr = (row['_col_5'] || '').replace(/\D/g, '');
                     const paidQty = paidQtyStr ? parseInt(paidQtyStr, 10) : 0;
-                    
-                    if (paidName && !paidName.includes('姓名')) {
-                        paidMap.set(paidName, paidQty);
-                    }
+                    if (paidName && !paidName.includes('姓名')) { paidMap.set(paidName, paidQty); }
                 }
             });
 
             const finalData = [];
-
             regMap.forEach((data, name) => {
                 const hasPaid = paidMap.has(name);
                 const paidQty = hasPaid ? paidMap.get(name) : 0;
                 const isQtyMismatch = hasPaid && (paidQty !== data.qty);
-
-                finalData.push({
-                    id: data.id,
-                    name: name,
-                    regQty: data.qty,
-                    paidQty: paidQty,
-                    isPaid: hasPaid,
-                    isUnregistered: false,
-                    isAnomaly: isQtyMismatch
-                });
+                finalData.push({ id: data.id, name: name, regQty: data.qty, paidQty: paidQty, isPaid: hasPaid, isUnregistered: false, isAnomaly: isQtyMismatch });
             });
 
             paidMap.forEach((paidQty, name) => {
                 if (!regMap.has(name)) {
-                    finalData.push({
-                        id: '-',
-                        name: name,
-                        regQty: 0,
-                        paidQty: paidQty,
-                        isPaid: true,
-                        isUnregistered: true,
-                        isAnomaly: true
-                    });
+                    finalData.push({ id: '-', name: name, regQty: 0, paidQty: paidQty, isPaid: true, isUnregistered: true, isAnomaly: true });
                 }
             });
-
             return finalData;
         };
 
         const sortById = (a, b) => {
             if (!a.id || !b.id) return 0;
-            const firstA = String(a.id)[0];
-            const firstB = String(b.id)[0];
+            const firstA = String(a.id)[0]; const firstB = String(b.id)[0];
             if (firstA !== firstB) return firstA.localeCompare(firstB);
-            const secondA = String(a.id)[1];
-            const secondB = String(b.id)[1];
+            const secondA = String(a.id)[1]; const secondB = String(b.id)[1];
             if (secondA !== secondB) return secondA.localeCompare(secondB);
             const restA = parseInt(String(a.id).slice(2), 10);
             const restB = parseInt(String(b.id).slice(2), 10);
             return restA - restB;
         };
 
-        const DEFAULT_PUZHUO_DATA = [{ id: "1", name1: "測試資料", name2: "", memo: "", isPaid: false, isDeceased: false, isUnregistered: false }];
+        const DEFAULT_PUZHUO_DATA = [{ id: "1", name1: "測試資料", name2: "", memo: "", isPaid: false, isDeceased: false, isGongZhuo: false, isZanZhuo: false, isBuShiFang: false, isShiFang: true, isUnregistered: false }];
         const DEFAULT_RECORD_DATA = [ { group: "1", role: "宮生", name: "傅沛柔", date: "114年12月" } ];
         const DEFAULT_TAISUI_DATA = [{id:"1A1",n:"黃淑霞",r:1,p:1}];
         const DEFAULT_LIGHT_DATA = [{id:"1B10",n:"游宇閎",t:1,r:1,p:1}];
@@ -336,7 +280,7 @@
         const TABS_CONFIG = [
             { id: 'puzhuo', name: '中元普桌' },
             { id: 'buyinku', name: '補陰庫' },
-            { id: 'zhongyuan', name: '中元捐獻' }, // 新增分頁
+            { id: 'zhongyuan', name: '中元捐獻' },
             { id: 'donation', name: '宮慶捐獻' },
             { id: 'guansheng', name: '關聖帝君祝壽' },
             { id: 'wangmu', name: '王母娘娘祝壽' },
@@ -369,7 +313,7 @@
             const [EastTripDataRaw, setEastTripDataRaw] = useState([]);
             const [FujianTripDataRaw, setFujianTripDataRaw] = useState([]);
             const [DonationDataRaw, setDonationDataRaw] = useState([]);
-            const [ZhongyuanDataRaw, setZhongyuanDataRaw] = useState([]); // 新增中元捐獻資料狀態
+            const [ZhongyuanDataRaw, setZhongyuanDataRaw] = useState([]); 
             const [MemberDataRaw, setMemberDataRaw] = useState([]);
             const [GuanshengDataRaw, setGuanshengDataRaw] = useState([]);
             const [WangmuDataRaw, setWangmuDataRaw] = useState([]);
@@ -383,7 +327,7 @@
             const [searchTerm, setSearchTerm] = useState("");
             const [showSuggestions, setShowSuggestions] = useState(false);
             
-            const [puzhuoFilter, setPuzhuoFilter] = useState("ALL");
+            const [puzhuoFilter, setPuzhuoFilter] = useState("ALL_TOTAL");
             const [filterRole, setFilterRole] = useState("ALL"); 
             const [lightFilterType, setLightFilterType] = useState("ALL");
             const [taiSuiFilterType, setTaiSuiFilterType] = useState("ALL");
@@ -391,13 +335,11 @@
             const [fujianTripFilter, setFujianTripFilter] = useState("ALL");
             const [buyinkuFilter, setBuyinkuFilter] = useState("ALL");
             
-            // 宮慶捐獻篩選
             const [donationViewMode, setDonationViewMode] = useState("DONATION"); 
             const [donationFilterItem, setDonationFilterItem] = useState("ALL");
             const [expandedDonationNames, setExpandedDonationNames] = useState(new Set()); 
             const [donationStartDate, setDonationStartDate] = useState(""); 
             
-            // 中元捐獻篩選
             const [zhongyuanViewMode, setZhongyuanViewMode] = useState("DONATION"); 
             const [zhongyuanFilterItem, setZhongyuanFilterItem] = useState("ALL");
             const [expandedZhongyuanNames, setExpandedZhongyuanNames] = useState(new Set()); 
@@ -498,7 +440,7 @@
                 const resEast = await fetchData(GOOGLE_SHEETS_URLS.eastTrip, extractTripData);
                 const resFujian = await fetchData(GOOGLE_SHEETS_URLS.fujianTrip, extractTripData);
                 const resDonation = await fetchData(GOOGLE_SHEETS_URLS.donation, extractDonations);
-                const resZhongyuan = await fetchData(GOOGLE_SHEETS_URLS.zhongyuan, extractDonations); // 抓取中元捐獻
+                const resZhongyuan = await fetchData(GOOGLE_SHEETS_URLS.zhongyuan, extractDonations);
                 const resMember = await fetchData(GOOGLE_SHEETS_URLS.member, extractMember);
                 const resGuansheng = await fetchData(GOOGLE_SHEETS_URLS.guansheng, extractBirthday);
                 const resWangmu = await fetchData(GOOGLE_SHEETS_URLS.wangmu, extractBirthday);
@@ -579,14 +521,22 @@
                     list = list.filter(i => i.name1.includes(searchTerm) || i.name2.includes(searchTerm));
                 }
                 
+                if(puzhuoFilter === 'NORMAL_TOTAL') return list.filter(i => !i.isUnregistered && !i.isDeceased);
+                if(puzhuoFilter === 'DECEASED_TOTAL' || puzhuoFilter === 'DECEASED') return list.filter(i => !i.isUnregistered && i.isDeceased);
+                if(puzhuoFilter === 'ALL_TOTAL') return list.filter(i => !i.isUnregistered);
+
+                if(puzhuoFilter === 'SHIFANG') return list.filter(i => !i.isUnregistered && i.isShiFang);
+                if(puzhuoFilter === 'BUSHIFANG') return list.filter(i => !i.isUnregistered && i.isBuShiFang);
+                if(puzhuoFilter === 'GONGZHUO') return list.filter(i => !i.isUnregistered && i.isGongZhuo);
+                if(puzhuoFilter === 'ZANZHUO') return list.filter(i => !i.isUnregistered && i.isZanZhuo);
+
                 if(puzhuoFilter === 'PAID') return list.filter(i => i.isPaid);
-                if(puzhuoFilter === 'UNPAID') return list.filter(i => !i.isPaid && !i.isUnregistered);
+                // 未繳費排除已登記未繳費的「公桌」
+                if(puzhuoFilter === 'UNPAID') return list.filter(i => !i.isPaid && !i.isUnregistered && !i.isGongZhuo);
                 if(puzhuoFilter === 'UNREGISTERED') return list.filter(i => i.isUnregistered);
-                if(puzhuoFilter === 'NORMAL') return list.filter(i => !i.isUnregistered && !i.isDeceased);
-                if(puzhuoFilter === 'DECEASED') return list.filter(i => !i.isUnregistered && i.isDeceased);
                 
                 if(searchTerm) return list; // 搜尋時顯示所有符合結果
-                return list.filter(i => !i.isUnregistered); // 預設(ALL)僅顯示已登記清單
+                return list.filter(i => !i.isUnregistered); // 預設僅顯示已登記清單
             }, [PuzhuoDataRaw, searchTerm, puzhuoFilter]);
 
             const puzhuoStats = useMemo(() => {
@@ -597,11 +547,18 @@
                 const unregisteredList = baseList.filter(i => i.isUnregistered);
 
                 return {
-                    normalTotal: registeredList.filter(i => !i.isDeceased).length,
+                    normalTotal: registeredList.filter(i => !i.isDeceased).length, // 普桌總數 (不含亡者)
                     deceasedTotal: registeredList.filter(i => i.isDeceased).length,
                     allTotal: registeredList.length,
+                    
+                    shiFangTotal: registeredList.filter(i => i.isShiFang).length,
+                    buShiFangTotal: registeredList.filter(i => i.isBuShiFang).length,
+                    gongZhuoTotal: registeredList.filter(i => i.isGongZhuo).length,
+                    zanZhuoTotal: registeredList.filter(i => i.isZanZhuo).length,
+
                     paidTotal: baseList.filter(i => i.isPaid).length,
-                    unpaidTotal: registeredList.filter(i => !i.isPaid).length,
+                    // 未繳費總數排除公桌
+                    unpaidTotal: registeredList.filter(i => !i.isPaid && !i.isGongZhuo).length,
                     unregisteredTotal: unregisteredList.length
                 };
             }, [PuzhuoDataRaw, searchTerm]);
@@ -867,16 +824,13 @@
             }, [ZhongyuanDataRaw, searchTerm, zhongyuanStartDate]);
 
             const currentZhongyuanItemsList = useMemo(() => {
-                // 中元捐獻沒有答願，過濾掉任何可能包含「答願」的項目以防萬一
                 const list = zhongyuanBaseFiltered.filter(i => !i.item.includes('答願'));
                 const items = list.map(i => i.item).filter(Boolean);
                 return [...new Set(items)];
             }, [zhongyuanBaseFiltered]);
             
             const zhongyuanFiltered = useMemo(() => {
-                // 確保沒有答願項目
                 let list = zhongyuanBaseFiltered.filter(i => !i.item.includes('答願'));
-                
                 if(zhongyuanFilterItem !== 'ALL') {
                     list = list.filter(i => i.item === zhongyuanFilterItem);
                 }
@@ -885,9 +839,7 @@
 
             const zhongyuanByName = useMemo(() => {
                 const map = new Map();
-                // 確保依姓名統計時也排除答願項目
                 const validItems = zhongyuanBaseFiltered.filter(i => !i.item.includes('答願'));
-
                 validItems.forEach(item => {
                     const itemTime = getSortableDate(item.date);
                     if (map.has(item.name)) {
@@ -919,7 +871,6 @@
                     return next;
                 });
             }, []);
-            // =========================================================================
 
             const suggestions = useMemo(() => {
                 if (!searchTerm) return [];
@@ -927,7 +878,7 @@
                     ...PuzhuoDataRaw.map(i => i.name1), ...PuzhuoDataRaw.map(i => i.name2),
                     ...RecordData.map(i => i.name), ...TaiSuiData.map(i => i.n), ...LightData.map(i => i.n),
                     ...EastTripDataRaw.map(i => i.name), ...FujianTripDataRaw.map(i => i.name), 
-                    ...DonationDataRaw.map(i => i.name), ...ZhongyuanDataRaw.map(i => i.name), // 加入中元捐獻搜尋
+                    ...DonationDataRaw.map(i => i.name), ...ZhongyuanDataRaw.map(i => i.name),
                     ...MemberDataRaw.map(i => i.name), ...GuanshengDataRaw.map(i => i.name), ...WangmuDataRaw.map(i => i.name),
                     ...BuyinkuDataRaw.map(i => i.name)
                 ].filter(Boolean);
@@ -946,9 +897,8 @@
             const resetFilters = () => {
                 setSearchTerm(""); setTaiSuiFilterType("ALL"); setLightFilterType("ALL"); setFilterRole("ALL");
                 setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL"); setDonationViewMode("DONATION");
-                setPuzhuoFilter("ALL"); setBirthdayFilter("ALL"); setExpandedDonationNames(new Set());
+                setPuzhuoFilter("ALL_TOTAL"); setBirthdayFilter("ALL"); setExpandedDonationNames(new Set());
                 setBuyinkuFilter("ALL"); setDonationStartDate(""); 
-                // 重置中元捐獻過濾條件
                 setZhongyuanFilterItem("ALL"); setZhongyuanViewMode("DONATION"); 
                 setExpandedZhongyuanNames(new Set()); setZhongyuanStartDate("");
             };
@@ -1130,7 +1080,7 @@
                                         setSearchTerm(e.target.value); setShowSuggestions(true);
                                         setFilterRole("ALL"); setLightFilterType("ALL"); setTaiSuiFilterType("ALL");
                                         setEastTripFilter("ALL"); setFujianTripFilter("ALL"); setDonationFilterItem("ALL");
-                                        setPuzhuoFilter("ALL"); setBirthdayFilter("ALL"); setExpandedDonationNames(new Set());
+                                        setPuzhuoFilter("ALL_TOTAL"); setBirthdayFilter("ALL"); setExpandedDonationNames(new Set());
                                         setBuyinkuFilter("ALL"); setZhongyuanFilterItem("ALL"); setExpandedZhongyuanNames(new Set());
                                     }}
                                     onFocus={() => { if(searchTerm) setShowSuggestions(true); }}
@@ -1157,69 +1107,118 @@
                             </div>
                         )}
 
-                        {/* 功能：中元普桌 */}
+                        {/* =======================================================
+                            功能：中元普桌 (全面優化版)
+                        ======================================================= */}
                         {activeTab === 'puzhuo' && visibleTabs.puzhuo && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="puzhuo" />
                                 <ErrorBanner show={fetchErrors.puzhuo} />
 
+                                {/* 第一排：普桌總數、亡者普桌、合計桌數 */}
                                 <div className="grid grid-cols-3 gap-2 mb-2">
-                                    <button onClick={() => setPuzhuoFilter('NORMAL')} className={`rounded-xl p-2 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'NORMAL' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>
-                                        <div className={`text-xs font-bold mb-1 ${puzhuoFilter === 'NORMAL' ? 'text-blue-100' : 'text-blue-500'}`}>普桌總數</div>
-                                        <div className="text-2xl font-black">{puzhuoStats.normalTotal}</div>
+                                    <button onClick={() => setPuzhuoFilter('NORMAL_TOTAL')} className={`rounded-xl p-2 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'NORMAL_TOTAL' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>
+                                        <div className={`text-[11px] sm:text-xs font-bold mb-1 ${puzhuoFilter === 'NORMAL_TOTAL' ? 'text-blue-100' : 'text-blue-500'}`}>普桌總數</div>
+                                        <div className="text-xl sm:text-2xl font-black">{puzhuoStats.normalTotal}</div>
                                     </button>
-                                    <button onClick={() => setPuzhuoFilter('DECEASED')} className={`rounded-xl p-2 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'DECEASED' ? 'bg-slate-600 text-white border-slate-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-                                        <div className={`text-xs font-bold mb-1 ${puzhuoFilter === 'DECEASED' ? 'text-slate-200' : 'text-slate-500'}`}>亡者普桌</div>
-                                        <div className="text-2xl font-black">{puzhuoStats.deceasedTotal}</div>
+                                    <button onClick={() => setPuzhuoFilter('DECEASED_TOTAL')} className={`rounded-xl p-2 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'DECEASED_TOTAL' || puzhuoFilter === 'DECEASED' ? 'bg-slate-600 text-white border-slate-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                                        <div className={`text-[11px] sm:text-xs font-bold mb-1 ${puzhuoFilter === 'DECEASED_TOTAL' || puzhuoFilter === 'DECEASED' ? 'text-slate-200' : 'text-slate-500'}`}>亡者普桌</div>
+                                        <div className="text-xl sm:text-2xl font-black">{puzhuoStats.deceasedTotal}</div>
                                     </button>
-                                    <button onClick={() => setPuzhuoFilter('ALL')} className={`rounded-xl p-2 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'ALL' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50'}`}>
-                                        <div className={`text-xs font-bold mb-1 ${puzhuoFilter === 'ALL' ? 'text-indigo-100' : 'text-indigo-500'}`}>合計總數</div>
-                                        <div className="text-2xl font-black">{puzhuoStats.allTotal}</div>
+                                    <button onClick={() => setPuzhuoFilter('ALL_TOTAL')} className={`rounded-xl p-2 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'ALL_TOTAL' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50'}`}>
+                                        <div className={`text-[11px] sm:text-xs font-bold mb-1 ${puzhuoFilter === 'ALL_TOTAL' ? 'text-indigo-100' : 'text-indigo-500'}`}>合計桌數</div>
+                                        <div className="text-xl sm:text-2xl font-black">{puzhuoStats.allTotal}</div>
                                     </button>
                                 </div>
 
+                                {/* 第二排：施方、不施方、亡者、公桌、贊桌 */}
+                                <div className="grid grid-cols-5 gap-1.5 mb-2">
+                                    <button onClick={() => setPuzhuoFilter('SHIFANG')} className={`rounded-xl p-1.5 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'SHIFANG' ? 'bg-cyan-600 text-white border-cyan-600' : 'bg-white text-cyan-700 border-cyan-200 hover:bg-cyan-50'}`}>
+                                        <div className="text-[10px] sm:text-xs font-bold mb-0.5 whitespace-nowrap">施方</div>
+                                        <div className="text-base sm:text-lg font-black">{puzhuoStats.shiFangTotal}</div>
+                                    </button>
+                                    <button onClick={() => setPuzhuoFilter('BUSHIFANG')} className={`rounded-xl p-1.5 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'BUSHIFANG' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'}`}>
+                                        <div className="text-[10px] sm:text-xs font-bold mb-0.5 whitespace-nowrap">不施方</div>
+                                        <div className="text-base sm:text-lg font-black">{puzhuoStats.buShiFangTotal}</div>
+                                    </button>
+                                    <button onClick={() => setPuzhuoFilter('DECEASED')} className={`rounded-xl p-1.5 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'DECEASED' || puzhuoFilter === 'DECEASED_TOTAL' ? 'bg-slate-600 text-white border-slate-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                                        <div className="text-[10px] sm:text-xs font-bold mb-0.5 whitespace-nowrap">亡者</div>
+                                        <div className="text-base sm:text-lg font-black">{puzhuoStats.deceasedTotal}</div>
+                                    </button>
+                                    <button onClick={() => setPuzhuoFilter('GONGZHUO')} className={`rounded-xl p-1.5 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'GONGZHUO' ? 'bg-sky-500 text-white border-sky-500' : 'bg-white text-sky-600 border-sky-200 hover:bg-sky-50'}`}>
+                                        <div className="text-[10px] sm:text-xs font-bold mb-0.5 whitespace-nowrap">公桌</div>
+                                        <div className="text-base sm:text-lg font-black">{puzhuoStats.gongZhuoTotal}</div>
+                                    </button>
+                                    <button onClick={() => setPuzhuoFilter('ZANZHUO')} className={`rounded-xl p-1.5 border shadow-sm text-center flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'ZANZHUO' ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-pink-600 border-pink-200 hover:bg-pink-50'}`}>
+                                        <div className="text-[10px] sm:text-xs font-bold mb-0.5 whitespace-nowrap">贊桌</div>
+                                        <div className="text-base sm:text-lg font-black">{puzhuoStats.zanZhuoTotal}</div>
+                                    </button>
+                                </div>
+
+                                {/* 第三排：已繳費、未繳費、已繳費未登記 */}
                                 <div className="grid grid-cols-3 gap-2 mb-4">
                                     <button onClick={() => setPuzhuoFilter('PAID')} className={`rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                                        <span className={`font-bold text-xs mb-1 ${puzhuoFilter === 'PAID' ? 'text-emerald-100' : 'text-emerald-600'}`}>已繳費桌數</span>
-                                        <span className="text-2xl font-black">{puzhuoStats.paidTotal}</span>
+                                        <span className={`font-bold text-[11px] sm:text-xs mb-1 ${puzhuoFilter === 'PAID' ? 'text-emerald-100' : 'text-emerald-600'}`}>已繳費桌數</span>
+                                        <span className="text-xl sm:text-2xl font-black">{puzhuoStats.paidTotal}</span>
                                     </button>
                                     <button onClick={() => setPuzhuoFilter('UNPAID')} className={`rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'UNPAID' ? 'bg-red-600 text-white border-red-600' : 'bg-red-50 text-red-600 border-red-200'}`}>
-                                        <span className={`font-bold text-xs mb-1 ${puzhuoFilter === 'UNPAID' ? 'text-red-100' : 'text-red-500'}`}>未繳費桌數</span>
-                                        <span className="text-2xl font-black">{puzhuoStats.unpaidTotal}</span>
+                                        <span className={`font-bold text-[11px] sm:text-xs mb-1 ${puzhuoFilter === 'UNPAID' ? 'text-red-100' : 'text-red-500'}`}>未繳費桌數</span>
+                                        <span className="text-xl sm:text-2xl font-black">{puzhuoStats.unpaidTotal}</span>
                                     </button>
                                     <button onClick={() => setPuzhuoFilter('UNREGISTERED')} className={`rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors ${puzhuoFilter === 'UNREGISTERED' ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
-                                        <span className={`font-bold text-xs mb-1 ${puzhuoFilter === 'UNREGISTERED' ? 'text-amber-100' : 'text-amber-600'}`}>已繳費未登記</span>
-                                        <span className="text-2xl font-black">{puzhuoStats.unregisteredTotal}</span>
+                                        <span className={`font-bold text-[11px] sm:text-xs mb-1 ${puzhuoFilter === 'UNREGISTERED' ? 'text-amber-100' : 'text-amber-600'}`}>已繳費未登記</span>
+                                        <span className="text-xl sm:text-2xl font-black">{puzhuoStats.unregisteredTotal}</span>
                                     </button>
                                 </div>
 
                                 <div className="space-y-3 fade-in">
-                                    {puzhuoFiltered.length > 0 ? puzhuoFiltered.map((item, idx) => (
-                                        <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-2 relative overflow-hidden group">
-                                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${item.isUnregistered ? 'bg-amber-400' : item.isDeceased ? 'bg-slate-400' : 'bg-indigo-400'}`}></div>
-                                            <div className="flex justify-between items-start pl-2">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    {item.id && <div className="bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded text-sm min-w-[2rem] text-center">{item.id}</div>}
-                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${item.isUnregistered ? 'bg-amber-100 text-amber-700' : item.isDeceased ? 'bg-slate-100 text-slate-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                                                        {item.isUnregistered ? '未登記' : item.isDeceased ? '亡者普桌' : '普桌'}
-                                                    </span>
+                                    {puzhuoFiltered.length > 0 ? puzhuoFiltered.map((item, idx) => {
+                                        // 標籤顏色與文字設定
+                                        let tagColor = 'bg-cyan-50 text-cyan-700';
+                                        let tagText = '施方';
+                                        let barColor = 'bg-cyan-400';
+
+                                        if (item.isUnregistered) { tagColor = 'bg-amber-100 text-amber-700'; tagText = '未登記'; barColor = 'bg-amber-400'; }
+                                        else if (item.isDeceased) { tagColor = 'bg-slate-100 text-slate-700'; tagText = '亡者普桌'; barColor = 'bg-slate-400'; }
+                                        else if (item.isGongZhuo) { tagColor = 'bg-sky-100 text-sky-700'; tagText = '公桌'; barColor = 'bg-sky-400'; }
+                                        else if (item.isZanZhuo) { tagColor = 'bg-pink-100 text-pink-700'; tagText = '贊桌'; barColor = 'bg-pink-400'; }
+                                        else if (item.isBuShiFang) { tagColor = 'bg-orange-100 text-orange-700'; tagText = '不施方'; barColor = 'bg-orange-400'; }
+
+                                        return (
+                                            <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-2 relative overflow-hidden group">
+                                                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${barColor}`}></div>
+                                                <div className="flex justify-between items-start pl-2">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        {item.id && <div className="bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded text-sm min-w-[2rem] text-center border border-slate-200">{item.id}</div>}
+                                                        <span className={`text-xs font-bold px-2 py-0.5 rounded border ${tagColor.replace('bg-', 'border-').replace('100', '200').replace('50', '200')} ${tagColor}`}>
+                                                            {tagText}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {/* 繳費狀態判斷 (公桌特別處理) */}
+                                                    {item.isGongZhuo && !item.isUnregistered ? (
+                                                        <div className="px-2 py-1 rounded-md text-sm font-bold flex items-center gap-1 border bg-slate-50 border-slate-200 text-slate-500">
+                                                            不計費
+                                                        </div>
+                                                    ) : (
+                                                        <div className={`px-2 py-1 rounded-md text-sm font-bold flex items-center gap-1 border ${item.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                                                            {item.isPaid ? <Icons.Check /> : <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
+                                                            {item.isPaid ? '已繳費' : '未繳費'}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className={`px-2 py-1 rounded-md text-sm font-bold flex items-center gap-1 border ${item.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
-                                                    {item.isPaid ? <Icons.Check /> : <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
-                                                    {item.isPaid ? '已繳費' : '未繳費'}
+                                                <div className="pl-2 flex items-baseline gap-3 flex-wrap mt-1">
+                                                    {item.name1 && <span className="text-xl font-bold text-slate-800 tracking-wide">{item.name1}</span>}
+                                                    {item.name2 && <span className="text-xl font-bold text-slate-800 tracking-wide">{item.name2}</span>}
                                                 </div>
+                                                {item.memo && (
+                                                    <div className="pl-2 mt-1">
+                                                        <span className="text-sm font-medium text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded shadow-sm">備註: {item.memo}</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="pl-2 flex items-baseline gap-3 flex-wrap mt-1">
-                                                {item.name1 && <span className="text-xl font-bold text-slate-800 tracking-wide">{item.name1}</span>}
-                                                {item.name2 && <span className="text-xl font-bold text-slate-800 tracking-wide">{item.name2}</span>}
-                                            </div>
-                                            {item.memo && (
-                                                <div className="pl-2 mt-1">
-                                                    <span className="text-sm font-medium text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded">備註: {item.memo}</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )) : <div className="text-center py-8 text-slate-500 font-bold">查無資料</div>}
+                                        )
+                                    }) : <div className="text-center py-8 text-slate-500 font-bold">查無資料</div>}
                                 </div>
                             </div>
                         )}
@@ -1304,7 +1303,7 @@
                             </div>
                         )}
 
-                        {/* 新增功能：中元捐獻 */}
+                        {/* 功能：中元捐獻 */}
                         {activeTab === 'zhongyuan' && visibleTabs.zhongyuan && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="zhongyuan" />
