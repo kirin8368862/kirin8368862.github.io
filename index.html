@@ -1211,7 +1211,7 @@
                                         <div className="text-xl sm:text-2xl font-black">{puzhuoStats.shiFangTotal}</div>
                                     </button>
                                     <button onClick={() => setPuzhuoFilter('BUSHIFANG')} className={`rounded-xl p-1 sm:p-1.5 border shadow-sm flex flex-col justify-center items-center transition-colors w-full ${puzhuoFilter === 'BUSHIFANG' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'}`}>
-                                        <div className="text-xs sm:text-sm font-bold mb-0.5 w-full whitespace-nowrap text-center">無施方</div>
+                                        <div className="text-xs sm:text-sm font-bold mb-0.5 w-full whitespace-nowrap text-center">不施方</div>
                                         <div className="text-xl sm:text-2xl font-black">{puzhuoStats.buShiFangTotal}</div>
                                     </button>
                                     <button onClick={() => setPuzhuoFilter('DECEASED')} className={`rounded-xl p-1 sm:p-1.5 border shadow-sm flex flex-col justify-center items-center transition-colors w-full ${puzhuoFilter === 'DECEASED' || puzhuoFilter === 'DECEASED_TOTAL' ? 'bg-slate-600 text-white border-slate-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
@@ -1255,7 +1255,7 @@
                                         else if (item.isDeceased) { tagColor = 'bg-slate-100 text-slate-700'; tagText = '亡者普桌'; barColor = 'bg-slate-400'; }
                                         else if (item.isGongZhuo) { tagColor = 'bg-sky-100 text-sky-700'; tagText = '公桌'; barColor = 'bg-sky-400'; }
                                         else if (item.isZanZhuo) { tagColor = 'bg-pink-100 text-pink-700'; tagText = '贊桌'; barColor = 'bg-pink-400'; }
-                                        else if (item.isBuShiFang) { tagColor = 'bg-orange-100 text-orange-700'; tagText = '無施方'; barColor = 'bg-orange-400'; }
+                                        else if (item.isBuShiFang) { tagColor = 'bg-orange-100 text-orange-700'; tagText = '不施方'; barColor = 'bg-orange-400'; }
 
                                         return (
                                             <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-2 relative overflow-hidden group">
@@ -1660,6 +1660,15 @@
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="fujian" />
                                 <ErrorBanner show={fetchErrors.fujian} />
+                                
+                                {/* 小琉球繳費異常警告 */}
+                                {fujianTripFiltered.some(item => item.isPaid && getFujianExpectedAmount(item.roomType) > 0 && item.paidAmount !== getFujianExpectedAmount(item.roomType)) && (
+                                    <div className="bg-red-50 border-l-4 border-red-500 p-3 mb-3 rounded-r-xl shadow-sm flex items-center gap-2 fade-in">
+                                        <Icons.Alert className="text-red-500 flex-shrink-0" />
+                                        <span className="text-red-800 font-bold text-sm">注意：下方有繳費金額不符的名單！</span>
+                                    </div>
+                                )}
+
                                 <div className="bg-teal-50 rounded-xl p-3 shadow-inner border border-teal-100 mb-2 flex justify-between gap-2 overflow-x-auto">
                                     <button onClick={() => setFujianTripFilter('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${fujianTripFilter === 'ALL' ? 'bg-teal-600 text-white border-teal-600 shadow-md' : 'bg-white text-teal-600 border-teal-100'}`}>
                                         <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">總人數</span><span className="text-3xl font-black">{fujianTripStats.reg}</span>
@@ -1673,18 +1682,18 @@
                                 </div>
 
                                 {/* 小琉球費用統計 */}
-                                <div className="bg-sky-50 rounded-xl p-3 shadow-inner border border-sky-100 mb-4 flex justify-between gap-2 overflow-x-auto">
-                                    <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border bg-white text-sky-700 border-sky-100 shadow-sm">
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">應收總額</span>
-                                        <span className="text-2xl font-black">${fmtMoney(fujianTripStats.expectedAmount)}</span>
+                                <div className="bg-sky-50 rounded-xl p-3 shadow-inner border border-sky-100 mb-4 flex justify-between gap-1 sm:gap-2 overflow-x-auto">
+                                    <div className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-lg border bg-white text-sky-700 border-sky-100 shadow-sm">
+                                        <span className="text-xs sm:text-sm font-bold opacity-90 mb-1 whitespace-nowrap">應收總額</span>
+                                        <span className="text-lg sm:text-xl font-black">{fmtMoney(fujianTripStats.expectedAmount)}</span>
                                     </div>
-                                    <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border bg-white text-emerald-600 border-emerald-100 shadow-sm cursor-pointer hover:bg-emerald-50 transition-colors" onClick={() => setFujianTripFilter('PAID')}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">實收總額</span>
-                                        <span className="text-2xl font-black">${fmtMoney(fujianTripStats.paidAmount)}</span>
+                                    <div className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-lg border bg-white text-emerald-600 border-emerald-100 shadow-sm cursor-pointer hover:bg-emerald-50 transition-colors" onClick={() => setFujianTripFilter('PAID')}>
+                                        <span className="text-xs sm:text-sm font-bold opacity-90 mb-1 whitespace-nowrap">實收總額</span>
+                                        <span className="text-lg sm:text-xl font-black">{fmtMoney(fujianTripStats.paidAmount)}</span>
                                     </div>
-                                    <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border bg-white text-red-600 border-red-100 shadow-sm cursor-pointer hover:bg-red-50 transition-colors" onClick={() => setFujianTripFilter('UNPAID')}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">未收總額</span>
-                                        <span className="text-2xl font-black">${fmtMoney(fujianTripStats.unpaidAmount)}</span>
+                                    <div className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-lg border bg-white text-red-600 border-red-100 shadow-sm cursor-pointer hover:bg-red-50 transition-colors" onClick={() => setFujianTripFilter('UNPAID')}>
+                                        <span className="text-xs sm:text-sm font-bold opacity-90 mb-1 whitespace-nowrap">未收總額</span>
+                                        <span className="text-lg sm:text-xl font-black">{fmtMoney(fujianTripStats.unpaidAmount)}</span>
                                     </div>
                                 </div>
                                 
