@@ -1211,7 +1211,7 @@
                                         <div className="text-xl sm:text-2xl font-black">{puzhuoStats.shiFangTotal}</div>
                                     </button>
                                     <button onClick={() => setPuzhuoFilter('BUSHIFANG')} className={`rounded-xl p-1 sm:p-1.5 border shadow-sm flex flex-col justify-center items-center transition-colors w-full ${puzhuoFilter === 'BUSHIFANG' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'}`}>
-                                        <div className="text-xs sm:text-sm font-bold mb-0.5 w-full whitespace-nowrap text-center">不施方</div>
+                                        <div className="text-xs sm:text-sm font-bold mb-0.5 w-full whitespace-nowrap text-center">無施方</div>
                                         <div className="text-xl sm:text-2xl font-black">{puzhuoStats.buShiFangTotal}</div>
                                     </button>
                                     <button onClick={() => setPuzhuoFilter('DECEASED')} className={`rounded-xl p-1 sm:p-1.5 border shadow-sm flex flex-col justify-center items-center transition-colors w-full ${puzhuoFilter === 'DECEASED' || puzhuoFilter === 'DECEASED_TOTAL' ? 'bg-slate-600 text-white border-slate-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
@@ -1255,7 +1255,7 @@
                                         else if (item.isDeceased) { tagColor = 'bg-slate-100 text-slate-700'; tagText = '亡者普桌'; barColor = 'bg-slate-400'; }
                                         else if (item.isGongZhuo) { tagColor = 'bg-sky-100 text-sky-700'; tagText = '公桌'; barColor = 'bg-sky-400'; }
                                         else if (item.isZanZhuo) { tagColor = 'bg-pink-100 text-pink-700'; tagText = '贊桌'; barColor = 'bg-pink-400'; }
-                                        else if (item.isBuShiFang) { tagColor = 'bg-orange-100 text-orange-700'; tagText = '不施方'; barColor = 'bg-orange-400'; }
+                                        else if (item.isBuShiFang) { tagColor = 'bg-orange-100 text-orange-700'; tagText = '無施方'; barColor = 'bg-orange-400'; }
 
                                         return (
                                             <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-2 relative overflow-hidden group">
