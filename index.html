@@ -158,14 +158,15 @@
             let paidMap = new Map();
             parsed.forEach(row => {
                 const pName = row[paidKey];
-                if(pName && pName.trim() !== '') {
+                if(pName && pName.trim() !== '' && !pName.includes('姓名')) {
                     let amountStr = amountKey ? row[amountKey] : '';
                     const amount = parseInt(String(amountStr).replace(/,/g, '').replace(/\$/g, '').replace(/\D/g, ''), 10) || 0;
                     paidMap.set(pName.trim(), amount);
                 }
             });
 
-            return parsed.filter(row => row[regKey] && row[regKey].trim() !== '').map((row, i) => {
+            const registeredNames = new Set();
+            const registeredList = parsed.filter(row => row[regKey] && row[regKey].trim() !== '').map((row, i) => {
                 const rawName = row[regKey].trim();
                 let realName = rawName;
                 let roomType = "";
@@ -176,6 +177,7 @@
                     realName = parts[0];
                     roomType = parts.slice(1).join('_');
                 }
+                registeredNames.add(realName);
 
                 return {
                     id: (row[idKey] || '').trim() || (i + 1),
@@ -183,9 +185,27 @@
                     name: realName, 
                     roomType: roomType,
                     isPaid: paidMap.has(realName),
-                    paidAmount: paidMap.has(realName) ? paidMap.get(realName) : 0
+                    paidAmount: paidMap.has(realName) ? paidMap.get(realName) : 0,
+                    isUnregistered: false
                 };
             });
+
+            const unregisteredList = [];
+            paidMap.forEach((amount, name) => {
+                if (!registeredNames.has(name)) {
+                    unregisteredList.push({
+                        id: '-',
+                        rawName: name,
+                        name: name,
+                        roomType: '',
+                        isPaid: true,
+                        paidAmount: amount,
+                        isUnregistered: true
+                    });
+                }
+            });
+
+            return [...registeredList, ...unregisteredList];
         };
 
         const extractDonations = (parsed) => {
@@ -677,9 +697,9 @@
             }, [lightFiltered, lightFilterType]);
 
             const eastTripStats = useMemo(() => {
-                const baseList = searchTerm 
+                const baseList = (searchTerm 
                     ? EastTripDataRaw.filter(i => i.name.includes(searchTerm) || (i.rawName && i.rawName.includes(searchTerm)))
-                    : EastTripDataRaw;
+                    : EastTripDataRaw).filter(i => !i.isUnregistered);
                 return {
                     reg: baseList.length,
                     paid: baseList.filter(i => i.isPaid).length,
@@ -688,7 +708,7 @@
             }, [EastTripDataRaw, searchTerm]);
 
             const eastTripFiltered = useMemo(() => {
-                let list = EastTripDataRaw;
+                let list = EastTripDataRaw.filter(i => !i.isUnregistered);
                 if (searchTerm) {
                     list = list.filter(i => i.name.includes(searchTerm) || (i.rawName && i.rawName.includes(searchTerm)));
                 }
@@ -711,27 +731,38 @@
                 let expectedTotal = 0;
                 let paidTotal = 0;
                 let unpaidTotal = 0;
+                let anomalyTotal = 0;
                 
                 FujianTripDataRaw.forEach(i => {
                     if (!searchTerm || i.name.includes(searchTerm) || i.rawName.includes(searchTerm)) {
                         const expected = getFujianExpectedAmount(i.roomType);
-                        expectedTotal += expected;
+                        if (!i.isUnregistered) {
+                            expectedTotal += expected;
+                        }
+
+                        const isAmountWrong = i.isPaid && !i.isUnregistered && expected > 0 && i.paidAmount !== expected;
+                        if (i.isUnregistered || isAmountWrong) {
+                            anomalyTotal += 1;
+                        }
+
                         if (i.isPaid) {
                             paidTotal += i.paidAmount || 0;
-                            // 如果已繳費但金額不足，將差額計入未收金額 (或者根據需求，如果 isPaid=true 就不算未收，這裡先以差額計算)
-                            if (expected > i.paidAmount) {
+                            if (expected > i.paidAmount && !i.isUnregistered) {
                                 unpaidTotal += (expected - i.paidAmount);
                             }
                         } else {
-                            unpaidTotal += expected;
+                            if (!i.isUnregistered) {
+                                unpaidTotal += expected;
+                            }
                         }
                     }
                 });
                 
                 return {
-                    reg: FujianTripDataRaw.filter(i => !searchTerm || i.name.includes(searchTerm) || i.rawName.includes(searchTerm)).length,
-                    paid: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm) || i.rawName.includes(searchTerm)) && i.isPaid).length,
-                    unpaid: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm) || i.rawName.includes(searchTerm)) && !i.isPaid).length,
+                    reg: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm) || i.rawName.includes(searchTerm)) && !i.isUnregistered).length,
+                    paid: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm) || i.rawName.includes(searchTerm)) && i.isPaid && !i.isUnregistered).length,
+                    unpaid: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm) || i.rawName.includes(searchTerm)) && !i.isPaid && !i.isUnregistered).length,
+                    anomaly: anomalyTotal,
                     expectedAmount: expectedTotal,
                     paidAmount: paidTotal,
                     unpaidAmount: unpaidTotal
@@ -743,10 +774,16 @@
                 if (searchTerm) {
                     list = list.filter(i => i.name.includes(searchTerm) || (i.rawName && i.rawName.includes(searchTerm)));
                 }
-                if (fujianTripFilter === 'PAID') return list.filter(i => i.isPaid);
-                if (fujianTripFilter === 'UNPAID') return list.filter(i => !i.isPaid);
-                return list;
-            }, [FujianTripDataRaw, searchTerm, fujianTripFilter]);
+                if (fujianTripFilter === 'PAID') return list.filter(i => i.isPaid && !i.isUnregistered);
+                if (fujianTripFilter === 'UNPAID') return list.filter(i => !i.isPaid && !i.isUnregistered);
+                if (fujianTripFilter === 'ANOMALY') return list.filter(i => {
+                    const expectedAmount = getFujianExpectedAmount(i.roomType);
+                    const isAmountWrong = i.isPaid && !i.isUnregistered && expectedAmount > 0 && i.paidAmount !== expectedAmount;
+                    return i.isUnregistered || isAmountWrong;
+                });
+                if (fujianTripFilter === 'ALL') return list.filter(i => !i.isUnregistered);
+                return list.filter(i => !i.isUnregistered);
+            }, [FujianTripDataRaw, searchTerm, fujianTripFilter, getFujianExpectedAmount]);
 
             const memberFiltered = useMemo(() => {
                 let list = MemberDataRaw;
@@ -1662,38 +1699,49 @@
                                 <ErrorBanner show={fetchErrors.fujian} />
                                 
                                 {/* 小琉球繳費異常警告 */}
-                                {fujianTripFiltered.some(item => item.isPaid && getFujianExpectedAmount(item.roomType) > 0 && item.paidAmount !== getFujianExpectedAmount(item.roomType)) && (
+                                {fujianTripStats.anomaly > 0 && (
                                     <div className="bg-red-50 border-l-4 border-red-500 p-3 mb-3 rounded-r-xl shadow-sm flex items-center gap-2 fade-in">
                                         <Icons.Alert className="text-red-500 flex-shrink-0" />
-                                        <span className="text-red-800 font-bold text-sm">注意：下方有繳費金額不符的名單！</span>
+                                        <span className="text-red-800 font-bold text-sm">注意：下方有 {fujianTripStats.anomaly} 筆繳費異常 (未登記或金額錯誤)！</span>
                                     </div>
                                 )}
 
-                                <div className="bg-teal-50 rounded-xl p-3 shadow-inner border border-teal-100 mb-2 flex justify-between gap-2 overflow-x-auto">
-                                    <button onClick={() => setFujianTripFilter('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${fujianTripFilter === 'ALL' ? 'bg-teal-600 text-white border-teal-600 shadow-md' : 'bg-white text-teal-600 border-teal-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">總人數</span><span className="text-3xl font-black">{fujianTripStats.reg}</span>
+                                {/* 上方兩排選單結構 (滿版大字體) - 第一排 */}
+                                <div className="grid grid-cols-4 gap-2 mb-2">
+                                    <button onClick={() => setFujianTripFilter('ALL')} className={`rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors w-full ${fujianTripFilter === 'ALL' ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-teal-600 border-teal-200 hover:bg-teal-50'}`}>
+                                        <div className={`text-xs sm:text-sm font-bold mb-1 w-full whitespace-nowrap tracking-wider text-center ${fujianTripFilter === 'ALL' ? 'text-teal-100' : 'text-teal-500'}`}>總人數</div>
+                                        <div className="text-xl sm:text-2xl font-black">{fujianTripStats.reg}</div>
                                     </button>
-                                    <button onClick={() => setFujianTripFilter('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${fujianTripFilter === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-3xl font-black">{fujianTripStats.paid}</span>
+                                    <button onClick={() => setFujianTripFilter('PAID')} className={`rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors w-full ${fujianTripFilter === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50'}`}>
+                                        <div className={`text-xs sm:text-sm font-bold mb-1 w-full whitespace-nowrap tracking-wider text-center ${fujianTripFilter === 'PAID' ? 'text-emerald-100' : 'text-emerald-500'}`}>已繳費</div>
+                                        <div className="text-xl sm:text-2xl font-black">{fujianTripStats.paid}</div>
                                     </button>
-                                    <button onClick={() => setFujianTripFilter('UNPAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${fujianTripFilter === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-3xl font-black">{fujianTripStats.unpaid}</span>
+                                    <button onClick={() => setFujianTripFilter('UNPAID')} className={`rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors w-full ${fujianTripFilter === 'UNPAID' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-200 hover:bg-red-50'}`}>
+                                        <div className={`text-xs sm:text-sm font-bold mb-1 w-full whitespace-nowrap tracking-wider text-center ${fujianTripFilter === 'UNPAID' ? 'text-red-100' : 'text-red-500'}`}>未繳費</div>
+                                        <div className="text-xl sm:text-2xl font-black">{fujianTripStats.unpaid}</div>
+                                    </button>
+                                    <button onClick={() => setFujianTripFilter('ANOMALY')} className={`rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors w-full ${fujianTripFilter === 'ANOMALY' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-600 border-amber-200 hover:bg-amber-50'}`}>
+                                        <div className={`text-xs sm:text-sm font-bold mb-1 w-full whitespace-nowrap tracking-wider text-center ${fujianTripFilter === 'ANOMALY' ? 'text-amber-100' : 'text-amber-600'}`}>繳費異常</div>
+                                        <div className="text-xl sm:text-2xl font-black flex items-center gap-1">
+                                            {fujianTripStats.anomaly > 0 && fujianTripFilter !== 'ANOMALY' && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
+                                            {fujianTripStats.anomaly}
+                                        </div>
                                     </button>
                                 </div>
 
-                                {/* 小琉球費用統計 */}
-                                <div className="bg-sky-50 rounded-xl p-3 shadow-inner border border-sky-100 mb-4 flex justify-between gap-1 sm:gap-2 overflow-x-auto">
-                                    <div className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-lg border bg-white text-sky-700 border-sky-100 shadow-sm">
-                                        <span className="text-xs sm:text-sm font-bold opacity-90 mb-1 whitespace-nowrap">應收總額</span>
-                                        <span className="text-lg sm:text-xl font-black">{fmtMoney(fujianTripStats.expectedAmount)}</span>
+                                {/* 上方兩排選單結構 (滿版大字體) - 第二排 */}
+                                <div className="grid grid-cols-3 gap-2 mb-4">
+                                    <div className="rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors w-full bg-white text-sky-700 border-sky-200">
+                                        <div className="text-sm sm:text-base font-bold mb-1 w-full whitespace-nowrap tracking-wider text-center text-sky-600">應收總額</div>
+                                        <div className="text-lg sm:text-xl font-black">{fmtMoney(fujianTripStats.expectedAmount)}</div>
                                     </div>
-                                    <div className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-lg border bg-white text-emerald-600 border-emerald-100 shadow-sm cursor-pointer hover:bg-emerald-50 transition-colors" onClick={() => setFujianTripFilter('PAID')}>
-                                        <span className="text-xs sm:text-sm font-bold opacity-90 mb-1 whitespace-nowrap">實收總額</span>
-                                        <span className="text-lg sm:text-xl font-black">{fmtMoney(fujianTripStats.paidAmount)}</span>
+                                    <div className="rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors w-full bg-white text-emerald-700 border-emerald-200 cursor-pointer hover:bg-emerald-50" onClick={() => setFujianTripFilter('PAID')}>
+                                        <div className="text-sm sm:text-base font-bold mb-1 w-full whitespace-nowrap tracking-wider text-center text-emerald-600">實收總額</div>
+                                        <div className="text-lg sm:text-xl font-black">{fmtMoney(fujianTripStats.paidAmount)}</div>
                                     </div>
-                                    <div className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-lg border bg-white text-red-600 border-red-100 shadow-sm cursor-pointer hover:bg-red-50 transition-colors" onClick={() => setFujianTripFilter('UNPAID')}>
-                                        <span className="text-xs sm:text-sm font-bold opacity-90 mb-1 whitespace-nowrap">未收總額</span>
-                                        <span className="text-lg sm:text-xl font-black">{fmtMoney(fujianTripStats.unpaidAmount)}</span>
+                                    <div className="rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors w-full bg-white text-red-700 border-red-200 cursor-pointer hover:bg-red-50" onClick={() => setFujianTripFilter('UNPAID')}>
+                                        <div className="text-sm sm:text-base font-bold mb-1 w-full whitespace-nowrap tracking-wider text-center text-red-600">未收總額</div>
+                                        <div className="text-lg sm:text-xl font-black">{fmtMoney(fujianTripStats.unpaidAmount)}</div>
                                     </div>
                                 </div>
                                 
@@ -1701,11 +1749,12 @@
                                 <div className="space-y-3 fade-in">
                                     {fujianTripFiltered.length > 0 ? fujianTripFiltered.map((item, idx) => {
                                         const expectedAmount = getFujianExpectedAmount(item.roomType);
-                                        const isAmountWrong = item.isPaid && expectedAmount > 0 && item.paidAmount !== expectedAmount;
+                                        const isAmountWrong = item.isPaid && !item.isUnregistered && expectedAmount > 0 && item.paidAmount !== expectedAmount;
+                                        const isAnomaly = item.isUnregistered || isAmountWrong;
 
                                         return (
-                                            <div key={idx} className={`bg-white p-4 rounded-xl shadow-sm border flex flex-col gap-2 relative overflow-hidden group ${isAmountWrong ? 'border-amber-400 bg-amber-50/50' : 'border-slate-200'}`}>
-                                                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isAmountWrong ? 'bg-amber-500' : 'bg-teal-400'}`}></div>
+                                            <div key={idx} className={`bg-white p-4 rounded-xl shadow-sm border flex flex-col gap-2 relative overflow-hidden group ${isAnomaly ? 'border-amber-400 bg-amber-50/50' : 'border-slate-200'}`}>
+                                                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${item.isUnregistered ? 'bg-amber-400' : isAmountWrong ? 'bg-amber-500' : 'bg-teal-400'}`}></div>
                                                 <div className="flex items-center justify-between pl-2">
                                                     <div className="flex items-center gap-3">
                                                         <div className="bg-teal-100 text-teal-700 font-bold px-3 py-1 rounded-md text-sm min-w-[3rem] text-center shadow-sm border border-teal-200">
@@ -1724,16 +1773,20 @@
                                                     </div>
                                                 </div>
                                                 
-                                                {/* 繳費金額覆核區塊 */}
-                                                {item.isPaid && (
+                                                {/* 繳費金額覆核與異常區塊 */}
+                                                {(item.isPaid || isAnomaly) && (
                                                     <div className="pl-2 mt-1 flex flex-col gap-1">
                                                         <div className="text-sm font-bold text-slate-600 border-t border-slate-100 pt-2 mt-1">
                                                             繳費紀錄: <span className={isAmountWrong ? "text-red-600 text-lg" : "text-emerald-600 text-lg"}>${fmtMoney(item.paidAmount)}</span>
-                                                            {expectedAmount > 0 && <span className="ml-2 text-slate-400 font-normal">(應繳: ${fmtMoney(expectedAmount)})</span>}
+                                                            {expectedAmount > 0 && !item.isUnregistered && <span className="ml-2 text-slate-400 font-normal">(應繳: ${fmtMoney(expectedAmount)})</span>}
                                                         </div>
-                                                        {isAmountWrong && (
-                                                            <div className="text-sm font-bold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg flex items-center gap-1 mt-1">
-                                                                <Icons.Alert /> 繳費金額不符！
+                                                        {isAnomaly && (
+                                                            <div className="text-sm font-bold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg flex flex-col gap-1 mt-1">
+                                                                {item.isUnregistered ? (
+                                                                    <span className="flex items-center gap-1"><Icons.Alert /> 已繳費未登記！</span>
+                                                                ) : (
+                                                                    <span className="flex items-center gap-1"><Icons.Alert /> 繳費金額錯誤！</span>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
