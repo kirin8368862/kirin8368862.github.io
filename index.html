@@ -116,11 +116,9 @@
                 const isPaid = (name1 && paidSet.has(name1)) || (name2 && paidSet.has(name2));
                 const isDeceased = i >= 149; 
                 
-                // 新增：細分判斷邏輯
                 const isGongZhuo = memo.includes('公桌');
                 const isZanZhuo = memo.includes('贊普');
                 const isBuShiFang = memo.includes('不施方');
-                // 空白就是施方(不含亡者普桌)，另外如果已經判定為公桌、贊桌、不施方也不算施方
                 const isShiFang = !isGongZhuo && !isZanZhuo && !isBuShiFang && !isDeceased;
 
                 return {
@@ -147,7 +145,6 @@
             let regKey = keys.find(k => k.includes('登記') || k.includes('姓名')) || keys[1]; 
             let paidKey = keys.find(k => k.includes('繳費')) || keys[4]; 
             
-            // 尋找金額欄位，如果沒有明確標示金額，預設抓取繳費欄位的下一欄
             let amountKey = keys.find(k => k.includes('金額') || k.includes('費用'));
             if (!amountKey) {
                 let pIdx = keys.indexOf(paidKey);
@@ -171,7 +168,6 @@
                 let realName = rawName;
                 let roomType = "";
                 
-                // 拆分名字與房型
                 if (rawName.includes('_')) {
                     const parts = rawName.split('_');
                     realName = parts[0];
@@ -194,13 +190,8 @@
             paidMap.forEach((amount, name) => {
                 if (!registeredNames.has(name)) {
                     unregisteredList.push({
-                        id: '-',
-                        rawName: name,
-                        name: name,
-                        roomType: '',
-                        isPaid: true,
-                        paidAmount: amount,
-                        isUnregistered: true
+                        id: '-', rawName: name, name: name, roomType: '',
+                        isPaid: true, paidAmount: amount, isUnregistered: true
                     });
                 }
             });
@@ -215,14 +206,23 @@
             let nameKey = keys.find(k => k.includes('姓名') || k.includes('名單')) || keys[1];
             let amountKey = keys.find(k => k.includes('金額') || k.includes('元')) || keys[2];
             let dateKey = keys.find(k => k.includes('日期')) || keys[3]; 
+            // 抓取備註欄位以處理物資捐獻
+            let memoKey = keys.find(k => !k.startsWith('_col_') && (k.includes('備註') || k.includes('物資')));
 
             return parsed.map((row, i) => {
-                const cleanAmount = parseInt((row[amountKey] || '0').replace(/,/g, '').replace(/\$/g, ''), 10) || 0;
+                const cleanAmount = parseInt((String(row[amountKey]) || '0').replace(/,/g, '').replace(/\$/g, ''), 10) || 0;
+                // 如果有找到備註欄位則取其值，否則預設抓第5欄(_col_4)當作備註備用
+                const memo = memoKey && row[memoKey] ? row[memoKey].trim() : (row['_col_4'] || '').trim();
+                
                 return {
-                    id: i, item: (row[itemKey] || '').trim(), name: (row[nameKey] || '').trim(),
-                    amount: cleanAmount, date: (row[dateKey] || row['_col_3'] || '').trim()
+                    id: i, 
+                    item: (row[itemKey] || '').trim(), 
+                    name: (row[nameKey] || '').trim(),
+                    amount: cleanAmount, 
+                    date: (row[dateKey] || row['_col_3'] || '').trim(),
+                    memo: memo
                 };
-            }).filter(r => r.name || r.amount > 0);
+            }).filter(r => r.name || r.amount > 0 || r.memo);
         };
 
         const extractMember = (parsed) => {
@@ -301,7 +301,7 @@
         const DEFAULT_TAISUI_DATA = [{id:"1A1",n:"黃淑霞",r:1,p:1}];
         const DEFAULT_LIGHT_DATA = [{id:"1B10",n:"游宇閎",t:1,r:1,p:1}];
         const DEFAULT_TRIP_DATA = [ { id: 1, name: "測試資料", isPaid: true } ];
-        const DEFAULT_DONATION_DATA = [{ id: 1, item: "白米", name: "測試善人", amount: 500, date: "2023/10/01" }];
+        const DEFAULT_DONATION_DATA = [{ id: 1, item: "白米", name: "測試善人", amount: 500, date: "2023/10/01", memo: "" }];
         const DEFAULT_MEMBER_DATA = [{ id: 1, name: "測試會員" }];
         const DEFAULT_BIRTHDAY_DATA = [{ id: 1, name: "測試信眾", type: "大組", amount: 1200 }];
         const DEFAULT_BUYINKU_DATA = [{ id: "1", name: "測試資料", regQty: 1, paidQty: 1, isPaid: true, isUnregistered: false, isAnomaly: false }];
@@ -316,7 +316,7 @@
             Lock: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>,
             Refresh: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-4 h-4 ${className}`}><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.13-5.83L2 8"></path></svg>,
             Gift: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-5 h-5"}><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M12 8v13"></path><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"></path></svg>,
-            Alert: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+            Alert: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-5 h-5"}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
             Users: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
             Star: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
             ChevronDown: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-4 h-4"}><polyline points="6 9 12 15 18 9"></polyline></svg>,
@@ -434,20 +434,29 @@
                              return { data: [], date: "", error: true, isHidden: false };
                         }
 
-                        const cleanText = text.replace(/^\uFEFF/, '');
-                        const lines = cleanText.split(/\r?\n/).map(l => l.trim()).filter(l => l);
-                        if (lines.length === 0) return { data: [], date: "", error: false, isHidden: false };
+                        // 判斷 H1 欄位是否隱藏：為了加速，我們只先處理第一行標題
+                        const firstLineEnd = text.indexOf('\n');
+                        const firstLine = firstLineEnd !== -1 ? text.substring(0, firstLineEnd).trim() : text.trim();
+                        const cleanFirstLine = firstLine.replace(/^\uFEFF/, '');
+                        const headersRaw = splitCSVRow(cleanFirstLine);
+                        const isHidden = headersRaw.length > 7 && headersRaw[7].includes('隱藏'); // 第 H 欄
 
-                        const headersRaw = splitCSVRow(lines[0]);
                         let extractedDate = "";
-                        const isHidden = headersRaw.length > 7 && headersRaw[7].includes('隱藏');
-
                         if (headersRaw.length > 5 && headersRaw[5].includes('更新')) {
                             extractedDate = headersRaw[5].replace(/更新日?[:：\s]?/g, '').trim();
                         } else {
                             const found = headersRaw.find(h => h.includes('更新日'));
                             if (found) extractedDate = found.replace(/更新日?[:：\s]?/g, '').trim();
                         }
+
+                        // 若該分頁設定為隱藏，則**不讀取、不解析後續資料**，直接返回以提升開啟速度！
+                        if (isHidden) {
+                            return { data: [], date: extractedDate, error: false, isHidden: true };
+                        }
+
+                        const cleanText = text.replace(/^\uFEFF/, '');
+                        const lines = cleanText.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+                        if (lines.length <= 1) return { data: [], date: extractedDate, error: false, isHidden: false };
 
                         const parsed = lines.slice(1).map(line => {
                             const values = splitCSVRow(line);
@@ -459,39 +468,46 @@
                             }, {});
                         });
 
-                        return { data: parser ? parser(parsed) : parsed, date: extractedDate, error: false, isHidden };
+                        return { data: parser ? parser(parsed) : parsed, date: extractedDate, error: false, isHidden: false };
                     } catch (e) {
                         return { data: [], date: "", error: true, isHidden: false };
                     }
                 };
 
-                const resPuzhuo = await fetchData(GOOGLE_SHEETS_URLS.puzhuo, extractPuzhuo);
-                const resRecord = await fetchData(GOOGLE_SHEETS_URLS.records, parsed => parsed.map(row => ({
-                    group: row['組別'] || '', role: row['身份'] || '', name: row['姓名'] || '', date: row['繳交至'] || ''
-                })).filter(r => r.name));
-                const resTaiSui = await fetchData(GOOGLE_SHEETS_URLS.taiSui, parsed => parsed.map(row => ({
-                    id: row['編號'] || '', n: row['姓名'] || '', 
-                    r: checkStatus(row, '太歲登記', '登記', '安奉', '太歲'), 
-                    p: checkStatus(row, '太歲繳費', '繳費', '付款', '金額')
-                })).filter(r => r.n));
-                const resLightUpper = await fetchData(GOOGLE_SHEETS_URLS.lightUpper, parsed => parsed.map(row => ({
-                    id: row['編號'] || '', n: row['姓名'] || '', t: 1,
-                    r: checkStatus(row, '光明燈上登記', '上層登記', '登記', '安奉', '光明燈'), 
-                    p: checkStatus(row, '光明燈上繳費', '上層繳費', '繳費', '付款', '金額')
-                })).filter(r => r.n));
-                const resLightLower = await fetchData(GOOGLE_SHEETS_URLS.lightLower, parsed => parsed.map(row => ({
-                    id: row['編號'] || '', n: row['姓名'] || '', t: 2,
-                    r: checkStatus(row, '光明燈下登記', '下層登記', '登記', '安奉', '光明燈'), 
-                    p: checkStatus(row, '光明燈下繳費', '下層繳費', '繳費', '付款', '金額')
-                })).filter(r => r.n));
-                const resEast = await fetchData(GOOGLE_SHEETS_URLS.eastTrip, extractTripData);
-                const resFujian = await fetchData(GOOGLE_SHEETS_URLS.fujianTrip, extractTripData);
-                const resDonation = await fetchData(GOOGLE_SHEETS_URLS.donation, extractDonations);
-                const resZhongyuan = await fetchData(GOOGLE_SHEETS_URLS.zhongyuan, extractDonations);
-                const resMember = await fetchData(GOOGLE_SHEETS_URLS.member, extractMember);
-                const resGuansheng = await fetchData(GOOGLE_SHEETS_URLS.guansheng, extractBirthday);
-                const resWangmu = await fetchData(GOOGLE_SHEETS_URLS.wangmu, extractBirthday);
-                const resBuyinku = await fetchData(GOOGLE_SHEETS_URLS.buyinku, extractBuyinku);
+                // 將依序等待 (await) 的資料讀取改為 Promise.all「平行讀取」，可節省將近 90% 的網路傳輸等待時間！
+                const [
+                    resPuzhuo, resRecord, resTaiSui, resLightUpper, resLightLower,
+                    resEast, resFujian, resDonation, resZhongyuan, resMember,
+                    resGuansheng, resWangmu, resBuyinku
+                ] = await Promise.all([
+                    fetchData(GOOGLE_SHEETS_URLS.puzhuo, extractPuzhuo),
+                    fetchData(GOOGLE_SHEETS_URLS.records, parsed => parsed.map(row => ({
+                        group: row['組別'] || '', role: row['身份'] || '', name: row['姓名'] || '', date: row['繳交至'] || ''
+                    })).filter(r => r.name)),
+                    fetchData(GOOGLE_SHEETS_URLS.taiSui, parsed => parsed.map(row => ({
+                        id: row['編號'] || '', n: row['姓名'] || '', 
+                        r: checkStatus(row, '太歲登記', '登記', '安奉', '太歲'), 
+                        p: checkStatus(row, '太歲繳費', '繳費', '付款', '金額')
+                    })).filter(r => r.n)),
+                    fetchData(GOOGLE_SHEETS_URLS.lightUpper, parsed => parsed.map(row => ({
+                        id: row['編號'] || '', n: row['姓名'] || '', t: 1,
+                        r: checkStatus(row, '光明燈上登記', '上層登記', '登記', '安奉', '光明燈'), 
+                        p: checkStatus(row, '光明燈上繳費', '上層繳費', '繳費', '付款', '金額')
+                    })).filter(r => r.n)),
+                    fetchData(GOOGLE_SHEETS_URLS.lightLower, parsed => parsed.map(row => ({
+                        id: row['編號'] || '', n: row['姓名'] || '', t: 2,
+                        r: checkStatus(row, '光明燈下登記', '下層登記', '登記', '安奉', '光明燈'), 
+                        p: checkStatus(row, '光明燈下繳費', '下層繳費', '繳費', '付款', '金額')
+                    })).filter(r => r.n)),
+                    fetchData(GOOGLE_SHEETS_URLS.eastTrip, extractTripData),
+                    fetchData(GOOGLE_SHEETS_URLS.fujianTrip, extractTripData),
+                    fetchData(GOOGLE_SHEETS_URLS.donation, extractDonations),
+                    fetchData(GOOGLE_SHEETS_URLS.zhongyuan, extractDonations),
+                    fetchData(GOOGLE_SHEETS_URLS.member, extractMember),
+                    fetchData(GOOGLE_SHEETS_URLS.guansheng, extractBirthday),
+                    fetchData(GOOGLE_SHEETS_URLS.wangmu, extractBirthday),
+                    fetchData(GOOGLE_SHEETS_URLS.buyinku, extractBuyinku)
+                ]);
 
                 setUpdateDates({
                     puzhuo: resPuzhuo.date, records: resRecord.date, taisui: resTaiSui.date,
@@ -594,7 +610,7 @@
                 const unregisteredList = baseList.filter(i => i.isUnregistered);
 
                 return {
-                    normalTotal: registeredList.filter(i => !i.isDeceased).length, // 普桌總數 (不含亡者)
+                    normalTotal: registeredList.filter(i => !i.isDeceased).length,
                     deceasedTotal: registeredList.filter(i => i.isDeceased).length,
                     allTotal: registeredList.length,
                     
@@ -604,7 +620,6 @@
                     zanZhuoTotal: registeredList.filter(i => i.isZanZhuo).length,
 
                     paidTotal: baseList.filter(i => i.isPaid).length,
-                    // 未繳費總數排除公桌
                     unpaidTotal: registeredList.filter(i => !i.isPaid && !i.isGongZhuo).length,
                     unregisteredTotal: unregisteredList.length
                 };
@@ -650,7 +665,6 @@
                 return list;
             }, [buyinkuBaseFiltered, buyinkuFilter]);
 
-            // --- 其他項目邏輯 ---
             const recordFiltered = useMemo(() => {
                 if (!searchTerm) return RecordData;
                 return RecordData.filter(item => item.name.includes(searchTerm) || item.group.includes(searchTerm));
@@ -683,10 +697,12 @@
                 if (!searchTerm) return LightData;
                 return LightData.filter(item => item.n.includes(searchTerm) || (item.id && item.id.includes(searchTerm.toUpperCase())));
             }, [searchTerm, LightData]);
+            
             const lightStats = useMemo(() => ({
                 totalReg: lightFiltered.filter(i => i.r === 1).length, upperReg: lightFiltered.filter(i => i.t === 1 && i.r === 1).length,
                 lowerReg: lightFiltered.filter(i => i.t === 2 && i.r === 1).length, paid: lightFiltered.filter(i => i.p === 1).length, unpaid: lightFiltered.filter(i => i.p === 0).length
             }), [lightFiltered]);
+            
             const lightDisplay = useMemo(() => {
                 let data = lightFiltered;
                 if (lightFilterType === 'UPPER') data = data.filter(i => i.t === 1);
@@ -701,9 +717,7 @@
                     ? EastTripDataRaw.filter(i => i.name.includes(searchTerm) || (i.rawName && i.rawName.includes(searchTerm)))
                     : EastTripDataRaw).filter(i => !i.isUnregistered);
                 return {
-                    reg: baseList.length,
-                    paid: baseList.filter(i => i.isPaid).length,
-                    unpaid: baseList.filter(i => !i.isPaid).length
+                    reg: baseList.length, paid: baseList.filter(i => i.isPaid).length, unpaid: baseList.filter(i => !i.isPaid).length
                 };
             }, [EastTripDataRaw, searchTerm]);
 
@@ -728,32 +742,21 @@
             }, []);
 
             const fujianTripStats = useMemo(() => {
-                let expectedTotal = 0;
-                let paidTotal = 0;
-                let unpaidTotal = 0;
-                let anomalyTotal = 0;
+                let expectedTotal = 0, paidTotal = 0, unpaidTotal = 0, anomalyTotal = 0;
                 
                 FujianTripDataRaw.forEach(i => {
                     if (!searchTerm || i.name.includes(searchTerm) || i.rawName.includes(searchTerm)) {
                         const expected = getFujianExpectedAmount(i.roomType);
-                        if (!i.isUnregistered) {
-                            expectedTotal += expected;
-                        }
+                        if (!i.isUnregistered) expectedTotal += expected;
 
                         const isAmountWrong = i.isPaid && !i.isUnregistered && expected > 0 && i.paidAmount !== expected;
-                        if (i.isUnregistered || isAmountWrong) {
-                            anomalyTotal += 1;
-                        }
+                        if (i.isUnregistered || isAmountWrong) anomalyTotal += 1;
 
                         if (i.isPaid) {
                             paidTotal += i.paidAmount || 0;
-                            if (expected > i.paidAmount && !i.isUnregistered) {
-                                unpaidTotal += (expected - i.paidAmount);
-                            }
+                            if (expected > i.paidAmount && !i.isUnregistered) unpaidTotal += (expected - i.paidAmount);
                         } else {
-                            if (!i.isUnregistered) {
-                                unpaidTotal += expected;
-                            }
+                            if (!i.isUnregistered) unpaidTotal += expected;
                         }
                     }
                 });
@@ -762,10 +765,7 @@
                     reg: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm) || i.rawName.includes(searchTerm)) && !i.isUnregistered).length,
                     paid: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm) || i.rawName.includes(searchTerm)) && i.isPaid && !i.isUnregistered).length,
                     unpaid: FujianTripDataRaw.filter(i => (!searchTerm || i.name.includes(searchTerm) || i.rawName.includes(searchTerm)) && !i.isPaid && !i.isUnregistered).length,
-                    anomaly: anomalyTotal,
-                    expectedAmount: expectedTotal,
-                    paidAmount: paidTotal,
-                    unpaidAmount: unpaidTotal
+                    anomaly: anomalyTotal, expectedAmount: expectedTotal, paidAmount: paidTotal, unpaidAmount: unpaidTotal
                 };
             }, [FujianTripDataRaw, searchTerm, getFujianExpectedAmount]);
 
@@ -808,8 +808,7 @@
                 if (birthdayFilter === 'BIG') list = list.filter(i => i.type.includes('大'));
                 if (birthdayFilter === 'SMALL') list = list.filter(i => i.type.includes('小'));
                 return [...list].sort((a, b) => {
-                    const aIsBig = a.type.includes('大');
-                    const bIsBig = b.type.includes('大');
+                    const aIsBig = a.type.includes('大'); const bIsBig = b.type.includes('大');
                     if (aIsBig && !bIsBig) return -1;
                     if (!aIsBig && bIsBig) return 1;
                     return 0; 
@@ -833,8 +832,7 @@
                 if (birthdayFilter === 'BIG') list = list.filter(i => i.type.includes('大'));
                 if (birthdayFilter === 'SMALL') list = list.filter(i => i.type.includes('小'));
                 return [...list].sort((a, b) => {
-                    const aIsBig = a.type.includes('大');
-                    const bIsBig = b.type.includes('大');
+                    const aIsBig = a.type.includes('大'); const bIsBig = b.type.includes('大');
                     if (aIsBig && !bIsBig) return -1;
                     if (!aIsBig && bIsBig) return 1;
                     return 0;
@@ -891,12 +889,17 @@
                         existing.count += 1;
                         existing.amount += item.amount;
                         existing.details.push(item);
+                        // 如果有捐獻物資，記錄起來
+                        if (item.amount === 0 && item.memo) {
+                            existing.memos.push(item.memo);
+                        }
                         if (itemTime < existing.earliestDate) {
                             existing.earliestDate = itemTime;
                         }
                     } else {
                         map.set(item.name, { 
-                            name: item.name, count: 1, amount: item.amount, details: [item], earliestDate: itemTime
+                            name: item.name, count: 1, amount: item.amount, details: [item], earliestDate: itemTime,
+                            memos: item.amount === 0 && item.memo ? [item.memo] : []
                         });
                     }
                 });
@@ -957,12 +960,17 @@
                         existing.count += 1;
                         existing.amount += item.amount;
                         existing.details.push(item);
+                        // 如果有捐獻物資，記錄起來
+                        if (item.amount === 0 && item.memo) {
+                            existing.memos.push(item.memo);
+                        }
                         if (itemTime < existing.earliestDate) {
                             existing.earliestDate = itemTime;
                         }
                     } else {
                         map.set(item.name, { 
-                            name: item.name, count: 1, amount: item.amount, details: [item], earliestDate: itemTime
+                            name: item.name, count: 1, amount: item.amount, details: [item], earliestDate: itemTime,
+                            memos: item.amount === 0 && item.memo ? [item.memo] : []
                         });
                     }
                 });
@@ -1027,7 +1035,7 @@
                     <div>{leftContent}</div>
                     <span className="text-xs text-slate-500 font-bold bg-white border border-slate-200 px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm ml-auto">
                         <Icons.Refresh className="w-3 h-3 text-blue-500" />
-                        更新日：{updateDates[tabKey] || "未標示 / 讀取中"}
+                        更新日：{updateDates[tabKey] || "未標示 / 無法讀取"}
                     </span>
                 </div>
             );
@@ -1038,9 +1046,9 @@
                     <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded-r-xl shadow-sm flex items-start gap-3">
                         <div className="text-red-500 mt-0.5"><Icons.Alert /></div>
                         <div>
-                            <h3 className="text-red-800 font-bold text-sm">資料讀取失敗或尚未匯入</h3>
+                            <h3 className="text-red-800 font-bold text-sm">資料讀取失敗或已隱藏</h3>
                             <p className="text-red-600 text-xs mt-1 font-medium leading-relaxed">
-                                目前顯示為預設測試資料。系統無法連線或資料為空，請確認您的網址設定或發布權限。
+                                系統無法連線、該試算表資料為空，或是 H1 欄位設定為隱藏。
                             </p>
                         </div>
                     </div>
@@ -1218,14 +1226,13 @@
                         )}
 
                         {/* =======================================================
-                            功能：中元普桌 (全面優化版)
+                            功能：中元普桌
                         ======================================================= */}
                         {activeTab === 'puzhuo' && visibleTabs.puzhuo && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="puzhuo" />
                                 <ErrorBanner show={fetchErrors.puzhuo} />
 
-                                {/* 第一排：普桌總數、亡者普桌、合計桌數 (字體加大滿版) */}
                                 <div className="grid grid-cols-3 gap-2 mb-2">
                                     <button onClick={() => setPuzhuoFilter('NORMAL_TOTAL')} className={`rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors w-full ${puzhuoFilter === 'NORMAL_TOTAL' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>
                                         <div className={`text-sm sm:text-base font-bold mb-1 w-full whitespace-nowrap tracking-wider text-center ${puzhuoFilter === 'NORMAL_TOTAL' ? 'text-blue-100' : 'text-blue-500'}`}>普桌總數</div>
@@ -1241,7 +1248,6 @@
                                     </button>
                                 </div>
 
-                                {/* 第二排：施方、不施方、亡者、公桌、贊桌 (字體加大滿版) */}
                                 <div className="grid grid-cols-5 gap-1.5 mb-2">
                                     <button onClick={() => setPuzhuoFilter('SHIFANG')} className={`rounded-xl p-1 sm:p-1.5 border shadow-sm flex flex-col justify-center items-center transition-colors w-full ${puzhuoFilter === 'SHIFANG' ? 'bg-cyan-600 text-white border-cyan-600' : 'bg-white text-cyan-700 border-cyan-200 hover:bg-cyan-50'}`}>
                                         <div className="text-xs sm:text-sm font-bold mb-0.5 w-full whitespace-nowrap text-center">施方</div>
@@ -1265,7 +1271,6 @@
                                     </button>
                                 </div>
 
-                                {/* 第三排：已繳費、未繳費、已繳費未登記 (字體加大滿版) */}
                                 <div className="grid grid-cols-3 gap-2 mb-4">
                                     <button onClick={() => setPuzhuoFilter('PAID')} className={`rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors w-full ${puzhuoFilter === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                                         <div className={`font-bold text-sm sm:text-base mb-1 w-full whitespace-nowrap tracking-wider text-center ${puzhuoFilter === 'PAID' ? 'text-emerald-100' : 'text-emerald-600'}`}>已繳費桌數</div>
@@ -1283,7 +1288,6 @@
 
                                 <div className="space-y-3 fade-in">
                                     {puzhuoFiltered.length > 0 ? puzhuoFiltered.map((item, idx) => {
-                                        // 標籤顏色與文字設定
                                         let tagColor = 'bg-cyan-50 text-cyan-700';
                                         let tagText = '施方';
                                         let barColor = 'bg-cyan-400';
@@ -1305,7 +1309,6 @@
                                                         </span>
                                                     </div>
                                                     
-                                                    {/* 繳費狀態判斷 (公桌特別處理) */}
                                                     {item.isGongZhuo && !item.isUnregistered ? (
                                                         <div className="px-2 py-1 rounded-md text-sm font-bold flex items-center gap-1 border bg-slate-50 border-slate-200 text-slate-500">
                                                             不計費
@@ -1333,7 +1336,9 @@
                             </div>
                         )}
                         
-                        {/* 功能：補陰庫 */}
+                        {/* =======================================================
+                            功能：補陰庫
+                        ======================================================= */}
                         {activeTab === 'buyinku' && visibleTabs.buyinku && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="buyinku" />
@@ -1396,7 +1401,6 @@
                                                     </div>
                                                 )}
                                                 
-                                                {/* 異常警告標語 */}
                                                 {item.isAnomaly && (
                                                     <div className="mt-2 text-sm font-bold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg flex flex-col gap-1">
                                                         {item.isUnregistered ? (
@@ -1413,13 +1417,14 @@
                             </div>
                         )}
 
-                        {/* 功能：中元捐獻 */}
+                        {/* =======================================================
+                            功能：中元捐獻
+                        ======================================================= */}
                         {activeTab === 'zhongyuan' && visibleTabs.zhongyuan && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="zhongyuan" />
                                 <ErrorBanner show={fetchErrors.zhongyuan} />
                                 
-                                {/* 檢視模式切換：捐獻 / 依姓名統計 */}
                                 <div className="flex bg-slate-200 p-1 rounded-xl mb-3 shadow-inner">
                                     <button onClick={() => { setZhongyuanViewMode('DONATION'); setZhongyuanFilterItem('ALL'); }} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${zhongyuanViewMode === 'DONATION' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                         捐獻明細
@@ -1429,7 +1434,6 @@
                                     </button>
                                 </div>
 
-                                {/* 日期區間篩選 */}
                                 <div className="mb-4 bg-white px-4 py-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <Icons.Calendar className="w-5 h-5 text-indigo-600" />
@@ -1471,13 +1475,16 @@
                                                             <div className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
                                                                 <Icons.Gift /> {item.item}
                                                             </div>
-                                                            {/* 顯示日期 */}
                                                             {item.date && <span className="text-xs font-medium text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">{item.date}</span>}
                                                         </div>
                                                         <div className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <div className="text-2xl font-black text-emerald-600">${fmtMoney(item.amount)}</div>
+                                                    <div className="text-right flex flex-col items-end">
+                                                        {item.amount === 0 && item.memo ? (
+                                                            <div className="text-lg font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded">{item.memo}</div>
+                                                        ) : (
+                                                            <div className="text-2xl font-black text-emerald-600">${fmtMoney(item.amount)}</div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
@@ -1507,12 +1514,17 @@
                                                                     共 {item.count} 筆記錄 (最早日期: {formatDateObj(item.earliestDate)})
                                                                 </div>
                                                             </div>
-                                                            <div className="text-right">
-                                                                <div className="text-2xl font-black text-indigo-600">${fmtMoney(item.amount)}</div>
+                                                            <div className="text-right flex flex-col items-end">
+                                                                {item.amount > 0 && <div className="text-2xl font-black text-indigo-600">${fmtMoney(item.amount)}</div>}
+                                                                {item.memos && item.memos.length > 0 && (
+                                                                    <div className="text-sm font-bold text-emerald-600 mt-1">{item.memos.join(', ')}</div>
+                                                                )}
+                                                                {item.amount === 0 && (!item.memos || item.memos.length === 0) && (
+                                                                    <div className="text-2xl font-black text-indigo-600">$0</div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         
-                                                        {/* 展開明細區域 */}
                                                         {isExpanded && (
                                                             <div className="mt-4 pt-3 border-t border-slate-100 pl-2 space-y-2 fade-in">
                                                                 {item.details.map((detail, dIdx) => (
@@ -1524,9 +1536,10 @@
                                                                                 </span>
                                                                                 <span className="text-sm font-bold text-slate-700">{detail.item}</span>
                                                                             </div>
-                                                                            <div className="text-sm font-black text-emerald-600">${fmtMoney(detail.amount)}</div>
+                                                                            <div className="text-sm font-black text-emerald-600">
+                                                                                {detail.amount === 0 && detail.memo ? <span className="bg-emerald-100 px-1.5 py-0.5 rounded">{detail.memo}</span> : `$${fmtMoney(detail.amount)}`}
+                                                                            </div>
                                                                         </div>
-                                                                        {/* 顯示明細日期 */}
                                                                         {detail.date && <div className="text-xs text-slate-400 ml-8">{detail.date}</div>}
                                                                     </div>
                                                                 ))}
@@ -1541,13 +1554,14 @@
                             </div>
                         )}
 
-                        {/* 功能：參香/宮慶捐獻 */}
+                        {/* =======================================================
+                            功能：參香/宮慶捐獻
+                        ======================================================= */}
                         {activeTab === 'donation' && visibleTabs.donation && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="donation" />
                                 <ErrorBanner show={fetchErrors.donation} />
                                 
-                                {/* 檢視模式切換：捐獻 / 答願 / 依姓名統計 */}
                                 <div className="flex bg-slate-200 p-1 rounded-xl mb-3 shadow-inner">
                                     <button onClick={() => { setDonationViewMode('DONATION'); setDonationFilterItem('ALL'); }} className={`flex-1 py-2 font-bold rounded-lg text-sm transition-all ${donationViewMode === 'DONATION' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                         捐獻
@@ -1560,7 +1574,6 @@
                                     </button>
                                 </div>
 
-                                {/* 日期區間篩選 */}
                                 <div className="mb-4 bg-white px-4 py-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <Icons.Calendar className="w-5 h-5 text-purple-600" />
@@ -1602,13 +1615,16 @@
                                                             <div className="inline-flex items-center gap-1 text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
                                                                 <Icons.Gift /> {item.item}
                                                             </div>
-                                                            {/* 顯示日期 */}
                                                             {item.date && <span className="text-xs font-medium text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">{item.date}</span>}
                                                         </div>
                                                         <div className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <div className="text-2xl font-black text-emerald-600">${fmtMoney(item.amount)}</div>
+                                                    <div className="text-right flex flex-col items-end">
+                                                        {item.amount === 0 && item.memo ? (
+                                                            <div className="text-lg font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded">{item.memo}</div>
+                                                        ) : (
+                                                            <div className="text-2xl font-black text-emerald-600">${fmtMoney(item.amount)}</div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
@@ -1627,23 +1643,28 @@
                                                     <div key={idx} 
                                                          onClick={() => toggleExpandName(item.name)} 
                                                          className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col relative overflow-hidden cursor-pointer transition-colors hover:bg-slate-50">
-                                                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-400"></div>
+                                                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-purple-400"></div>
                                                         <div className="flex justify-between items-center w-full pl-2">
                                                             <div>
                                                                 <div className="text-xl font-bold text-slate-800 tracking-wide mb-1 flex items-center gap-2">
                                                                     {item.name}
-                                                                    {isExpanded ? <Icons.ChevronUp className="text-indigo-400"/> : <Icons.ChevronDown className="text-slate-400"/>}
+                                                                    {isExpanded ? <Icons.ChevronUp className="text-purple-400"/> : <Icons.ChevronDown className="text-slate-400"/>}
                                                                 </div>
                                                                 <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded inline-block">
                                                                     共 {item.count} 筆記錄 (最早日期: {formatDateObj(item.earliestDate)})
                                                                 </div>
                                                             </div>
-                                                            <div className="text-right">
-                                                                <div className="text-2xl font-black text-indigo-600">${fmtMoney(item.amount)}</div>
+                                                            <div className="text-right flex flex-col items-end">
+                                                                {item.amount > 0 && <div className="text-2xl font-black text-indigo-600">${fmtMoney(item.amount)}</div>}
+                                                                {item.memos && item.memos.length > 0 && (
+                                                                    <div className="text-sm font-bold text-emerald-600 mt-1">{item.memos.join(', ')}</div>
+                                                                )}
+                                                                {item.amount === 0 && (!item.memos || item.memos.length === 0) && (
+                                                                    <div className="text-2xl font-black text-indigo-600">$0</div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         
-                                                        {/* 展開明細區域 */}
                                                         {isExpanded && (
                                                             <div className="mt-4 pt-3 border-t border-slate-100 pl-2 space-y-2 fade-in">
                                                                 {item.details.map((detail, dIdx) => (
@@ -1655,9 +1676,10 @@
                                                                                 </span>
                                                                                 <span className="text-sm font-bold text-slate-700">{detail.item}</span>
                                                                             </div>
-                                                                            <div className="text-sm font-black text-emerald-600">${fmtMoney(detail.amount)}</div>
+                                                                            <div className="text-sm font-black text-emerald-600">
+                                                                                {detail.amount === 0 && detail.memo ? <span className="bg-emerald-100 px-1.5 py-0.5 rounded">{detail.memo}</span> : `$${fmtMoney(detail.amount)}`}
+                                                                            </div>
                                                                         </div>
-                                                                        {/* 顯示明細日期 */}
                                                                         {detail.date && <div className="text-xs text-slate-400 ml-8">{detail.date}</div>}
                                                                     </div>
                                                                 ))}
@@ -1672,7 +1694,9 @@
                             </div>
                         )}
 
-                        {/* 功能：東部參香 */}
+                        {/* =======================================================
+                            功能：東部參香
+                        ======================================================= */}
                         {activeTab === 'east' && visibleTabs.east && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="east" />
@@ -1692,13 +1716,14 @@
                             </div>
                         )}
 
-                        {/* 功能：小琉球二日行 */}
+                        {/* =======================================================
+                            功能：小琉球二日行
+                        ======================================================= */}
                         {activeTab === 'fujian' && visibleTabs.fujian && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="fujian" />
                                 <ErrorBanner show={fetchErrors.fujian} />
                                 
-                                {/* 小琉球繳費異常警告 */}
                                 {fujianTripStats.anomaly > 0 && (
                                     <div className="bg-red-50 border-l-4 border-red-500 p-3 mb-3 rounded-r-xl shadow-sm flex items-center gap-2 fade-in">
                                         <Icons.Alert className="text-red-500 flex-shrink-0" />
@@ -1706,7 +1731,6 @@
                                     </div>
                                 )}
 
-                                {/* 上方兩排選單結構 (滿版大字體) - 第一排 */}
                                 <div className="grid grid-cols-4 gap-2 mb-2">
                                     <button onClick={() => setFujianTripFilter('ALL')} className={`rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors w-full ${fujianTripFilter === 'ALL' ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-teal-600 border-teal-200 hover:bg-teal-50'}`}>
                                         <div className={`text-xs sm:text-sm font-bold mb-1 w-full whitespace-nowrap tracking-wider text-center ${fujianTripFilter === 'ALL' ? 'text-teal-100' : 'text-teal-500'}`}>總人數</div>
@@ -1729,7 +1753,6 @@
                                     </button>
                                 </div>
 
-                                {/* 上方兩排選單結構 (滿版大字體) - 第二排 */}
                                 <div className="grid grid-cols-3 gap-2 mb-4">
                                     <div className="rounded-xl p-2 border shadow-sm flex flex-col justify-center items-center transition-colors w-full bg-white text-sky-700 border-sky-200">
                                         <div className="text-sm sm:text-base font-bold mb-1 w-full whitespace-nowrap tracking-wider text-center text-sky-600">應收總額</div>
@@ -1745,7 +1768,6 @@
                                     </div>
                                 </div>
                                 
-                                {/* 覆核顯示清單 */}
                                 <div className="space-y-3 fade-in">
                                     {fujianTripFiltered.length > 0 ? fujianTripFiltered.map((item, idx) => {
                                         const expectedAmount = getFujianExpectedAmount(item.roomType);
@@ -1773,7 +1795,6 @@
                                                     </div>
                                                 </div>
                                                 
-                                                {/* 繳費金額覆核與異常區塊 */}
                                                 {(item.isPaid || isAnomaly) && (
                                                     <div className="pl-2 mt-1 flex flex-col gap-1">
                                                         <div className="text-sm font-bold text-slate-600 border-t border-slate-100 pt-2 mt-1">
@@ -1798,7 +1819,9 @@
                             </div>
                         )}
 
-                        {/* 功能：委員/宮生 */}
+                        {/* =======================================================
+                            功能：委員/宮生
+                        ======================================================= */}
                         {activeTab === 'records' && visibleTabs.records && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="records" />
@@ -1862,7 +1885,9 @@
                             </div>
                         )}
 
-                        {/* 功能：安太歲 */}
+                        {/* =======================================================
+                            功能：安太歲
+                        ======================================================= */}
                         {activeTab === 'taisui' && visibleTabs.taisui && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="taisui" />
@@ -1898,7 +1923,9 @@
                             </div>
                         )}
 
-                        {/* 功能：光明燈 */}
+                        {/* =======================================================
+                            功能：光明燈
+                        ======================================================= */}
                         {activeTab === 'light' && visibleTabs.light && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="light" />
@@ -1925,7 +1952,9 @@
                             </div>
                         )}
 
-                        {/* 功能：帝君會員 */}
+                        {/* =======================================================
+                            功能：帝君會員
+                        ======================================================= */}
                         {activeTab === 'member' && visibleTabs.member && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="member" />
