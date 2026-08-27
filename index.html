@@ -33,6 +33,7 @@
         const { useState, useMemo, useEffect, useCallback } = React;
 
         const GOOGLE_SHEETS_URLS = {
+            pettyCash: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=2045201045&single=true&output=csv",
             puzhuo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=385503720&single=true&output=csv",
             zhongyuan: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=568633814&single=true&output=csv",
             taiSui: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOWEAQJcMTntV41OxbT77OrZep_yugyF5yrJBxV8NjT3pzxDG3DCvNzOuWy74CB_tT4rOR65vofzv-/pub?gid=1409111845&single=true&output=csv",        
@@ -89,6 +90,35 @@
                 else row[i] += char;
             }
             return row.map(v => v.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+        };
+
+        // 零用金解析器
+        const extractPettyCash = (parsed) => {
+            if(!parsed || parsed.length === 0) return [];
+            const keys = Object.keys(parsed[0]);
+            let dateKey = keys.find(k => k.includes('日期')) || keys[0];
+            let incomeKey = keys.find(k => k.includes('收入') || k.includes('存入') || k.includes('進帳')) || keys[1];
+            let expenseKey = keys.find(k => k.includes('支出') || k.includes('提出') || k.includes('花費')) || keys[2];
+            let itemKey = keys.find(k => k.includes('項目') || k.includes('摘要') || k.includes('說明') || k.includes('事由')) || keys[3];
+
+            return parsed.map((row, i) => {
+                const rawDate = (row[dateKey] || '').trim();
+                const income = parseInt((String(row[incomeKey] || '').replace(/,/g, '').replace(/\$/g, '')), 10) || 0;
+                const expense = parseInt((String(row[expenseKey] || '').replace(/,/g, '').replace(/\$/g, '')), 10) || 0;
+                const item = (row[itemKey] || '').trim();
+
+                let yearMonth = "未知月份";
+                let timestamp = getSortableDate(rawDate);
+                
+                if (timestamp !== Number.MAX_SAFE_INTEGER) {
+                    const d = new Date(timestamp);
+                    let rocYear = d.getFullYear() - 1911; // 轉換為民國年
+                    let month = String(d.getMonth() + 1).padStart(2, '0');
+                    yearMonth = `${rocYear}-${month}`;
+                }
+
+                return { id: i, date: rawDate, item, income, expense, yearMonth, timestamp };
+            }).filter(r => r.income > 0 || r.expense > 0 || r.item !== '' || r.date !== '');
         };
 
         const extractPuzhuo = (parsed) => {
@@ -296,6 +326,7 @@
             return restA - restB;
         };
 
+        const DEFAULT_PETTYCASH_DATA = [{ id: "1", date: "115/08/01", item: "測試零用金", income: 1000, expense: 0, yearMonth: "115-08", timestamp: 0 }];
         const DEFAULT_PUZHUO_DATA = [{ id: "1", name1: "測試資料", name2: "", memo: "", isPaid: false, isDeceased: false, isGongZhuo: false, isZanZhuo: false, isBuShiFang: false, isShiFang: true, isUnregistered: false }];
         const DEFAULT_RECORD_DATA = [ { group: "1", role: "宮生", name: "傅沛柔", date: "114年12月" } ];
         const DEFAULT_TAISUI_DATA = [{id:"1A1",n:"黃淑霞",r:1,p:1}];
@@ -321,7 +352,8 @@
             Star: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
             ChevronDown: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-4 h-4"}><polyline points="6 9 12 15 18 9"></polyline></svg>,
             ChevronUp: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-4 h-4"}><polyline points="18 15 12 9 6 15"></polyline></svg>,
-            Archive: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+            Archive: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>,
+            Wallet: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-5 h-5"}><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>
         };
 
         const TABS_CONFIG = [
@@ -334,6 +366,7 @@
             { id: 'member', name: '帝君會員' },
             { id: 'east', name: '東部參香' },
             { id: 'fujian', name: '小琉球二日行' },
+            { id: 'pettyCash', name: '零用金' },
             { id: 'records', name: '委員/宮生' },
             { id: 'taisui', name: '安太歲' },
             { id: 'light', name: '光明燈' }
@@ -344,15 +377,16 @@
             const [isRefreshing, setIsRefreshing] = useState(false);
             
             const [visibleTabs, setVisibleTabs] = useState({
-                puzhuo: true, records: true, taisui: true, light: true, east: true, 
+                pettyCash: true, puzhuo: true, records: true, taisui: true, light: true, east: true, 
                 fujian: true, donation: true, zhongyuan: true, member: true, guansheng: true, wangmu: true, buyinku: true
             });
 
             const [updateDates, setUpdateDates] = useState({
-                puzhuo: "", records: "", taisui: "", light: "", east: "", fujian: "", 
+                pettyCash: "", puzhuo: "", records: "", taisui: "", light: "", east: "", fujian: "", 
                 donation: "", zhongyuan: "", member: "", guansheng: "", wangmu: "", buyinku: ""
             });
             
+            const [PettyCashDataRaw, setPettyCashDataRaw] = useState([]);
             const [PuzhuoDataRaw, setPuzhuoDataRaw] = useState([]);
             const [RecordData, setRecordData] = useState([]);
             const [TaiSuiDataRaw, setTaiSuiDataRaw] = useState([]);
@@ -367,13 +401,16 @@
             const [BuyinkuDataRaw, setBuyinkuDataRaw] = useState([]);
 
             const [fetchErrors, setFetchErrors] = useState({ 
-                puzhuo: false, east: false, fujian: false, donation: false, zhongyuan: false, member: false, guansheng: false, wangmu: false, buyinku: false 
+                pettyCash: false, puzhuo: false, east: false, fujian: false, donation: false, zhongyuan: false, member: false, guansheng: false, wangmu: false, buyinku: false 
             });
 
             const [activeTab, setActiveTab] = useState("puzhuo"); 
             const [searchTerm, setSearchTerm] = useState("");
             const [showSuggestions, setShowSuggestions] = useState(false);
             
+            // Filters
+            const [pettyCashMonth, setPettyCashMonth] = useState("");
+            const [pettyCashTypeFilter, setPettyCashTypeFilter] = useState("ALL");
             const [puzhuoFilter, setPuzhuoFilter] = useState("ALL_TOTAL");
             const [filterRole, setFilterRole] = useState("ALL"); 
             const [lightFilterType, setLightFilterType] = useState("ALL");
@@ -474,12 +511,13 @@
                     }
                 };
 
-                // 將依序等待 (await) 的資料讀取改為 Promise.all「平行讀取」，可節省將近 90% 的網路傳輸等待時間！
                 const [
+                    resPettyCash,
                     resPuzhuo, resRecord, resTaiSui, resLightUpper, resLightLower,
                     resEast, resFujian, resDonation, resZhongyuan, resMember,
                     resGuansheng, resWangmu, resBuyinku
                 ] = await Promise.all([
+                    fetchData(GOOGLE_SHEETS_URLS.pettyCash, extractPettyCash),
                     fetchData(GOOGLE_SHEETS_URLS.puzhuo, extractPuzhuo),
                     fetchData(GOOGLE_SHEETS_URLS.records, parsed => parsed.map(row => ({
                         group: row['組別'] || '', role: row['身份'] || '', name: row['姓名'] || '', date: row['繳交至'] || ''
@@ -510,6 +548,7 @@
                 ]);
 
                 setUpdateDates({
+                    pettyCash: resPettyCash.date,
                     puzhuo: resPuzhuo.date, records: resRecord.date, taisui: resTaiSui.date,
                     light: resLightUpper.date || resLightLower.date, east: resEast.date, fujian: resFujian.date,
                     donation: resDonation.date, zhongyuan: resZhongyuan.date, member: resMember.date, guansheng: resGuansheng.date,
@@ -517,6 +556,7 @@
                 });
 
                 setVisibleTabs({
+                    pettyCash: !resPettyCash.isHidden,
                     puzhuo: !resPuzhuo.isHidden, records: !resRecord.isHidden, taisui: !resTaiSui.isHidden,
                     light: !(resLightUpper.isHidden || resLightLower.isHidden), east: !resEast.isHidden,
                     fujian: !resFujian.isHidden, donation: !resDonation.isHidden, zhongyuan: !resZhongyuan.isHidden, member: !resMember.isHidden,
@@ -524,6 +564,7 @@
                 });
 
                 setFetchErrors({
+                    pettyCash: resPettyCash.error || resPettyCash.data.length === 0,
                     puzhuo: resPuzhuo.error || resPuzhuo.data.length === 0,
                     east: resEast.error || resEast.data.length === 0,
                     fujian: resFujian.error || resFujian.data.length === 0,
@@ -535,6 +576,7 @@
                     buyinku: resBuyinku.error || resBuyinku.data.length === 0
                 });
 
+                setPettyCashDataRaw(resPettyCash.data.length > 0 ? resPettyCash.data : [...DEFAULT_PETTYCASH_DATA]);
                 setPuzhuoDataRaw(resPuzhuo.data.length > 0 ? resPuzhuo.data : [...DEFAULT_PUZHUO_DATA]);
                 setRecordData(resRecord.data.length > 0 ? resRecord.data : [...DEFAULT_RECORD_DATA]);
                 setTaiSuiDataRaw(resTaiSui.data.length > 0 ? resTaiSui.data : [...DEFAULT_TAISUI_DATA]);
@@ -564,6 +606,59 @@
                     else setActiveTab(""); 
                 }
             }, [visibleTabs, activeTab, isLoading, visibleTabsConfig]);
+
+            // --- 零用金邏輯 ---
+            const pettyCashUniqueMonths = useMemo(() => {
+                const months = new Set();
+                PettyCashDataRaw.forEach(item => {
+                    if (item.yearMonth) months.add(item.yearMonth);
+                });
+                return Array.from(months).sort((a, b) => b.localeCompare(a)); // 降序，最新月份在前
+            }, [PettyCashDataRaw]);
+
+            useEffect(() => {
+                if (pettyCashUniqueMonths.length > 0 && !pettyCashMonth) {
+                    setPettyCashMonth(pettyCashUniqueMonths[0]);
+                }
+            }, [pettyCashUniqueMonths, pettyCashMonth]);
+
+            const pettyCashStats = useMemo(() => {
+                let totalIncome = 0;
+                let totalExpense = 0;
+                let monthlyIncome = 0;
+                let monthlyExpense = 0;
+
+                PettyCashDataRaw.forEach(item => {
+                    totalIncome += item.income;
+                    totalExpense += item.expense;
+                    if (item.yearMonth === pettyCashMonth) {
+                        monthlyIncome += item.income;
+                        monthlyExpense += item.expense;
+                    }
+                });
+
+                return { 
+                    totalIncome, 
+                    totalExpense, 
+                    totalBalance: totalIncome - totalExpense, 
+                    monthlyIncome, 
+                    monthlyExpense,
+                    monthlyBalance: monthlyIncome - monthlyExpense
+                };
+            }, [PettyCashDataRaw, pettyCashMonth]);
+
+            const pettyCashFiltered = useMemo(() => {
+                let list = PettyCashDataRaw;
+                if (searchTerm) {
+                    list = list.filter(i => i.item.includes(searchTerm) || i.date.includes(searchTerm));
+                } else {
+                    list = list.filter(item => item.yearMonth === pettyCashMonth);
+                    if (pettyCashTypeFilter === 'INCOME') list = list.filter(i => i.income > 0);
+                    if (pettyCashTypeFilter === 'EXPENSE') list = list.filter(i => i.expense > 0);
+                }
+                return list.sort((a, b) => b.timestamp - a.timestamp);
+            }, [PettyCashDataRaw, pettyCashMonth, searchTerm, pettyCashTypeFilter]);
+
 
             const TaiSuiData = useMemo(() => [...TaiSuiDataRaw].sort(sortById), [TaiSuiDataRaw]);
             const LightData = useMemo(() => [...LightDataRaw].sort(sortById), [LightDataRaw]);
@@ -998,11 +1093,12 @@
                     ...EastTripDataRaw.map(i => i.name), ...FujianTripDataRaw.map(i => i.name), 
                     ...DonationDataRaw.map(i => i.name), ...ZhongyuanDataRaw.map(i => i.name),
                     ...MemberDataRaw.map(i => i.name), ...GuanshengDataRaw.map(i => i.name), ...WangmuDataRaw.map(i => i.name),
-                    ...BuyinkuDataRaw.map(i => i.name)
+                    ...BuyinkuDataRaw.map(i => i.name),
+                    ...PettyCashDataRaw.map(i => i.item) // 加入零用金項目搜尋
                 ].filter(Boolean);
                 const matches = allNames.filter(name => name.includes(searchTerm) && name !== searchTerm);
                 return [...new Set(matches)].slice(0, 8);
-            }, [searchTerm, PuzhuoDataRaw, RecordData, TaiSuiData, LightData, EastTripDataRaw, FujianTripDataRaw, DonationDataRaw, ZhongyuanDataRaw, MemberDataRaw, GuanshengDataRaw, WangmuDataRaw, BuyinkuDataRaw]);
+            }, [searchTerm, PuzhuoDataRaw, RecordData, TaiSuiData, LightData, EastTripDataRaw, FujianTripDataRaw, DonationDataRaw, ZhongyuanDataRaw, MemberDataRaw, GuanshengDataRaw, WangmuDataRaw, BuyinkuDataRaw, PettyCashDataRaw]);
 
             const handleSelectSuggestion = (name) => { setSearchTerm(name); setShowSuggestions(false); };
             const handleClear = () => { setSearchTerm(""); setShowSuggestions(false); };
@@ -1019,6 +1115,8 @@
                 setBuyinkuFilter("ALL"); setDonationStartDate(""); 
                 setZhongyuanFilterItem("ALL"); setZhongyuanViewMode("DONATION"); 
                 setExpandedZhongyuanNames(new Set()); setZhongyuanStartDate("");
+                setPettyCashTypeFilter("ALL");
+                if (pettyCashUniqueMonths.length > 0) setPettyCashMonth(pettyCashUniqueMonths[0]);
             };
 
             if (isLoading) {
@@ -1192,7 +1290,7 @@
                                 <input 
                                     type="text"
                                     className="w-full p-4 pl-12 pr-10 rounded-xl border-2 border-slate-200 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-xl font-medium"
-                                    placeholder="輸入姓名..."
+                                    placeholder="輸入姓名或項目..."
                                     value={searchTerm}
                                     onChange={(e) => {
                                         setSearchTerm(e.target.value); setShowSuggestions(true);
@@ -1222,6 +1320,127 @@
                             <div className="flex flex-col items-center justify-center py-20 text-slate-500">
                                 <Icons.Alert />
                                 <p className="mt-2 text-lg font-bold">目前無開放中的活動項目</p>
+                            </div>
+                        )}
+
+                        {/* =======================================================
+                            功能：零用金
+                        ======================================================= */}
+                        {activeTab === 'pettyCash' && visibleTabs.pettyCash && (
+                            <div className="fade-in">
+                                <TabUpdateDate tabKey="pettyCash" />
+                                {!isLoggedIn ? (
+                                    <div className="flex flex-col items-center justify-center py-8 px-4">
+                                        <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-sm border border-slate-200 text-center">
+                                            <div className="bg-blue-50 p-4 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 text-blue-600"><Icons.Lock /></div>
+                                            <h3 className="text-xl font-bold text-slate-800 mb-2">請輸入密碼</h3>
+                                            <p className="text-slate-500 text-sm mb-6">此頁面內容僅供授權人員查看</p>
+                                            <form onSubmit={handleLogin} className="space-y-4">
+                                                <input 
+                                                    type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)}
+                                                    className={`w-full p-3 rounded-lg border-2 text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all ${loginError ? 'border-red-500 shake' : 'border-slate-200 focus:border-blue-500'}`}
+                                                    placeholder="密碼" autoFocus
+                                                />
+                                                {loginError && <p className="text-red-500 text-sm font-bold">密碼錯誤，請重試</p>}
+                                                <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-md">解鎖查看</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <ErrorBanner show={fetchErrors.pettyCash} />
+
+                                        {/* 總餘額卡片 */}
+                                        <div className="bg-gradient-to-br from-indigo-600 to-blue-700 text-white rounded-2xl p-5 shadow-lg mb-4 border border-indigo-500 relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 -mr-4 -mt-4 opacity-10">
+                                                <Icons.Wallet className="w-32 h-32" />
+                                            </div>
+                                            <div className="relative z-10 flex flex-col gap-1">
+                                                <div className="flex items-center gap-2 text-indigo-100 font-bold text-sm">
+                                                    <Icons.Wallet className="w-4 h-4" /> 零用金總結餘
+                                                </div>
+                                                <div className="text-4xl font-black tracking-tight mt-1">
+                                                    ${fmtMoney(pettyCashStats.totalBalance)}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* 月份選擇器與當月統計 */}
+                                        {!searchTerm && (
+                                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-4 p-4">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <Icons.Calendar className="w-5 h-5 text-slate-500" />
+                                                    <span className="font-bold text-slate-700">選擇統計月份</span>
+                                                </div>
+                                                <div className="relative mb-4">
+                                                    <select 
+                                                        value={pettyCashMonth} 
+                                                        onChange={e => { setPettyCashMonth(e.target.value); setPettyCashTypeFilter("ALL"); }} 
+                                                        className="w-full p-3 rounded-lg border-2 border-slate-200 bg-slate-50 text-slate-800 font-bold text-lg focus:outline-none focus:border-indigo-500 focus:bg-white appearance-none shadow-sm transition-colors"
+                                                    >
+                                                        {pettyCashUniqueMonths.length > 0 
+                                                            ? pettyCashUniqueMonths.map((m, i) => <option key={i} value={m}>{m}</option>)
+                                                            : <option value="">無月份資料</option>
+                                                        }
+                                                    </select>
+                                                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-400">
+                                                        <Icons.ChevronDown />
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <button 
+                                                        onClick={() => setPettyCashTypeFilter(prev => prev === 'INCOME' ? 'ALL' : 'INCOME')}
+                                                        className={`border rounded-lg p-3 flex flex-col items-center justify-center transition-all ${pettyCashTypeFilter === 'INCOME' ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-emerald-50 border-emerald-100 hover:bg-emerald-100'}`}
+                                                    >
+                                                        <span className={`text-xs font-bold mb-1 ${pettyCashTypeFilter === 'INCOME' ? 'text-emerald-100' : 'text-emerald-600'}`}>{pettyCashMonth} 收入</span>
+                                                        <span className={`text-xl font-black ${pettyCashTypeFilter === 'INCOME' ? 'text-white' : 'text-emerald-700'}`}>${fmtMoney(pettyCashStats.monthlyIncome)}</span>
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => setPettyCashTypeFilter(prev => prev === 'EXPENSE' ? 'ALL' : 'EXPENSE')}
+                                                        className={`border rounded-lg p-3 flex flex-col items-center justify-center transition-all ${pettyCashTypeFilter === 'EXPENSE' ? 'bg-rose-600 border-rose-600 text-white shadow-md' : 'bg-rose-50 border-rose-100 hover:bg-rose-100'}`}
+                                                    >
+                                                        <span className={`text-xs font-bold mb-1 ${pettyCashTypeFilter === 'EXPENSE' ? 'text-rose-100' : 'text-rose-600'}`}>{pettyCashMonth} 支出</span>
+                                                        <span className={`text-xl font-black ${pettyCashTypeFilter === 'EXPENSE' ? 'text-white' : 'text-rose-700'}`}>${fmtMoney(pettyCashStats.monthlyExpense)}</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 明細列表 */}
+                                        <div className="space-y-3 fade-in">
+                                            <h3 className="text-sm font-bold text-slate-500 pl-1 mb-2">
+                                                {searchTerm ? `搜尋 "${searchTerm}" 的結果` : `${pettyCashMonth} 帳務明細`}
+                                                {!searchTerm && pettyCashTypeFilter === 'INCOME' && ' (僅顯示收入)'}
+                                                {!searchTerm && pettyCashTypeFilter === 'EXPENSE' && ' (僅顯示支出)'}
+                                            </h3>
+                                            {pettyCashFiltered.length > 0 ? pettyCashFiltered.map((item, idx) => {
+                                                const isIncome = item.income > 0;
+                                                return (
+                                                    <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col relative overflow-hidden">
+                                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isIncome ? 'bg-emerald-400' : 'bg-rose-400'}`}></div>
+                                                        <div className="flex justify-between items-start pl-2">
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="text-xs font-medium text-slate-400 inline-block">{item.date}</span>
+                                                                <span className="text-lg font-bold text-slate-800 tracking-wide break-all">{item.item}</span>
+                                                            </div>
+                                                            <div className="text-right flex-shrink-0 ml-4">
+                                                                <div className={`text-2xl font-black ${isIncome ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                                    {isIncome ? '+' : '-'}${fmtMoney(isIncome ? item.income : item.expense)}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }) : (
+                                                <div className="bg-white border border-dashed border-slate-300 rounded-xl p-8 text-center text-slate-400">
+                                                    <Icons.Archive className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                                    <p className="font-bold">此區間尚無帳務紀錄</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
