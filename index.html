@@ -103,8 +103,10 @@
 
             return parsed.map((row, i) => {
                 const rawDate = (row[dateKey] || '').trim();
-                const income = parseInt((String(row[incomeKey] || '').replace(/,/g, '').replace(/\$/g, '')), 10) || 0;
-                const expense = parseInt((String(row[expenseKey] || '').replace(/,/g, '').replace(/\$/g, '')), 10) || 0;
+                const incomeStr = String(row[incomeKey] || '').replace(/,/g, '').replace(/\$/g, '');
+                const expenseStr = String(row[expenseKey] || '').replace(/,/g, '').replace(/\$/g, '');
+                const income = parseInt(incomeStr, 10) || 0;
+                const expense = parseInt(expenseStr, 10) || 0;
                 const item = (row[itemKey] || '').trim();
 
                 let yearMonth = "未知月份";
@@ -118,7 +120,7 @@
                 }
 
                 return { id: i, date: rawDate, item, income, expense, yearMonth, timestamp };
-            }).filter(r => r.income > 0 || r.expense > 0 || r.item !== '' || r.date !== '');
+            }).filter(r => r.income > 0 || r.expense > 0 || r.item !== '');
         };
 
         const extractPuzhuo = (parsed) => {
@@ -486,13 +488,23 @@
                             if (found) extractedDate = found.replace(/更新日?[:：\s]?/g, '').trim();
                         }
 
-                        // 若該分頁設定為隱藏，則**不讀取、不解析後續資料**，直接返回以提升開啟速度！
+                        // 若該分頁設定為隱藏，則不讀取、不解析後續資料，直接返回以提升開啟速度！
                         if (isHidden) {
                             return { data: [], date: extractedDate, error: false, isHidden: true };
                         }
 
                         const cleanText = text.replace(/^\uFEFF/, '');
-                        const lines = cleanText.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+                        
+                        // 【效能優化關鍵點】
+                        // 過濾掉完全沒有資料的幽靈列（Google Sheet 常常會因為格式匯出幾千行空逗號）
+                        // 移除所有逗號和引號後，如果沒東西，就代表是空行，直接過濾掉！
+                        const lines = cleanText.split(/\r?\n/)
+                            .map(l => l.trim())
+                            .filter(l => {
+                                if (!l) return false;
+                                return l.replace(/[,"]/g, '').trim() !== '';
+                            });
+                            
                         if (lines.length <= 1) return { data: [], date: extractedDate, error: false, isHidden: false };
 
                         const parsed = lines.slice(1).map(line => {
@@ -2180,38 +2192,37 @@
                                 <ErrorBanner show={fetchErrors.member} />
                                 <div className="bg-amber-50 rounded-xl p-4 shadow-inner border border-amber-100 mb-4 flex justify-between items-center">
                                     <div className="flex items-center gap-2 text-amber-700 font-bold"><Icons.Users /> 統計人數</div>
-                                    <div className="text-4xl font-black text-amber-600">{memberFiltered.length} <span className="text-base font-bold text-amber-600 opacity-70">人</span></div>
+                                    <div className="text-3xl font-black text-amber-700">{memberFiltered.length}</div>
                                 </div>
                                 <div className="space-y-2 fade-in">
                                     {memberFiltered.length > 0 ? memberFiltered.map((item, idx) => (
-                                        <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
-                                            <div className="bg-amber-100 text-amber-700 font-bold px-3 py-1 rounded-md text-sm min-w-[3rem] text-center shadow-sm">
-                                                {item.id}
-                                            </div>
-                                            <span className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</span>
+                                        <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
+                                            <div className="bg-amber-100 text-amber-700 font-bold px-2 py-1 rounded text-sm min-w-[3rem] text-center">{item.id}</div>
+                                            <span className="text-xl font-bold text-slate-800">{item.name}</span>
                                         </div>
-                                    )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
+                                    )) : <div className="text-center py-8 text-slate-500 font-bold">查無資料</div>}
                                 </div>
                             </div>
                         )}
 
-                        {/* 關聖帝君祝壽 */}
-                        {activeTab === 'guansheng' && visibleTabs.guansheng && renderBirthdayTab('guansheng', 'red', guanshengFiltered, guanshengStats)}
+                        {}
+                        {/* =======================================================
+                            功能：關聖帝君祝壽
+                        ======================================================= */}
+                        {activeTab === 'guansheng' && visibleTabs.guansheng && renderBirthdayTab('guansheng', 'amber', guanshengFiltered, guanshengStats)}
 
-                        {/* 王母娘娘祝壽 */}
-                        {activeTab === 'wangmu' && visibleTabs.wangmu && renderBirthdayTab('wangmu', 'rose', wangmuFiltered, wangmuStats)}
+                        {/* =======================================================
+                            功能：王母娘娘祝壽
+                        ======================================================= */}
+                        {activeTab === 'wangmu' && visibleTabs.wangmu && renderBirthdayTab('wangmu', 'pink', wangmuFiltered, wangmuStats)}
 
                     </div>
                 </div>
             );
         }
 
-        if (typeof ReactDOM === 'undefined') {
-            document.getElementById('root').innerHTML = '<div style="text-align:center; padding:2rem; color:red; font-weight:bold;">無法載入 React 函式庫，請檢查網路狀態。</div>';
-        } else {
-            const root = ReactDOM.createRoot(document.getElementById('root'));
-            root.render(<App />);
-        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
