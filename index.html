@@ -92,7 +92,6 @@
             return row.map(v => v.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
         };
 
-        // 零用金解析器
         const extractPettyCash = (parsed) => {
             if(!parsed || parsed.length === 0) return [];
             const keys = Object.keys(parsed[0]);
@@ -114,7 +113,7 @@
                 
                 if (timestamp !== Number.MAX_SAFE_INTEGER) {
                     const d = new Date(timestamp);
-                    let rocYear = d.getFullYear() - 1911; // 轉換為民國年
+                    let rocYear = d.getFullYear() - 1911; 
                     let month = String(d.getMonth() + 1).padStart(2, '0');
                     yearMonth = `${rocYear}-${month}`;
                 }
@@ -238,12 +237,10 @@
             let nameKey = keys.find(k => k.includes('姓名') || k.includes('名單')) || keys[1];
             let amountKey = keys.find(k => k.includes('金額') || k.includes('元')) || keys[2];
             let dateKey = keys.find(k => k.includes('日期')) || keys[3]; 
-            // 抓取備註欄位以處理物資捐獻
             let memoKey = keys.find(k => !k.startsWith('_col_') && (k.includes('備註') || k.includes('物資')));
 
             return parsed.map((row, i) => {
                 const cleanAmount = parseInt((String(row[amountKey]) || '0').replace(/,/g, '').replace(/\$/g, ''), 10) || 0;
-                // 如果有找到備註欄位則取其值，否則預設抓第5欄(_col_4)當作備註備用
                 const memo = memoKey && row[memoKey] ? row[memoKey].trim() : (row['_col_4'] || '').trim();
                 
                 return {
@@ -410,6 +407,33 @@
             const [searchTerm, setSearchTerm] = useState("");
             const [showSuggestions, setShowSuggestions] = useState(false);
             
+            // --- 實際零用金手動儲存區 ---
+            const [actualCash1, setActualCash1] = useState("");
+            const [actualCash2, setActualCash2] = useState("");
+
+            useEffect(() => {
+                // 從 localStorage 讀取儲存的資料
+                const savedCash1 = localStorage.getItem('pettyCashActual1');
+                const savedCash2 = localStorage.getItem('pettyCashActual2');
+                if (savedCash1 !== null) setActualCash1(savedCash1);
+                if (savedCash2 !== null) setActualCash2(savedCash2);
+            }, []);
+
+            const handleCash1Change = (e) => {
+                const val = e.target.value;
+                setActualCash1(val);
+                localStorage.setItem('pettyCashActual1', val);
+            };
+
+            const handleCash2Change = (e) => {
+                const val = e.target.value;
+                setActualCash2(val);
+                localStorage.setItem('pettyCashActual2', val);
+            };
+
+            const actualCashTotal = (parseFloat(actualCash1) || 0) + (parseFloat(actualCash2) || 0);
+            // ---------------------------
+
             // Filters
             const [pettyCashMonth, setPettyCashMonth] = useState("");
             const [pettyCashTypeFilter, setPettyCashTypeFilter] = useState("ALL");
@@ -473,7 +497,6 @@
                              return { data: [], date: "", error: true, isHidden: false };
                         }
 
-                        // 判斷 H1 欄位是否隱藏：為了加速，我們只先處理第一行標題
                         const firstLineEnd = text.indexOf('\n');
                         const firstLine = firstLineEnd !== -1 ? text.substring(0, firstLineEnd).trim() : text.trim();
                         const cleanFirstLine = firstLine.replace(/^\uFEFF/, '');
@@ -488,16 +511,12 @@
                             if (found) extractedDate = found.replace(/更新日?[:：\s]?/g, '').trim();
                         }
 
-                        // 若該分頁設定為隱藏，則不讀取、不解析後續資料，直接返回以提升開啟速度！
                         if (isHidden) {
                             return { data: [], date: extractedDate, error: false, isHidden: true };
                         }
 
                         const cleanText = text.replace(/^\uFEFF/, '');
                         
-                        // 【效能優化關鍵點】
-                        // 過濾掉完全沒有資料的幽靈列（Google Sheet 常常會因為格式匯出幾千行空逗號）
-                        // 移除所有逗號和引號後，如果沒東西，就代表是空行，直接過濾掉！
                         const lines = cleanText.split(/\r?\n/)
                             .map(l => l.trim())
                             .filter(l => {
@@ -625,7 +644,7 @@
                 PettyCashDataRaw.forEach(item => {
                     if (item.yearMonth) months.add(item.yearMonth);
                 });
-                return Array.from(months).sort((a, b) => b.localeCompare(a)); // 降序，最新月份在前
+                return Array.from(months).sort((a, b) => b.localeCompare(a)); 
             }, [PettyCashDataRaw]);
 
             useEffect(() => {
@@ -701,12 +720,11 @@
                 if(puzhuoFilter === 'ZANZHUO') return list.filter(i => !i.isUnregistered && i.isZanZhuo);
 
                 if(puzhuoFilter === 'PAID') return list.filter(i => i.isPaid);
-                // 未繳費排除已登記未繳費的「公桌」
                 if(puzhuoFilter === 'UNPAID') return list.filter(i => !i.isPaid && !i.isUnregistered && !i.isGongZhuo);
                 if(puzhuoFilter === 'UNREGISTERED') return list.filter(i => i.isUnregistered);
                 
-                if(searchTerm) return list; // 搜尋時顯示所有符合結果
-                return list.filter(i => !i.isUnregistered); // 預設僅顯示已登記清單
+                if(searchTerm) return list; 
+                return list.filter(i => !i.isUnregistered); 
             }, [PuzhuoDataRaw, searchTerm, puzhuoFilter]);
 
             const puzhuoStats = useMemo(() => {
@@ -1067,7 +1085,6 @@
                         existing.count += 1;
                         existing.amount += item.amount;
                         existing.details.push(item);
-                        // 如果有捐獻物資，記錄起來
                         if (item.amount === 0 && item.memo) {
                             existing.memos.push(item.memo);
                         }
@@ -1106,7 +1123,7 @@
                     ...DonationDataRaw.map(i => i.name), ...ZhongyuanDataRaw.map(i => i.name),
                     ...MemberDataRaw.map(i => i.name), ...GuanshengDataRaw.map(i => i.name), ...WangmuDataRaw.map(i => i.name),
                     ...BuyinkuDataRaw.map(i => i.name),
-                    ...PettyCashDataRaw.map(i => i.item) // 加入零用金項目搜尋
+                    ...PettyCashDataRaw.map(i => i.item) 
                 ].filter(Boolean);
                 const matches = allNames.filter(name => name.includes(searchTerm) && name !== searchTerm);
                 return [...new Set(matches)].slice(0, 8);
@@ -1369,11 +1386,43 @@
                                             </div>
                                             <div className="relative z-10 flex flex-col gap-1">
                                                 <div className="flex items-center gap-2 text-indigo-100 font-bold text-sm">
-                                                    <Icons.Wallet className="w-4 h-4" /> 零用金總結餘
+                                                    <Icons.Wallet className="w-4 h-4" /> 零用金系統總結餘
                                                 </div>
-                                                <div className="text-4xl font-black tracking-tight mt-1">
+                                                <div className="text-4xl font-black tracking-tight mt-1 mb-3">
                                                     ${fmtMoney(pettyCashStats.totalBalance)}
                                                 </div>
+                                                
+                                                {/* --- 新增：手動輸入區塊 --- */}
+                                                <div className="border-t border-indigo-400/50 pt-3 mt-1">
+                                                    <div className="text-indigo-100 font-bold text-sm mb-2">手動輸入實際零用金 (存於本機)</div>
+                                                    <div className="grid grid-cols-2 gap-3 mb-3">
+                                                        <div>
+                                                            <label className="text-xs text-indigo-200 mb-1 block">實際零用金 1</label>
+                                                            <input
+                                                                type="number"
+                                                                value={actualCash1}
+                                                                onChange={handleCash1Change}
+                                                                className="w-full bg-indigo-900/40 border border-indigo-400 rounded-lg p-2 text-white placeholder-indigo-300 focus:outline-none focus:border-white transition-colors text-lg"
+                                                                placeholder="0"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs text-indigo-200 mb-1 block">實際零用金 2</label>
+                                                            <input
+                                                                type="number"
+                                                                value={actualCash2}
+                                                                onChange={handleCash2Change}
+                                                                className="w-full bg-indigo-900/40 border border-indigo-400 rounded-lg p-2 text-white placeholder-indigo-300 focus:outline-none focus:border-white transition-colors text-lg"
+                                                                placeholder="0"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center justify-between bg-indigo-800/50 rounded-lg p-2 border border-indigo-400/50">
+                                                        <span className="text-sm font-bold text-indigo-100">實際加總</span>
+                                                        <span className="text-2xl font-black text-emerald-300">${fmtMoney(actualCashTotal)}</span>
+                                                    </div>
+                                                </div>
+                                                {/* ---------------------- */}
                                             </div>
                                         </div>
 
@@ -1786,7 +1835,7 @@
                         )}
 
                         {/* =======================================================
-                            功能：參香/宮慶捐獻
+                            功能：宮慶捐獻
                         ======================================================= */}
                         {activeTab === 'donation' && visibleTabs.donation && (
                             <div className="fade-in">
@@ -2109,7 +2158,7 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                            )) : <div className="text-center py-12 text-slate-500 text-xl font-bold">查無資料</div>}
+                                            )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
                                         </div>
                                     </>
                                 )}
@@ -2122,9 +2171,10 @@
                         {activeTab === 'taisui' && visibleTabs.taisui && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="taisui" />
+                                <ErrorBanner show={fetchErrors.taisui} />
                                 <div className="bg-rose-50 rounded-xl p-3 shadow-inner border border-rose-100 mb-4 flex justify-between gap-2 overflow-x-auto">
-                                    <button onClick={() => setTaiSuiFilterType('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'ALL' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-white text-rose-500 border-rose-100'}`}>
-                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">登記總數</span><span className="text-3xl font-black">{taiSuiStats.reg}</span>
+                                    <button onClick={() => setTaiSuiFilterType('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'ALL' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-white text-rose-600 border-rose-100'}`}>
+                                        <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">總登記數</span><span className="text-3xl font-black">{taiSuiStats.reg}</span>
                                     </button>
                                     <button onClick={() => setTaiSuiFilterType('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border ${taiSuiFilterType === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
                                         <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-3xl font-black">{taiSuiStats.paid}</span>
@@ -2133,23 +2183,26 @@
                                         <span className="text-base font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-3xl font-black">{taiSuiStats.unpaid}</span>
                                     </button>
                                 </div>
-                                <div className="space-y-2 fade-in">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {taiSuiDisplay.length > 0 ? taiSuiDisplay.map((item, idx) => (
-                                        <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                {item.id ? <div className="bg-rose-100 px-2 py-1 rounded text-rose-600 font-bold text-sm min-w-[3rem] text-center">{item.id}</div> : <div className="bg-rose-100 p-2 rounded-full text-rose-600"><Icons.Scroll /></div>}
+                                        <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between relative overflow-hidden">
+                                            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-400"></div>
+                                            <div className="flex items-center gap-3 pl-2">
+                                                <div className="bg-rose-50 text-rose-600 font-bold px-2 py-1 rounded text-sm min-w-[3rem] text-center border border-rose-200">
+                                                    {item.id}
+                                                </div>
                                                 <span className="text-xl font-bold text-slate-800">{item.n}</span>
                                             </div>
                                             <div className="flex gap-2 text-sm">
-                                                <div className={`px-3 py-1 rounded-md flex items-center gap-1 border ${item.r ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
-                                                    {item.r ? <Icons.Check /> : <span className="w-4 h-4 block border border-slate-300 rounded-sm"></span>}<span className="font-bold">登記</span>
+                                                <div className={`px-2 py-1 rounded flex items-center gap-1 ${item.r ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+                                                    {item.r ? '已登記' : '未登記'}
                                                 </div>
-                                                <div className={`px-3 py-1 rounded-md flex items-center gap-1 border ${item.p ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
-                                                    {item.p ? <Icons.Check /> : <span className="w-4 h-4 block border border-slate-300 rounded-sm"></span>}<span className="font-bold">繳費</span>
+                                                <div className={`px-2 py-1 rounded flex items-center gap-1 border ${item.p ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-red-50 border-red-200 text-red-600 font-bold'}`}>
+                                                    {item.p ? '已繳費' : '未繳費'}
                                                 </div>
                                             </div>
                                         </div>
-                                    )) : <div className="text-center py-8 text-slate-500">查無資料</div>}
+                                    )) : <div className="text-center py-8 text-slate-500 col-span-full font-bold">查無資料</div>}
                                 </div>
                             </div>
                         )}
@@ -2160,27 +2213,51 @@
                         {activeTab === 'light' && visibleTabs.light && (
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="light" />
-                                <div className="bg-amber-50 rounded-xl p-3 shadow-inner border border-amber-100 mb-4 flex justify-between gap-2 overflow-x-auto min-w-full no-scrollbar">
-                                    <button onClick={() => setLightFilterType('ALL')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'ALL' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-white text-slate-500 border-amber-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">登記總數</span><span className="text-2xl font-black">{lightStats.totalReg}</span>
+                                <ErrorBanner show={fetchErrors.light} />
+                                <div className="bg-amber-50 rounded-xl p-3 shadow-inner border border-amber-100 mb-4 flex justify-between gap-2 overflow-x-auto">
+                                    <button onClick={() => setLightFilterType('ALL')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border shadow-sm transition-all ${lightFilterType === 'ALL' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-600 border-amber-100 hover:bg-amber-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">總數</span>
+                                        <span className="text-2xl font-black">{lightStats.totalReg}</span>
                                     </button>
-                                    <button onClick={() => setLightFilterType('UPPER')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'UPPER' ? 'bg-amber-500 text-white border-amber-500 shadow-md' : 'bg-white text-amber-700 border-amber-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">上層登記</span><span className="text-2xl font-black">{lightStats.upperReg}</span>
+                                    <button onClick={() => setLightFilterType('UPPER')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border shadow-sm transition-all ${lightFilterType === 'UPPER' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-amber-600 border-amber-100 hover:bg-amber-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">上層</span>
+                                        <span className="text-2xl font-black">{lightStats.upperReg}</span>
                                     </button>
-                                    <button onClick={() => setLightFilterType('LOWER')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'LOWER' ? 'bg-indigo-500 text-white border-indigo-500 shadow-md' : 'bg-white text-indigo-700 border-indigo-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">下層登記</span><span className="text-2xl font-black">{lightStats.lowerReg}</span>
-                                    </button>
-                                    <button onClick={() => setLightFilterType('PAID')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-600 border-emerald-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span><span className="text-2xl font-black">{lightStats.paid}</span>
-                                    </button>
-                                    <button onClick={() => setLightFilterType('UNPAID')} className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-3 px-1 rounded-lg border ${lightFilterType === 'UNPAID' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-red-600 border-red-100'}`}>
-                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span><span className="text-2xl font-black">{lightStats.unpaid}</span>
+                                    <button onClick={() => setLightFilterType('LOWER')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border shadow-sm transition-all ${lightFilterType === 'LOWER' ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white text-indigo-600 border-indigo-100 hover:bg-indigo-50'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">下層</span>
+                                        <span className="text-2xl font-black">{lightStats.lowerReg}</span>
                                     </button>
                                 </div>
-                                <div className="space-y-2 fade-in">
-                                    {lightDisplay.length > 0 ? lightDisplay.map((item, idx) => <LightCard key={idx} item={item} />) : <div className="text-center py-8 text-slate-500">查無資料</div>}
+                                <div className="grid grid-cols-2 gap-2 mb-4">
+                                    <button onClick={() => setLightFilterType('PAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border shadow-sm transition-all ${lightFilterType === 'PAID' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">已繳費</span>
+                                        <span className="text-2xl font-black">{lightStats.paid}</span>
+                                    </button>
+                                    <button onClick={() => setLightFilterType('UNPAID')} className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-lg border shadow-sm transition-all ${lightFilterType === 'UNPAID' ? 'bg-red-600 text-white border-red-600' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'}`}>
+                                        <span className="text-sm font-bold opacity-90 mb-1 whitespace-nowrap">未繳費</span>
+                                        <span className="text-2xl font-black">{lightStats.unpaid}</span>
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {lightDisplay.length > 0 ? lightDisplay.map((item, idx) => (
+                                        <LightCard key={idx} item={item} />
+                                    )) : <div className="text-center py-8 text-slate-500 col-span-full font-bold">查無資料</div>}
                                 </div>
                             </div>
+                        )}
+
+                        {/* =======================================================
+                            功能：關聖帝君祝壽
+                        ======================================================= */}
+                        {activeTab === 'guansheng' && visibleTabs.guansheng && (
+                            renderBirthdayTab('guansheng', 'teal', guanshengFiltered, guanshengStats)
+                        )}
+
+                        {/* =======================================================
+                            功能：王母娘娘祝壽
+                        ======================================================= */}
+                        {activeTab === 'wangmu' && visibleTabs.wangmu && (
+                            renderBirthdayTab('wangmu', 'pink', wangmuFiltered, wangmuStats)
                         )}
 
                         {/* =======================================================
@@ -2190,31 +2267,22 @@
                             <div className="fade-in">
                                 <TabUpdateDate tabKey="member" />
                                 <ErrorBanner show={fetchErrors.member} />
-                                <div className="bg-amber-50 rounded-xl p-4 shadow-inner border border-amber-100 mb-4 flex justify-between items-center">
-                                    <div className="flex items-center gap-2 text-amber-700 font-bold"><Icons.Users /> 統計人數</div>
-                                    <div className="text-3xl font-black text-amber-700">{memberFiltered.length}</div>
+                                <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 mb-4 flex justify-between items-center">
+                                    <span className="text-slate-600 font-bold">總人數</span>
+                                    <span className="text-3xl font-black text-blue-600">{memberFiltered.length}</span>
                                 </div>
-                                <div className="space-y-2 fade-in">
+                                <div className="space-y-3">
                                     {memberFiltered.length > 0 ? memberFiltered.map((item, idx) => (
-                                        <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
-                                            <div className="bg-amber-100 text-amber-700 font-bold px-2 py-1 rounded text-sm min-w-[3rem] text-center">{item.id}</div>
-                                            <span className="text-xl font-bold text-slate-800">{item.name}</span>
+                                        <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4 group hover:bg-slate-50 transition-colors">
+                                            <div className="bg-blue-100 text-blue-700 font-bold px-3 py-1.5 rounded-lg text-sm min-w-[3.5rem] text-center border border-blue-200">
+                                                {item.id}
+                                            </div>
+                                            <span className="text-xl font-bold text-slate-800 tracking-wide">{item.name}</span>
                                         </div>
                                     )) : <div className="text-center py-8 text-slate-500 font-bold">查無資料</div>}
                                 </div>
                             </div>
                         )}
-
-                        {}
-                        {/* =======================================================
-                            功能：關聖帝君祝壽
-                        ======================================================= */}
-                        {activeTab === 'guansheng' && visibleTabs.guansheng && renderBirthdayTab('guansheng', 'amber', guanshengFiltered, guanshengStats)}
-
-                        {/* =======================================================
-                            功能：王母娘娘祝壽
-                        ======================================================= */}
-                        {activeTab === 'wangmu' && visibleTabs.wangmu && renderBirthdayTab('wangmu', 'pink', wangmuFiltered, wangmuStats)}
 
                     </div>
                 </div>
@@ -2226,3 +2294,4 @@
     </script>
 </body>
 </html>
+```eof
