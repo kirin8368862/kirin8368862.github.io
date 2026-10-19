@@ -358,7 +358,7 @@
         const TABS_CONFIG = [
             { id: 'puzhuo', name: '中元普桌' },
             { id: 'buyinku', name: '補陰庫' },
-            { id: 'zhongyuan', name: '中元捐獻' },
+            { id: 'zhongyuan', name: '參香捐獻' },
             { id: 'donation', name: '宮慶捐獻' },
             { id: 'guansheng', name: '關聖帝君祝壽' },
             { id: 'wangmu', name: '王母娘娘祝壽' },
@@ -1076,7 +1076,7 @@
                 });
             }, []);
 
-            // ================= 中元捐獻 邏輯 =================
+            // ================= 中元捐獻、參香捐獻 邏輯 =================
             const zhongyuanBaseFiltered = useMemo(() => {
                 let list = ZhongyuanDataRaw;
                 if(searchTerm) {
@@ -1740,7 +1740,7 @@
                         )}
 
                         {/* =======================================================
-                            功能：中元捐獻
+                            功能：中元捐獻、參香捐獻
                         ======================================================= */}
                         {activeTab === 'zhongyuan' && visibleTabs.zhongyuan && (
                             <div className="fade-in">
