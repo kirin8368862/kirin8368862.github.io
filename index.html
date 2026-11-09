@@ -83,6 +83,20 @@
 
         const fmtMoney = (num) => new Intl.NumberFormat('zh-TW').format(num);
 
+        // 將 Base64 DataURL 同步轉換為 File 物件（確保手機瀏覽器觸發 Web Share API 時保有使用者點擊授權）
+        const dataURLtoFile = (dataurl, filename) => {
+            const arr = dataurl.split(',');
+            const mimeMatch = arr[0].match(/:(.*?);/);
+            const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new File([u8arr], filename, { type: mime });
+        };
+
         // Canvas 圓角矩形繪製輔助函式
         const drawRoundRect = (ctx, x, y, w, h, r) => {
             ctx.beginPath();
@@ -425,7 +439,8 @@
             Wallet: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-6 h-6"}><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>,
             Ledger: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className || "w-6 h-6"}><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path><line x1="8" y1="7" x2="16" y2="7"></line><line x1="8" y1="11" x2="16" y2="11"></line></svg>,
             FontSize: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className || "w-6 h-6"}><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>,
-            Download: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={className || "w-5 h-5"}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Download: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={className || "w-5 h-5"}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>,
+            Share: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={className || "w-5 h-5"}><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
         };
 
         const TABS_CONFIG = [
@@ -503,12 +518,13 @@
             const [searchTerm, setSearchTerm] = useState("");
             const [showSuggestions, setShowSuggestions] = useState(false);
 
-            // 未繳費提醒圖片預覽與下載 Modal 狀態（支援所有未繳費分頁）
+            // 未繳費提醒圖片預覽、下載與 Web Share API 分享狀態
             const [generatedImgUrl, setGeneratedImgUrl] = useState("");
             const [generatedImgTitle, setGeneratedImgTitle] = useState("");
             const [generatedImgDate, setGeneratedImgDate] = useState("");
             const [showImgModal, setShowImgModal] = useState(false);
             const [isGeneratingImg, setIsGeneratingImg] = useState(false);
+            const [isSharingImg, setIsSharingImg] = useState(false);
             
             // --- 實際零用金 雲端儲存區 (方案B) ---
             const GAS_API_URL = "https://script.google.com/macros/s/AKfycbw70w84np4_Ti7cHJcz_h-TKMUqvpZ4_NrWtmSChe1kUvUTGavnPXAQXdXet4Om3Gk/exec"; 
@@ -1001,8 +1017,7 @@
                 return list.filter(i => !i.isUnregistered);
             }, [EastTripDataRaw, searchTerm, eastTripFilter]);
 
-            // ✨ 通用型「未繳費名單提醒圖」產生器（支援所有包含未繳費設定之分頁）
-            // 修改設計：不顯示編號、三排(3欄)設計、名單與頂部提醒字體加大、取消最下方溫馨附註區塊
+            // ✨ 通用型「未繳費名單提醒圖」產生器（無編號、三排特大字體、無底部附註）
             const handleDownloadUnpaidImage = useCallback((tabKey, tabTitle) => {
                 let unpaidNames = [];
                 if (tabKey === 'puzhuo') {
@@ -1043,7 +1058,7 @@
                     try {
                         const width = 960; // 寬度 960px 配合三排大字設計，在手機 LINE 點開清晰大器
                         const padding = 36;
-                        const cols = 3; // 改為三排（3欄），名單多時不會拉得太長
+                        const cols = 3; // 三排（3欄）設計
                         const colGap = 18;
                         const rowGap = 16;
                         const cardWidth = (width - padding * 2 - colGap * (cols - 1)) / cols; // 284px
@@ -1054,7 +1069,6 @@
                         const topNoticeHeight = 178;
                         const listSectionHeaderHeight = 66;
                         const listGridHeight = rows * cardHeight + Math.max(0, rows - 1) * rowGap;
-                        // 取消最下方附註區塊後，總高度緊湊精煉
                         const totalHeight = headerHeight + 28 + topNoticeHeight + 28 + listSectionHeaderHeight + listGridHeight + 44;
 
                         const canvas = document.createElement('canvas');
@@ -1099,7 +1113,7 @@
                         ctx.fillStyle = '#ffffff';
                         ctx.fillText(subText, width / 2, 144);
 
-                        // 3. 上方「防不悅」優先溫馨提醒框（字體全面加大，第二排改為指定文案）
+                        // 3. 上方「防不悅」優先溫馨提醒框
                         let currentY = headerHeight + 28;
                         drawRoundRect(ctx, padding, currentY, width - padding * 2, topNoticeHeight, 22);
                         ctx.fillStyle = '#fffbeb';
@@ -1181,7 +1195,7 @@
                         link.click();
                         document.body.removeChild(link);
 
-                        showToast(`✅ 已產生並下載「${tabTitle}未繳費提醒圖」！`);
+                        showToast(`✅ 已產生「${tabTitle}未繳費提醒圖」，可一鍵轉傳 LINE！`);
                     } catch (err) {
                         console.error(err);
                         showToast("❌ 圖片產生失敗，請稍後再試");
@@ -1190,6 +1204,39 @@
                     }
                 }, 80);
             }, [PuzhuoDataRaw, BuyinkuDataRaw, EastTripDataRaw, FujianTripDataRaw, TaiSuiData, LightData, updateDates]);
+
+            // ✨ Web Share API：一鍵喚起手機系統分享選單直接傳送圖片至 LINE 群組
+            const handleShareUnpaidImage = async () => {
+                if (!generatedImgUrl) return;
+                setIsSharingImg(true);
+                try {
+                    const fileName = `${generatedImgTitle || '活動'}未繳費提醒名單_${generatedImgDate || '最新'}.png`;
+                    const file = dataURLtoFile(generatedImgUrl, fileName);
+
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: `${generatedImgTitle}・費用核對提醒`,
+                            text: `📋 ${generatedImgTitle}・費用核對提醒（若您近期已繳費請安心忽略，感恩護持！）`
+                        });
+                        showToast("✅ 已開啟系統分享面板！");
+                    } else if (navigator.share) {
+                        await navigator.share({
+                            title: `${generatedImgTitle}・費用核對提醒`,
+                            text: `📋 ${generatedImgTitle}・費用核對提醒（若您近期已繳費請安心忽略，感恩護持！）`
+                        });
+                    } else {
+                        showToast("💡 此裝置瀏覽器不支援直接分享，請長按圖片或點擊「下載圖片檔」");
+                    }
+                } catch (err) {
+                    if (err && err.name !== 'AbortError') {
+                        console.warn("分享提示:", err.message);
+                        showToast("💡 請直接「長按上方圖片」或點擊「下載圖片檔」轉傳 LINE");
+                    }
+                } finally {
+                    setIsSharingImg(false);
+                }
+            };
 
             // 共用「下載未繳費提醒圖」按鈕渲染器
             const renderDownloadUnpaidBtn = (tabKey, tabTitle) => (
@@ -2019,7 +2066,7 @@
                         )}
 
                         {/* =======================================================
-                            功能：中元普桌（已同步加入未繳費提醒圖下載）
+                            功能：中元普桌（支援未繳費提醒圖下載與一鍵轉傳）
                         ======================================================= */}
                         {activeTab === 'puzhuo' && visibleTabs.puzhuo && (
                             <div className="fade-in">
@@ -2135,7 +2182,7 @@
                         )}
                         
                         {/* =======================================================
-                            功能：補陰庫（已同步加入未繳費提醒圖下載）
+                            功能：補陰庫（支援未繳費提醒圖下載與一鍵轉傳）
                         ======================================================= */}
                         {activeTab === 'buyinku' && visibleTabs.buyinku && (
                             <div className="fade-in">
@@ -2576,7 +2623,7 @@
                         )}
                         
                         {/* =======================================================
-                            功能：安太歲（已同步加入未繳費提醒圖下載）
+                            功能：安太歲（支援未繳費提醒圖下載與一鍵轉傳）
                         ======================================================= */}
                         {activeTab === 'taisui' && visibleTabs.taisui && (
                             <div className="fade-in">
@@ -2618,7 +2665,7 @@
                         )}
 
                         {/* =======================================================
-                            功能：光明燈（已同步加入未繳費提醒圖下載）
+                            功能：光明燈（支援未繳費提醒圖下載與一鍵轉傳）
                         ======================================================= */}
                         {activeTab === 'light' && visibleTabs.light && (
                             <div className="fade-in">
@@ -2662,7 +2709,7 @@
                         )}
 
                         {/* =======================================================
-                            功能：參香 (east) - 含未繳費提醒圖片下載與繳費異常偵測
+                            功能：參香 (east) - 支援未繳費提醒圖下載與一鍵轉傳
                         ======================================================= */}
                         {activeTab === 'east' && visibleTabs.east && (
                             <div className="fade-in">
@@ -2720,7 +2767,7 @@
                         )}
 
                         {/* =======================================================
-                            功能：小琉球二日行（已同步加入未繳費提醒圖下載）
+                            功能：小琉球二日行（支援未繳費提醒圖下載與一鍵轉傳）
                         ======================================================= */}
                         {activeTab === 'fujian' && visibleTabs.fujian && (
                             <div className="fade-in">
@@ -2847,14 +2894,14 @@
 
                     </main>
 
-                    {/* 未繳費提醒圖片預覽與下載 Modal (支援所有分頁，方便手機長按儲存或直接分享至 LINE) */}
+                    {/* 未繳費提醒圖片預覽、下載與 Web Share API 一鍵分享 Modal */}
                     {showImgModal && generatedImgUrl && (
                         <div 
                             className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[90] flex items-center justify-center p-4 fade-in"
                             onClick={() => setShowImgModal(false)}
                         >
                             <div 
-                                className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border-2 border-slate-200"
+                                className="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border-2 border-slate-200"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
@@ -2871,7 +2918,7 @@
                                 </div>
 
                                 <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-amber-900 text-sm sm:text-base font-black text-center">
-                                    📱 手機用戶可直接「長按下方圖片」儲存至相簿或轉傳 LINE 群組
+                                    📱 點擊下方綠色按鈕可「直接轉傳 LINE 群組」，或長按圖片儲存
                                 </div>
 
                                 <div className="p-4 overflow-y-auto flex-1 bg-slate-100 flex justify-center">
@@ -2882,21 +2929,35 @@
                                     />
                                 </div>
 
-                                <div className="p-4 bg-white border-t border-slate-200 flex gap-3">
-                                    <a 
-                                        href={generatedImgUrl} 
-                                        download={`${generatedImgTitle}未繳費提醒名單_${generatedImgDate || '最新'}.png`}
-                                        className="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-black py-3 rounded-xl text-center text-lg shadow-md flex items-center justify-center gap-2"
-                                    >
-                                        <Icons.Download className="w-5 h-5" />
-                                        <span>再次下載圖片檔</span>
-                                    </a>
+                                <div className="p-4 bg-white border-t border-slate-200 flex flex-col gap-2.5">
+                                    {/* 新增：Web Share API 一鍵直接分享圖片至 LINE 群組按鈕 */}
                                     <button 
-                                        onClick={() => setShowImgModal(false)}
-                                        className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-800 font-black rounded-xl text-lg"
+                                        type="button"
+                                        onClick={handleShareUnpaidImage}
+                                        disabled={isSharingImg}
+                                        className="w-full bg-[#06C755] hover:bg-[#05b34c] active:bg-[#049b41] text-white font-black py-3.5 rounded-xl text-center text-lg sm:text-xl shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                                     >
-                                        關閉
+                                        <Icons.Share className="w-6 h-6" />
+                                        <span>{isSharingImg ? '正在開啟分享選單...' : '📲 一鍵轉傳 LINE 群組 / 分享圖片'}</span>
                                     </button>
+
+                                    <div className="flex gap-2.5">
+                                        <a 
+                                            href={generatedImgUrl} 
+                                            download={`${generatedImgTitle}未繳費提醒名單_${generatedImgDate || '最新'}.png`}
+                                            className="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-black py-3 rounded-xl text-center text-base sm:text-lg shadow-sm flex items-center justify-center gap-2"
+                                        >
+                                            <Icons.Download className="w-5 h-5" />
+                                            <span>下載圖片檔</span>
+                                        </a>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setShowImgModal(false)}
+                                            className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-800 font-black rounded-xl text-base sm:text-lg"
+                                        >
+                                            關閉
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
