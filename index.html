@@ -18,7 +18,7 @@
     <style>
         * { -webkit-tap-highlight-color: transparent; }
         
-        /* 修改項目 1：原標準(16px)改為大字，新標準再縮小一單位(14px) */
+        /* 字體大小二段切換：標準(14px) / 大字(16px) */
         html {
             transition: font-size 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
@@ -503,8 +503,10 @@
             const [searchTerm, setSearchTerm] = useState("");
             const [showSuggestions, setShowSuggestions] = useState(false);
 
-            // 參香未繳費圖片預覽與下載 Modal 狀態
+            // 未繳費提醒圖片預覽與下載 Modal 狀態（支援所有未繳費分頁）
             const [generatedImgUrl, setGeneratedImgUrl] = useState("");
+            const [generatedImgTitle, setGeneratedImgTitle] = useState("");
+            const [generatedImgDate, setGeneratedImgDate] = useState("");
             const [showImgModal, setShowImgModal] = useState(false);
             const [isGeneratingImg, setIsGeneratingImg] = useState(false);
             
@@ -970,7 +972,7 @@
                 return data;
             }, [lightFiltered, lightFilterType]);
 
-            // ================= 參香 (east) 繳費異常偵測與未繳費圖片匯出 =================
+            // ================= 參香 (east) 繳費異常偵測 =================
             const eastTripStats = useMemo(() => {
                 const matchedList = searchTerm 
                     ? EastTripDataRaw.filter(i => i.name.includes(searchTerm) || (i.rawName && i.rawName.includes(searchTerm)))
@@ -999,39 +1001,68 @@
                 return list.filter(i => !i.isUnregistered);
             }, [EastTripDataRaw, searchTerm, eastTripFilter]);
 
-            // ✨ 修改項目 2：生成「參香未繳費提醒名單」LINE 手機專用高畫質圖卡
-            const handleDownloadEastUnpaidImage = useCallback(() => {
-                const unpaidList = EastTripDataRaw.filter(i => !i.isPaid && !i.isUnregistered);
-                if (unpaidList.length === 0) {
-                    showToast("🎉 目前參香名單皆已全數繳費，無未繳費人員！");
+            // ✨ 通用型「未繳費名單提醒圖」產生器（支援所有包含未繳費設定之分頁）
+            // 修改設計：不顯示編號、三排(3欄)設計、名單與頂部提醒字體加大、取消最下方溫馨附註區塊
+            const handleDownloadUnpaidImage = useCallback((tabKey, tabTitle) => {
+                let unpaidNames = [];
+                if (tabKey === 'puzhuo') {
+                    unpaidNames = PuzhuoDataRaw
+                        .filter(i => !i.isPaid && !i.isUnregistered && !i.isGongZhuo)
+                        .map(i => [i.name1, i.name2].filter(Boolean).join('、'));
+                } else if (tabKey === 'buyinku') {
+                    unpaidNames = BuyinkuDataRaw
+                        .filter(i => !i.isPaid && !i.isUnregistered)
+                        .map(i => i.name);
+                } else if (tabKey === 'east') {
+                    unpaidNames = EastTripDataRaw
+                        .filter(i => !i.isPaid && !i.isUnregistered)
+                        .map(i => i.name);
+                } else if (tabKey === 'fujian') {
+                    unpaidNames = FujianTripDataRaw
+                        .filter(i => !i.isPaid && !i.isUnregistered)
+                        .map(i => i.name);
+                } else if (tabKey === 'taisui') {
+                    unpaidNames = TaiSuiData
+                        .filter(i => i.p === 0)
+                        .map(i => i.n);
+                } else if (tabKey === 'light') {
+                    unpaidNames = LightData
+                        .filter(i => i.p === 0)
+                        .map(i => i.n);
+                }
+
+                unpaidNames = unpaidNames.filter(Boolean);
+
+                if (unpaidNames.length === 0) {
+                    showToast(`🎉 目前「${tabTitle}」名單皆已全數繳費，無未繳費人員！`);
                     return;
                 }
 
                 setIsGeneratingImg(true);
                 setTimeout(() => {
                     try {
-                        const width = 800; // 專為手機 LINE 聊天室全螢幕點開設計的直式寬度
+                        const width = 960; // 寬度 960px 配合三排大字設計，在手機 LINE 點開清晰大器
                         const padding = 36;
-                        const cols = 2; // 雙欄大字設計，手機閱讀一目了然
-                        const colGap = 20;
+                        const cols = 3; // 改為三排（3欄），名單多時不會拉得太長
+                        const colGap = 18;
                         const rowGap = 16;
-                        const cardWidth = (width - padding * 2 - colGap) / cols;
-                        const cardHeight = 76;
-                        const rows = Math.ceil(unpaidList.length / cols);
+                        const cardWidth = (width - padding * 2 - colGap * (cols - 1)) / cols; // 284px
+                        const cardHeight = 88; // 加高卡片以容納特大號姓名字體
+                        const rows = Math.ceil(unpaidNames.length / cols);
 
-                        const headerHeight = 185;
-                        const topNoticeHeight = 148;
-                        const listSectionHeaderHeight = 60;
+                        const headerHeight = 195;
+                        const topNoticeHeight = 178;
+                        const listSectionHeaderHeight = 66;
                         const listGridHeight = rows * cardHeight + Math.max(0, rows - 1) * rowGap;
-                        const bottomNoticeHeight = 295;
-                        const totalHeight = headerHeight + 24 + topNoticeHeight + 24 + listSectionHeaderHeight + listGridHeight + 32 + bottomNoticeHeight + 44;
+                        // 取消最下方附註區塊後，總高度緊湊精煉
+                        const totalHeight = headerHeight + 28 + topNoticeHeight + 28 + listSectionHeaderHeight + listGridHeight + 44;
 
                         const canvas = document.createElement('canvas');
                         canvas.width = width;
                         canvas.height = totalHeight;
                         const ctx = canvas.getContext('2d');
 
-                        // 1. 整體溫暖米白底色
+                        // 1. 整體溫暖淺灰白底色
                         ctx.fillStyle = '#f8fafc';
                         ctx.fillRect(0, 0, width, totalHeight);
 
@@ -1047,18 +1078,18 @@
                         ctx.fillStyle = '#f59e0b';
                         ctx.fillRect(0, headerHeight - 8, width, 8);
 
-                        // 標題文字
+                        // 標題文字（加大至 44px）
                         ctx.fillStyle = '#fef3c7';
-                        ctx.font = '900 38px "Noto Sans TC", sans-serif';
+                        ctx.font = '900 44px "Noto Sans TC", sans-serif';
                         ctx.textAlign = 'center';
-                        ctx.fillText('📋 參香活動・報名費用核對提醒', width / 2, 72);
+                        ctx.fillText(`📋 ${tabTitle}・費用核對提醒`, width / 2, 78);
 
-                        // 更新日期與待核對人數膠囊標籤
-                        const updateStr = updateDates.east || '最新統計';
-                        const subText = `帳務統計截至：${updateStr}  ｜  待核對人數：共 ${unpaidList.length} 位`;
-                        ctx.font = '700 22px "Noto Sans TC", sans-serif';
-                        const subWidth = Math.min(width - 60, ctx.measureText(subText).width + 56);
-                        drawRoundRect(ctx, (width - subWidth) / 2, 102, subWidth, 50, 25);
+                        // 更新日期與待核對人數膠囊標籤（加大至 25px）
+                        const updateStr = updateDates[tabKey] || '最新統計';
+                        const subText = `帳務統計截至：${updateStr}  ｜  待核對人數：共 ${unpaidNames.length} 位`;
+                        ctx.font = '700 25px "Noto Sans TC", sans-serif';
+                        const subWidth = Math.min(width - 60, ctx.measureText(subText).width + 64);
+                        drawRoundRect(ctx, (width - subWidth) / 2, 108, subWidth, 54, 27);
                         ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
                         ctx.fill();
                         ctx.strokeStyle = 'rgba(251, 191, 36, 0.45)';
@@ -1066,142 +1097,91 @@
                         ctx.stroke();
 
                         ctx.fillStyle = '#ffffff';
-                        ctx.fillText(subText, width / 2, 135);
+                        ctx.fillText(subText, width / 2, 144);
 
-                        // 3. 上方「防不悅」優先溫馨提醒框（讓已繳費大德第一眼看到就安心）
-                        let currentY = headerHeight + 24;
-                        drawRoundRect(ctx, padding, currentY, width - padding * 2, topNoticeHeight, 20);
+                        // 3. 上方「防不悅」優先溫馨提醒框（字體全面加大，第二排改為指定文案）
+                        let currentY = headerHeight + 28;
+                        drawRoundRect(ctx, padding, currentY, width - padding * 2, topNoticeHeight, 22);
                         ctx.fillStyle = '#fffbeb';
                         ctx.fill();
                         ctx.strokeStyle = '#f59e0b';
-                        ctx.lineWidth = 3;
+                        ctx.lineWidth = 3.5;
                         ctx.stroke();
 
                         ctx.textAlign = 'left';
                         ctx.fillStyle = '#b45309';
-                        ctx.font = '900 25px "Noto Sans TC", sans-serif';
-                        ctx.fillText('🙏 感恩諸位大德發心參與！（已繳費大德請安心忽略）', padding + 24, currentY + 44);
+                        ctx.font = '900 31px "Noto Sans TC", sans-serif';
+                        ctx.fillText('🙏 感恩諸位大德發心參與！（已繳費大德請安心忽略）', padding + 26, currentY + 52);
 
                         ctx.fillStyle = '#78350f';
-                        ctx.font = '700 21px "Noto Sans TC", sans-serif';
+                        ctx.font = '700 27px "Noto Sans TC", sans-serif';
                         drawWrappedText(
                             ctx,
-                            '若您近期已繳費予幹部或已完成轉帳，可能因人工對帳與系統更新尚有時間差，敬請無須理會本提醒，誠摯感謝您的體諒與護持！',
-                            padding + 24,
-                            currentY + 84,
-                            width - padding * 2 - 48,
-                            32
+                            '若您近期已繳費，可能因入帳與系統更新尚有時間差，敬請無須理會本提醒，誠摯感謝您的體諒與護持!',
+                            padding + 26,
+                            currentY + 102,
+                            width - padding * 2 - 52,
+                            40
                         );
 
-                        // 4. 未繳費名單區段標題
+                        // 4. 未繳費名單區段標題（加大至 30px）
                         currentY += topNoticeHeight + 28;
                         ctx.fillStyle = '#1e293b';
-                        ctx.font = '900 26px "Noto Sans TC", sans-serif';
-                        ctx.fillText('📌 尚未完成繳費核對名單（依報名序號排列）', padding + 4, currentY + 30);
+                        ctx.font = '900 30px "Noto Sans TC", sans-serif';
+                        ctx.fillText('📌 尚未完成繳費核對名單：', padding + 4, currentY + 36);
 
-                        // 5. 繪製雙欄大字未繳費名單卡片
+                        // 5. 繪製三排（3欄）無編號特大字體未繳費名單卡片
                         currentY += listSectionHeaderHeight;
-                        unpaidList.forEach((person, index) => {
+                        unpaidNames.forEach((personName, index) => {
                             const col = index % cols;
                             const row = Math.floor(index / cols);
                             const cardX = padding + col * (cardWidth + colGap);
                             const cardY = currentY + row * (cardHeight + rowGap);
 
                             // 卡片白底與外框
-                            drawRoundRect(ctx, cardX, cardY, cardWidth, cardHeight, 16);
+                            drawRoundRect(ctx, cardX, cardY, cardWidth, cardHeight, 18);
                             ctx.fillStyle = '#ffffff';
                             ctx.fill();
                             ctx.strokeStyle = '#cbd5e1';
-                            ctx.lineWidth = 2;
+                            ctx.lineWidth = 2.5;
                             ctx.stroke();
 
                             // 左側紅色提示色條
-                            drawRoundRect(ctx, cardX, cardY, 10, cardHeight, 5);
+                            drawRoundRect(ctx, cardX, cardY, 12, cardHeight, 6);
                             ctx.fillStyle = '#e11d48';
                             ctx.fill();
 
-                            // 編號標籤
-                            const badgeX = cardX + 22;
-                            const badgeY = cardY + 15;
-                            const badgeW = 74;
-                            const badgeH = 46;
-                            drawRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 10);
-                            ctx.fillStyle = '#f1f5f9';
-                            ctx.fill();
-                            ctx.strokeStyle = '#cbd5e1';
-                            ctx.lineWidth = 1.5;
-                            ctx.stroke();
-
-                            ctx.fillStyle = '#334155';
-                            ctx.font = '800 24px "JetBrains Mono", "Noto Sans TC", monospace';
-                            ctx.textAlign = 'center';
-                            ctx.fillText(String(person.id), badgeX + badgeW / 2, badgeY + 32);
-
-                            // 信眾姓名（特大粗體，手機一目了然）
+                            // 信眾姓名（無編號，特大 40px 粗體置中顯示，若雙人名字過長自動縮放確保不溢出）
                             ctx.fillStyle = '#0f172a';
-                            ctx.font = '900 31px "Noto Sans TC", sans-serif';
-                            ctx.textAlign = 'left';
-                            ctx.fillText(person.name, badgeX + badgeW + 18, cardY + 49);
+                            let nameFontSize = 40;
+                            ctx.font = `900 ${nameFontSize}px "Noto Sans TC", sans-serif`;
+                            const maxNameWidth = cardWidth - 34;
+                            while (ctx.measureText(personName).width > maxNameWidth && nameFontSize > 22) {
+                                nameFontSize -= 2;
+                                ctx.font = `900 ${nameFontSize}px "Noto Sans TC", sans-serif`;
+                            }
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(personName, cardX + 6 + (cardWidth - 6) / 2, cardY + cardHeight / 2 + 2);
+                            ctx.textBaseline = 'alphabetic';
                         });
 
-                        // 6. 底部詳細圓融附註說明區塊
-                        currentY += listGridHeight + 32;
-                        drawRoundRect(ctx, padding, currentY, width - padding * 2, bottomNoticeHeight, 22);
-                        ctx.fillStyle = '#f0fdf4';
-                        ctx.fill();
-                        ctx.strokeStyle = '#86efac';
-                        ctx.lineWidth = 2.5;
-                        ctx.stroke();
-
-                        ctx.fillStyle = '#166534';
-                        ctx.font = '900 25px "Noto Sans TC", sans-serif';
-                        ctx.textAlign = 'left';
-                        ctx.fillText('💡 帳務核對溫馨附註說明：', padding + 24, currentY + 46);
-
-                        ctx.fillStyle = '#14532d';
-                        ctx.font = '700 21px "Noto Sans TC", sans-serif';
-                        let noteY = currentY + 86;
-                        noteY = drawWrappedText(
-                            ctx,
-                            `1. 【已繳費者無須理會】：本表資料統計截至「${updateStr}」。若您已繳交費用，可能因幹部彙整或帳務入帳尚有時間差，請安心忽略此表，造成打擾敬請海涵！`,
-                            padding + 24,
-                            noteY,
-                            width - padding * 2 - 48,
-                            33
-                        );
-                        noteY += 10;
-                        noteY = drawWrappedText(
-                            ctx,
-                            '2. 【待繳費溫馨提醒】：尚未繳費之大德，再煩請撥冗完成繳費，以利統計參香人數與後續行政安排。',
-                            padding + 24,
-                            noteY,
-                            width - padding * 2 - 48,
-                            33
-                        );
-                        noteY += 10;
-                        drawWrappedText(
-                            ctx,
-                            '3. 【帳務疑問聯繫】：若對名單或金額有任何疑問，歡迎隨時於 LINE 群組或向總務人員反映核對，感恩諸位大德發心護持！',
-                            padding + 24,
-                            noteY,
-                            width - padding * 2 - 48,
-                            33
-                        );
-
-                        // 7. 轉換為圖片 URL 並觸發下載與預覽
+                        // 6. 轉換為圖片 URL 並觸發下載與預覽
                         const dataUrl = canvas.toDataURL('image/png');
+                        const cleanDate = (updateDates[tabKey] || '最新').replace(/[\/:\s]/g, '_');
                         setGeneratedImgUrl(dataUrl);
+                        setGeneratedImgTitle(tabTitle);
+                        setGeneratedImgDate(cleanDate);
                         setShowImgModal(true);
 
-                        const cleanDate = (updateDates.east || '最新').replace(/[\/:\s]/g, '_');
                         const link = document.createElement('a');
-                        link.download = `參香未繳費提醒名單_${cleanDate}.png`;
+                        link.download = `${tabTitle}未繳費提醒名單_${cleanDate}.png`;
                         link.href = dataUrl;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
 
-                        showToast("✅ 已產生並下載「參香未繳費提醒圖」！");
+                        showToast(`✅ 已產生並下載「${tabTitle}未繳費提醒圖」！`);
                     } catch (err) {
                         console.error(err);
                         showToast("❌ 圖片產生失敗，請稍後再試");
@@ -1209,7 +1189,20 @@
                         setIsGeneratingImg(false);
                     }
                 }, 80);
-            }, [EastTripDataRaw, updateDates.east]);
+            }, [PuzhuoDataRaw, BuyinkuDataRaw, EastTripDataRaw, FujianTripDataRaw, TaiSuiData, LightData, updateDates]);
+
+            // 共用「下載未繳費提醒圖」按鈕渲染器
+            const renderDownloadUnpaidBtn = (tabKey, tabTitle) => (
+                <button
+                    type="button"
+                    onClick={() => handleDownloadUnpaidImage(tabKey, tabTitle)}
+                    disabled={isGeneratingImg}
+                    className="bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white text-base font-black px-4 py-2 rounded-full flex items-center gap-2 shadow-md transition-all border-2 border-rose-400 disabled:opacity-50"
+                >
+                    <Icons.Download className="w-5 h-5" />
+                    <span>{isGeneratingImg ? '產生圖片中...' : '下載未繳費提醒圖 (LINE專用)'}</span>
+                </button>
+            );
 
             // 計算小琉球應繳金額邏輯
             const getFujianExpectedAmount = useCallback((roomType) => {
@@ -2026,11 +2019,11 @@
                         )}
 
                         {/* =======================================================
-                            功能：中元普桌
+                            功能：中元普桌（已同步加入未繳費提醒圖下載）
                         ======================================================= */}
                         {activeTab === 'puzhuo' && visibleTabs.puzhuo && (
                             <div className="fade-in">
-                                <TabUpdateDate tabKey="puzhuo" />
+                                <TabUpdateDate tabKey="puzhuo" leftContent={renderDownloadUnpaidBtn('puzhuo', '中元普桌')} />
                                 <ErrorBanner show={fetchErrors.puzhuo} />
 
                                 <div className="bg-white p-4 rounded-2xl shadow-sm border-2 border-slate-200 mb-5 space-y-3">
@@ -2142,11 +2135,11 @@
                         )}
                         
                         {/* =======================================================
-                            功能：補陰庫
+                            功能：補陰庫（已同步加入未繳費提醒圖下載）
                         ======================================================= */}
                         {activeTab === 'buyinku' && visibleTabs.buyinku && (
                             <div className="fade-in">
-                                <TabUpdateDate tabKey="buyinku" />
+                                <TabUpdateDate tabKey="buyinku" leftContent={renderDownloadUnpaidBtn('buyinku', '補陰庫')} />
                                 <ErrorBanner show={fetchErrors.buyinku} />
 
                                 <div className="grid grid-cols-2 gap-3 mb-3">
@@ -2583,11 +2576,11 @@
                         )}
                         
                         {/* =======================================================
-                            功能：安太歲
+                            功能：安太歲（已同步加入未繳費提醒圖下載）
                         ======================================================= */}
                         {activeTab === 'taisui' && visibleTabs.taisui && (
                             <div className="fade-in">
-                                <TabUpdateDate tabKey="taisui" />
+                                <TabUpdateDate tabKey="taisui" leftContent={renderDownloadUnpaidBtn('taisui', '安太歲')} />
                                 <ErrorBanner show={fetchErrors.taisui} />
 
                                 <div className="grid grid-cols-3 gap-3 mb-5">
@@ -2625,11 +2618,11 @@
                         )}
 
                         {/* =======================================================
-                            功能：光明燈
+                            功能：光明燈（已同步加入未繳費提醒圖下載）
                         ======================================================= */}
                         {activeTab === 'light' && visibleTabs.light && (
                             <div className="fade-in">
-                                <TabUpdateDate tabKey="light" />
+                                <TabUpdateDate tabKey="light" leftContent={renderDownloadUnpaidBtn('light', '光明燈')} />
                                 <ErrorBanner show={fetchErrors.light} />
 
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-amber-200 mb-4 flex justify-between text-amber-950">
@@ -2673,20 +2666,7 @@
                         ======================================================= */}
                         {activeTab === 'east' && visibleTabs.east && (
                             <div className="fade-in">
-                                <TabUpdateDate 
-                                    tabKey="east" 
-                                    leftContent={
-                                        <button
-                                            type="button"
-                                            onClick={handleDownloadEastUnpaidImage}
-                                            disabled={isGeneratingImg}
-                                            className="bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white text-base font-black px-4 py-2 rounded-full flex items-center gap-2 shadow-md transition-all border-2 border-rose-400 disabled:opacity-50"
-                                        >
-                                            <Icons.Download className="w-5 h-5" />
-                                            <span>{isGeneratingImg ? '產生圖片中...' : '下載未繳費提醒圖 (LINE專用)'}</span>
-                                        </button>
-                                    }
-                                />
+                                <TabUpdateDate tabKey="east" leftContent={renderDownloadUnpaidBtn('east', '參香')} />
                                 <ErrorBanner show={fetchErrors.east} />
                                 
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
@@ -2740,11 +2720,11 @@
                         )}
 
                         {/* =======================================================
-                            功能：小琉球二日行
+                            功能：小琉球二日行（已同步加入未繳費提醒圖下載）
                         ======================================================= */}
                         {activeTab === 'fujian' && visibleTabs.fujian && (
                             <div className="fade-in">
-                                <TabUpdateDate tabKey="fujian" />
+                                <TabUpdateDate tabKey="fujian" leftContent={renderDownloadUnpaidBtn('fujian', '小琉球二日行')} />
                                 <ErrorBanner show={fetchErrors.fujian} />
                                 
                                 <div className="grid grid-cols-2 gap-3 mb-3">
@@ -2867,7 +2847,7 @@
 
                     </main>
 
-                    {/* 參香未繳費提醒圖片預覽與下載 Modal (方便手機長按儲存或直接分享至 LINE) */}
+                    {/* 未繳費提醒圖片預覽與下載 Modal (支援所有分頁，方便手機長按儲存或直接分享至 LINE) */}
                     {showImgModal && generatedImgUrl && (
                         <div 
                             className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[90] flex items-center justify-center p-4 fade-in"
@@ -2880,7 +2860,7 @@
                                 <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
                                     <div className="font-black text-lg flex items-center gap-2">
                                         <Icons.Download className="w-5 h-5 text-amber-400" />
-                                        <span>參香未繳費提醒圖（LINE 群組專用）</span>
+                                        <span>{generatedImgTitle}未繳費提醒圖（LINE 專用）</span>
                                     </div>
                                     <button 
                                         onClick={() => setShowImgModal(false)}
@@ -2897,7 +2877,7 @@
                                 <div className="p-4 overflow-y-auto flex-1 bg-slate-100 flex justify-center">
                                     <img 
                                         src={generatedImgUrl} 
-                                        alt="參香未繳費提醒名單" 
+                                        alt={`${generatedImgTitle}未繳費提醒名單`} 
                                         className="w-full h-auto rounded-xl shadow-md border border-slate-300 object-contain"
                                     />
                                 </div>
@@ -2905,7 +2885,7 @@
                                 <div className="p-4 bg-white border-t border-slate-200 flex gap-3">
                                     <a 
                                         href={generatedImgUrl} 
-                                        download={`參香未繳費提醒名單_${(updateDates.east || '最新').replace(/[\/:\s]/g, '_')}.png`}
+                                        download={`${generatedImgTitle}未繳費提醒名單_${generatedImgDate || '最新'}.png`}
                                         className="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-black py-3 rounded-xl text-center text-lg shadow-md flex items-center justify-center gap-2"
                                     >
                                         <Icons.Download className="w-5 h-5" />
